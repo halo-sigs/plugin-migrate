@@ -1,23 +1,19 @@
 import { definePlugin, BasicLayout } from "@halo-dev/console-shared";
-import DefaultView from "./views/DefaultView.vue";
+import MigrateView from "./views/MigrateView.vue";
 import { IconGrid } from "@halo-dev/components";
-import "./styles/index.css";
 
 export default definePlugin({
   name: "PluginMigrate",
   components: [],
   routes: [
     {
-      path: "/hello-world",
+      path: "/migrate",
       component: BasicLayout,
       children: [
         {
           path: "",
-          name: "HelloWorld",
-          component: DefaultView,
-          meta: {
-            permissions: ["plugin:apples:view"],
-          },
+          name: "Migrate",
+          component: MigrateView,
         },
       ],
     },
@@ -28,13 +24,11 @@ export default definePlugin({
       items: [
         {
           name: "数据迁移",
-          path: "/hello-world",
+          path: "/migrate",
           icon: IconGrid,
         },
       ],
     },
   ],
   extensionPoints: {},
-  activated() {},
-  deactivated() {},
 });

@@ -26,14 +26,16 @@ export default defineConfig({
     rollupOptions: {
       external: [
         "vue",
+        "vue-router",
         "@halo-dev/shared",
         "@halo-dev/components",
-        "vue-router",
+        "@vueuse/core",
       ],
       output: {
         globals: {
           vue: "Vue",
           "vue-router": "VueRouter",
+          "@vueuse/core": "VueUse",
           "@halo-dev/components": "HaloComponents",
           "@halo-dev/console-shared": "HaloConsoleShared",
         },

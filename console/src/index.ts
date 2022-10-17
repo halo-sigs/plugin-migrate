@@ -4,7 +4,7 @@ import { IconGrid } from "@halo-dev/components";
 import "./styles/index.css";
 
 export default definePlugin({
-  name: "PluginStarter",
+  name: "PluginMigrate",
   components: [],
   routes: [
     {
@@ -24,10 +24,10 @@ export default definePlugin({
   ],
   menus: [
     {
-      name: "From PluginStarter",
+      name: "系统",
       items: [
         {
-          name: "HelloWorld",
+          name: "数据迁移",
           path: "/hello-world",
           icon: IconGrid,
         },

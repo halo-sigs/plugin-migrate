@@ -1,7 +1,16 @@
 <script lang="ts" setup>
-import { VButton } from "@halo-dev/components";
+import {
+  VButton,
+  VPageHeader,
+  VSpace,
+  VEmpty,
+  VCard,
+  VEntityField,
+  VEntity,
+} from "@halo-dev/components";
 import { useFileSystemAccess } from "@vueuse/core";
-import { apiClient } from "@/utils/api-client";
+import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
+import MdiFileCodeOutline from "~icons/mdi/file-code-outline";
 import type {
   Post,
   Tag,
@@ -11,24 +20,56 @@ import type {
   PostCategory,
   Comment,
   Sheet,
+  Menu,
 } from "../types/models";
-import type { AxiosResponse } from "axios";
-import { arrayToTree } from "performant-array-to-tree";
+import { ref } from "vue";
+import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
+
+const res = useFileSystemAccess({
+  dataType: "Text",
+  types: [
+    {
+      description: "json",
+      accept: {
+        "text/yaml": [".json"],
+      },
+    },
+  ],
+  excludeAcceptAllOption: true,
+});
+
+const tags = ref<Tag[]>([] as Tag[]);
+const categories = ref<Category[]>([] as Category[]);
+const posts = ref<Post[]>([] as Post[]);
+const contents = ref<Content[]>([] as Content[]);
+const postTags = ref<PostTag[]>([] as PostTag[]);
+const postCategories = ref<PostCategory[]>([] as PostCategory[]);
+const postComments = ref<Comment[]>([] as Comment[]);
+const sheets = ref<Sheet[]>([] as Sheet[]);
+const sheetComments = ref<Comment[]>([] as Comment[]);
+const menus = ref<Menu[]>([] as Menu[]);
+const loading = ref(false);
+
+const {
+  createTagRequests,
+  createCategoryRequests,
+  createPostRequests,
+  createSinglePageRequests,
+  createPostCommentRequests,
+  createSinglePageCommentRequests,
+} = useMigrateFromHalo(
+  tags,
+  categories,
+  posts,
+  contents,
+  postTags,
+  postCategories,
+  postComments,
+  sheets,
+  sheetComments
+);
 
 async function handleOpenFile() {
-  const res = useFileSystemAccess({
-    dataType: "Text",
-    types: [
-      {
-        description: "json",
-        accept: {
-          "text/yaml": [".json"],
-        },
-      },
-    ],
-    excludeAcceptAllOption: true,
-  });
-
   if (!res.isSupported) {
     alert("当前浏览器不支持选择文件");
     return;
@@ -37,324 +78,283 @@ async function handleOpenFile() {
   await res.open();
 
   if (!res.data.value) {
+    alert("所选文件不符合要求");
     return;
   }
 
   const data = JSON.parse(res.data.value);
 
-  const {
-    tags,
-    posts,
-    contents,
-    post_tags,
-    categories,
-    post_categories,
-    post_comments,
-    sheets,
-    sheet_comments,
-  } = data;
+  const { version } = data;
 
-  const tagCreateRequests = tags.map((item: Tag) => {
-    return apiClient.extension.tag.createcontentHaloRunV1alpha1Tag({
-      tag: {
-        metadata: {
-          name: item.id + "",
-        },
-        kind: "Tag",
-        apiVersion: "content.halo.run/v1alpha1",
-        spec: {
-          displayName: item.name,
-          slug: item.slug,
-          color: item.color,
-          cover: item.thumbnail,
-        },
-      },
-    });
-  });
+  if (!(version.startsWith("1.5") || version.startsWith("1.6"))) {
+    alert("暂不支持该版本的迁移");
+  }
+
+  tags.value = data.tags;
+  categories.value = data.categories;
+  posts.value = data.posts;
+  contents.value = data.contents;
+  postTags.value = data.post_tags;
+  postCategories.value = data.post_categories;
+  postComments.value = data.post_comments;
+  sheets.value = data.sheets;
+  sheetComments.value = data.sheet_comments;
+  menus.value = data.menus;
+}
+
+const handleImport = async () => {
+  const tagCreateRequests = createTagRequests();
 
   try {
     await Promise.all(tagCreateRequests);
   } catch (error) {
-    console.log("Failed to create tags", error);
+    console.error("Failed to create tags", error);
   }
 
-  const categoryCreateRequests = categories.map((item: Category) => {
-    return apiClient.extension.category.createcontentHaloRunV1alpha1Category({
-      category: {
-        metadata: {
-          name: item.id + "",
-        },
-        kind: "Category",
-        apiVersion: "content.halo.run/v1alpha1",
-        spec: {
-          displayName: item.name,
-          slug: item.slug,
-          description: item.description,
-          cover: item.thumbnail,
-          priority: item.priority,
-          children: [],
-        },
-      },
-    });
-  });
+  loading.value = true;
+
+  const categoryCreateRequests = createCategoryRequests();
 
   try {
     await Promise.all(categoryCreateRequests);
   } catch (error) {
-    console.log("Failed to create categories", error);
+    console.error("Failed to create categories", error);
   }
 
-  const postCreateRequests = posts.map((item: Post) => {
-    const content = contents.find((content: Content) => content.id === item.id);
-    const tagIds = post_tags
-      .filter((postTag: PostTag) => postTag.postId === item.id)
-      .map((postTag: PostTag) => postTag.tagId);
+  const postCreateRequests = createPostRequests();
 
-    const categoryIds = post_categories
-      .filter((postCategory: PostCategory) => postCategory.postId === item.id)
-      .map((postCategory: PostCategory) => postCategory.categoryId);
-
-    return apiClient.post.draftPost({
-      postRequest: {
-        post: {
-          spec: {
-            title: item.title,
-            slug: item.slug,
-            template: "",
-            cover: item.thumbnail,
-            deleted: item.status === "RECYCLE",
-            published: false,
-            publishTime: "",
-            pinned: item.topPriority > 0,
-            allowComment: !item.disallowComment,
-            visible: "PUBLIC",
-            version: 1,
-            priority: 0,
-            excerpt: {
-              autoGenerate: false,
-              raw: item.summary,
-            },
-            categories: categoryIds,
-            tags: tagIds,
-            htmlMetas: [],
-          },
-          apiVersion: "content.halo.run/v1alpha1",
-          kind: "Post",
-          metadata: {
-            name: item.id + "",
-          },
-        },
-        content: {
-          raw: content.content,
-          content: content.content,
-          rawType: "HTML",
-        },
-      },
-    });
-  });
-
-  await Promise.all(postCreateRequests);
-
-  const postPublishRequests = posts
-    .map((item: Post) => {
-      if (item.status !== "DRAFT" && item.status !== "RECYCLE") {
-        return apiClient.post.publishPost({
-          name: item.id + "",
-        });
-      }
-    })
-    .filter(Boolean);
-
-  await Promise.all(postPublishRequests);
-
-  const singlePageCreateRequests = sheets.map((item: Sheet) => {
-    const content = contents.find((content: Content) => content.id === item.id);
-
-    return apiClient.singlePage.draftSinglePage({
-      singlePageRequest: {
-        page: {
-          spec: {
-            title: item.title,
-            slug: item.slug,
-            template: "",
-            cover: item.thumbnail,
-            deleted: item.status === "RECYCLE",
-            published: false,
-            publishTime: "",
-            pinned: item.topPriority > 0,
-            allowComment: !item.disallowComment,
-            visible: "PUBLIC",
-            version: 1,
-            priority: 0,
-            excerpt: {
-              autoGenerate: false,
-              raw: item.summary,
-            },
-            htmlMetas: [],
-          },
-          apiVersion: "content.halo.run/v1alpha1",
-          kind: "SinglePage",
-          metadata: {
-            name: item.id + "",
-          },
-        },
-        content: {
-          raw: content.content,
-          content: content.content,
-          rawType: "HTML",
-        },
-      },
-    });
-  });
-
-  await Promise.all(singlePageCreateRequests);
-
-  const singlePagePublishRequests = sheets
-    .map((item: Sheet) => {
-      if (item.status !== "DRAFT" && item.status !== "RECYCLE") {
-        return apiClient.singlePage.publishSinglePage({
-          name: item.id + "",
-        });
-      }
-    })
-    .filter(Boolean);
-
-  await Promise.all(singlePagePublishRequests);
-
-  const {
-    commentCreateRequests: postCommentCreateRequests,
-    replyCreateRequests: postReplyCreateRequests,
-  } = createCommentRequests(
-    arrayToTree(post_comments, {
-      dataField: null,
-      rootParentIds: {
-        0: true,
-      },
-    }) as Comment[],
-    {
-      kind: "Post",
-      group: "content.halo.run",
-      version: "v1alpha1",
-    }
-  );
-
-  await Promise.all(postCommentCreateRequests);
-  await Promise.all(postReplyCreateRequests);
-
-  const {
-    commentCreateRequests: singlePageCommentCreateRequests,
-    replyCreateRequests: singlePageReplyCreateRequests,
-  } = createCommentRequests(
-    arrayToTree(sheet_comments, {
-      dataField: null,
-      rootParentIds: {
-        0: true,
-      },
-    }) as Comment[],
-    {
-      kind: "SinglePage",
-      group: "content.halo.run",
-      version: "v1alpha1",
-    }
-  );
-
-  await Promise.all(singlePageCommentCreateRequests);
-  await Promise.all(singlePageReplyCreateRequests);
-}
-
-function createCommentRequests(
-  commentsTree: Comment[],
-  subjectRef: { kind: string; group: string; version: string }
-) {
-  const commentCreateRequests: Promise<AxiosResponse>[] = [];
-  const replyCreateRequests: Promise<AxiosResponse>[] = [];
-
-  createCommentOrReply(commentsTree, undefined);
-
-  function createCommentOrReply(comments: Comment[], commentName?: number) {
-    comments.forEach((comment: Comment) => {
-      if (comment.parentId === 0) {
-        commentName = comment.id;
-        commentCreateRequests.push(
-          apiClient.extension.comment.createcontentHaloRunV1alpha1Comment({
-            comment: {
-              kind: "Comment",
-              apiVersion: "content.halo.run/v1alpha1",
-              spec: {
-                raw: comment.content,
-                content: comment.content,
-                owner: {
-                  kind: "Email",
-                  name: comment.email,
-                  displayName: comment.author,
-                  annotations: {
-                    avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-                    website: comment.authorUrl,
-                  },
-                },
-                userAgent: comment.userAgent,
-                ipAddress: comment.ipAddress,
-                priority: 0,
-                top: false,
-                allowNotification: comment.allowNotification,
-                approved: true,
-                hidden: false,
-                subjectRef: {
-                  ...subjectRef,
-                  name: comment.postId + "",
-                },
-                lastReadTime: undefined,
-              },
-              metadata: {
-                name: comment.id + "",
-              },
-            },
-          })
-        );
-      } else {
-        replyCreateRequests.push(
-          apiClient.extension.reply.createcontentHaloRunV1alpha1Reply({
-            reply: {
-              kind: "Reply",
-              apiVersion: "content.halo.run/v1alpha1",
-              metadata: {
-                name: comment.id + "",
-              },
-              spec: {
-                raw: comment.content,
-                content: comment.content,
-                owner: {
-                  kind: "Email",
-                  name: comment.email,
-                  displayName: comment.author,
-                  annotations: {
-                    avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-                    website: comment.authorUrl,
-                  },
-                },
-                userAgent: comment.userAgent,
-                ipAddress: comment.ipAddress,
-                priority: 0,
-                top: false,
-                allowNotification: comment.allowNotification,
-                approved: true,
-                hidden: false,
-                commentName: commentName + "",
-                quoteReply: comment.parentId + "",
-              },
-            },
-          })
-        );
-      }
-
-      if (comment.children?.length) {
-        createCommentOrReply(comment.children, commentName);
-      }
-    });
+  try {
+    await Promise.all(postCreateRequests);
+  } catch (error) {
+    console.error("Failed to create posts", error);
   }
-  return { commentCreateRequests, replyCreateRequests };
-}
+
+  const singlePageCreateRequests = createSinglePageRequests();
+
+  try {
+    await Promise.all(singlePageCreateRequests);
+  } catch (error) {
+    console.error("Failed to create single pages", error);
+  }
+
+  const postCommentCreateRequests = createPostCommentRequests();
+
+  try {
+    await Promise.all(postCommentCreateRequests);
+  } catch (error) {
+    console.error("Failed to create post comments", error);
+  }
+
+  const singlePageCommentCreateRequests = createSinglePageCommentRequests();
+
+  try {
+    await Promise.all(singlePageCommentCreateRequests);
+  } catch (error) {
+    console.error("Failed to create single page comments", error);
+  }
+
+  loading.value = false;
+
+  alert("导入完成");
+};
 </script>
 <template>
-  <VButton @click="handleOpenFile">选择文件</VButton>
+  <VPageHeader title="迁移">
+    <template #icon>
+      <MdiCogTransferOutline class="mr-2 self-center" />
+    </template>
+
+    <template #actions>
+      <VSpace>
+        <VButton @click="handleOpenFile" type="secondary">
+          <template #icon>
+            <MdiFileCodeOutline class="h-full w-full" />
+          </template>
+          选择文件
+        </VButton>
+      </VSpace>
+    </template>
+  </VPageHeader>
+  <div class="p-4">
+    <VEmpty
+      v-if="!res.data.value"
+      message="请选择 Halo 1.5 / 1.6 中导出的 JSON 数据文件"
+      title="当前没有选择数据文件"
+    >
+      <template #actions>
+        <VSpace>
+          <VButton @click="handleOpenFile">选择文件</VButton>
+        </VSpace>
+      </template>
+    </VEmpty>
+    <div class="migrate-flex migrate-flex-1 migrate-flex-col" v-else>
+      <div
+        class="migrate-grid migrate-grid-cols-1 migrate-gap-3 sm:migrate-grid-cols-4"
+      >
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`标签（${tags.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(tag, index) in tags" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField
+                      :title="tag.name"
+                      :description="tag.slug"
+                    ></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`分类（${categories.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(category, index) in categories" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField
+                      :title="category.name"
+                      :description="category.slug"
+                    ></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`文章（${posts.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(post, index) in posts" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField
+                      :title="post.title"
+                      :description="post.slug"
+                    ></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`自定义页面（${sheets.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(sheet, index) in sheets" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField
+                      :title="sheet.title"
+                      :description="sheet.slug"
+                    ></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`文章评论（${postComments.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(postComment, index) in postComments" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField :title="postComment.author"></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`自定义页面评论（${sheetComments.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(sheetComment, index) in sheetComments" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField :title="sheetComment.author"></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+
+        <div class="migrate-h-96">
+          <VCard
+            :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+            class="h-full"
+            :title="`菜单（${menus.length}）`"
+          >
+            <ul
+              class="box-border h-full w-full divide-y divide-gray-100"
+              role="list"
+            >
+              <li v-for="(menu, index) in menus" :key="index">
+                <VEntity>
+                  <template #start>
+                    <VEntityField
+                      :title="menu.name"
+                      :description="menu.team"
+                    ></VEntityField>
+                  </template>
+                </VEntity>
+              </li>
+            </ul>
+          </VCard>
+        </div>
+      </div>
+      <div class="migrate-mt-8 migrate-self-center">
+        <VButton :loading="loading" type="secondary" @click="handleImport">
+          执行导入
+        </VButton>
+      </div>
+    </div>
+  </div>
 </template>

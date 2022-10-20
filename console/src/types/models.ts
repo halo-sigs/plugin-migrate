@@ -118,3 +118,16 @@ export interface Comment {
   parentId: number;
   children?: Comment[];
 }
+
+export interface Menu {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  name: string;
+  url: string;
+  priority: number;
+  target: string;
+  icon: string;
+  parentId: number;
+  team: string;
+}

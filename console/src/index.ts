@@ -1,7 +1,8 @@
 import { definePlugin } from "@halo-dev/console-shared";
 import MigrateView from "./views/MigrateView.vue";
-import { IconGrid } from "@halo-dev/components";
 import { markRaw } from "vue";
+import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
+import "./styles/tailwind.css";
 
 export default definePlugin({
   name: "PluginMigrate",
@@ -22,7 +23,7 @@ export default definePlugin({
               menu: {
                 name: "迁移",
                 group: "tool",
-                icon: markRaw(IconGrid),
+                icon: markRaw(MdiCogTransferOutline),
                 priority: 0,
               },
             },

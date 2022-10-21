@@ -7,6 +7,7 @@ import {
   VCard,
   VEntityField,
   VEntity,
+  Toast,
 } from "@halo-dev/components";
 import { useFileSystemAccess } from "@vueuse/core";
 import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
@@ -71,14 +72,14 @@ const {
 
 async function handleOpenFile() {
   if (!res.isSupported) {
-    alert("当前浏览器不支持选择文件");
+    Toast.warning("当前浏览器不支持选择文件，推荐使用 Google Chrome");
     return;
   }
 
   await res.open();
 
   if (!res.data.value) {
-    alert("所选文件不符合要求");
+    Toast.warning("所选文件不符合要求");
     return;
   }
 
@@ -87,7 +88,7 @@ async function handleOpenFile() {
   const { version } = data;
 
   if (!(version.startsWith("1.5") || version.startsWith("1.6"))) {
-    alert("暂不支持该版本的迁移");
+    Toast.warning("暂不支持该版本的迁移，仅支持 Halo 1.5 / 1.6 版本");
   }
 
   tags.value = data.tags;
@@ -155,7 +156,7 @@ const handleImport = async () => {
 
   loading.value = false;
 
-  alert("导入完成");
+  Toast.success("导入完成");
 };
 </script>
 <template>

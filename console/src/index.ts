@@ -1,40 +1,36 @@
-import { definePlugin, BasicLayout } from "@halo-dev/console-shared";
-import DefaultView from "./views/DefaultView.vue";
-import { IconGrid } from "@halo-dev/components";
-import "./styles/index.css";
+import { definePlugin } from "@halo-dev/console-shared";
+import MigrateView from "./views/MigrateView.vue";
+import { markRaw } from "vue";
+import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
+import "./styles/tailwind.css";
 
 export default definePlugin({
   name: "PluginMigrate",
   components: [],
   routes: [
     {
-      path: "/hello-world",
-      component: BasicLayout,
-      children: [
-        {
-          path: "",
-          name: "HelloWorld",
-          component: DefaultView,
-          meta: {
-            permissions: ["plugin:apples:view"],
+      parentName: "Root",
+      route: {
+        path: "/migrate",
+        children: [
+          {
+            path: "",
+            name: "Migrate",
+            component: MigrateView,
+            meta: {
+              title: "迁移",
+              searchable: true,
+              menu: {
+                name: "迁移",
+                group: "tool",
+                icon: markRaw(MdiCogTransferOutline),
+                priority: 0,
+              },
+            },
           },
-        },
-      ],
-    },
-  ],
-  menus: [
-    {
-      name: "系统",
-      items: [
-        {
-          name: "数据迁移",
-          path: "/hello-world",
-          icon: IconGrid,
-        },
-      ],
+        ],
+      },
     },
   ],
   extensionPoints: {},
-  activated() {},
-  deactivated() {},
 });

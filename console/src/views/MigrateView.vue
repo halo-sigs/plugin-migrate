@@ -58,6 +58,7 @@ const {
   createSinglePageRequests,
   createPostCommentRequests,
   createSinglePageCommentRequests,
+  createMenuRequests,
 } = useMigrateFromHalo(
   tags,
   categories,
@@ -67,7 +68,8 @@ const {
   postCategories,
   postComments,
   sheets,
-  sheetComments
+  sheetComments,
+  menus
 );
 
 async function handleOpenFile() {
@@ -152,6 +154,14 @@ const handleImport = async () => {
     await Promise.all(singlePageCommentCreateRequests);
   } catch (error) {
     console.error("Failed to create single page comments", error);
+  }
+
+  const menuCreateRequests = createMenuRequests();
+
+  try {
+    await Promise.all(menuCreateRequests);
+  } catch (error) {
+    console.error("Failed to create menus", error);
   }
 
   loading.value = false;

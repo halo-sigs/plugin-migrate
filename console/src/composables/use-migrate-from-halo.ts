@@ -1,4 +1,4 @@
-import type { Ref } from "vue";
+import { transformVNodeArgs, type Ref } from "vue";
 import { apiClient } from "@/utils/api-client";
 import { arrayToTree } from "performant-array-to-tree";
 import type {
@@ -10,8 +10,10 @@ import type {
   Sheet,
   Tag,
   Comment,
+  Menu,
 } from "../types/models";
 import type { AxiosResponse } from "axios";
+import groupBy from "lodash.groupby";
 
 interface useMigrateFromHaloReturn {
   createTagRequests: () => Promise<AxiosResponse>[];
@@ -20,6 +22,7 @@ interface useMigrateFromHaloReturn {
   createSinglePageRequests: () => Promise<AxiosResponse>[];
   createPostCommentRequests: () => Promise<AxiosResponse>[];
   createSinglePageCommentRequests: () => Promise<AxiosResponse>[];
+  createMenuRequests: () => Promise<AxiosResponse>[];
 }
 
 export function useMigrateFromHalo(
@@ -31,7 +34,8 @@ export function useMigrateFromHalo(
   postCategories: Ref<PostCategory[]>,
   postComments: Ref<Comment[]>,
   sheets: Ref<Sheet[]>,
-  sheetComments: Ref<Comment[]>
+  sheetComments: Ref<Comment[]>,
+  menus: Ref<Menu[]>
 ): useMigrateFromHaloReturn {
   function createTagRequests() {
     return tags.value.map((item: Tag) => {
@@ -317,6 +321,56 @@ export function useMigrateFromHalo(
     );
   }
 
+  function createMenuRequests() {
+    const groupedMenus = groupBy(menus.value, "team");
+
+    // create menu and menuitem request
+    const menuRequests: Promise<AxiosResponse>[] = [];
+
+    Object.keys(groupedMenus).forEach((team) => {
+      menuRequests.push(
+        apiClient.extension.menu.createv1alpha1Menu({
+          menu: {
+            kind: "Menu",
+            apiVersion: "v1alpha1",
+            metadata: {
+              name: team ? team : "default",
+            },
+            spec: {
+              displayName: team ? team : "未分组",
+              menuItems: groupedMenus[team].map((item: Menu) => {
+                return item.id;
+              }),
+            },
+          },
+        })
+      );
+    });
+
+    const menuItemRequests: Promise<AxiosResponse>[] = [];
+
+    menus.value.forEach((item: Menu) => {
+      menuItemRequests.push(
+        apiClient.extension.menuItem.createv1alpha1MenuItem({
+          menuItem: {
+            kind: "MenuItem",
+            apiVersion: "v1alpha1",
+            metadata: {
+              name: item.id + "",
+            },
+            spec: {
+              displayName: item.name,
+              href: item.url,
+              priority: item.priority,
+            },
+          },
+        })
+      );
+    });
+
+    return [...menuItemRequests, ...menuRequests];
+  }
+
   return {
     createTagRequests,
     createCategoryRequests,
@@ -324,5 +378,6 @@ export function useMigrateFromHalo(
     createSinglePageRequests,
     createPostCommentRequests,
     createSinglePageCommentRequests,
+    createMenuRequests,
   };
 }

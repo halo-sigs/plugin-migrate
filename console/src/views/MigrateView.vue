@@ -28,16 +28,6 @@ import { ref } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
 
-onBeforeRouteLeave((to, from, next) => {
-  if (loading.value) {
-    Dialog.warning({
-      title: "提示",
-      description: "数据正在导入中，请勿关闭或刷新此页面。",
-    });
-    next(false);
-  }
-});
-
 const res = useFileSystemAccess({
   dataType: "Text",
   types: [
@@ -193,6 +183,17 @@ const handleImport = async () => {
 
   window.onbeforeunload = null;
 };
+
+onBeforeRouteLeave((to, from, next) => {
+  if (loading.value) {
+    Dialog.warning({
+      title: "提示",
+      description: "数据正在导入中，请勿关闭或刷新此页面。",
+    });
+    next(false);
+  }
+  next();
+});
 </script>
 <template>
   <VPageHeader title="迁移">

@@ -130,4 +130,5 @@ export interface Menu {
   icon: string;
   parentId: number;
   team: string;
+  children?: string[];
 }

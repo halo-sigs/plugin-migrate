@@ -1,4 +1,4 @@
-import { transformVNodeArgs, type Ref } from "vue";
+import type { Ref } from "vue";
 import { apiClient } from "@/utils/api-client";
 import { arrayToTree } from "performant-array-to-tree";
 import type {
@@ -14,6 +14,7 @@ import type {
 } from "../types/models";
 import type { AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
+import type { MenuItem } from "@halo-dev/api-client/index";
 
 interface useMigrateFromHaloReturn {
   createTagRequests: () => Promise<AxiosResponse>[];
@@ -339,7 +340,7 @@ export function useMigrateFromHalo(
             spec: {
               displayName: team ? team : "未分组",
               menuItems: groupedMenus[team].map((item: Menu) => {
-                return item.id;
+                return item.id + "";
               }),
             },
           },
@@ -347,26 +348,39 @@ export function useMigrateFromHalo(
       );
     });
 
-    const menuItemRequests: Promise<AxiosResponse>[] = [];
-
-    menus.value.forEach((item: Menu) => {
-      menuItemRequests.push(
-        apiClient.extension.menuItem.createv1alpha1MenuItem({
-          menuItem: {
-            kind: "MenuItem",
-            apiVersion: "v1alpha1",
-            metadata: {
-              name: item.id + "",
-            },
-            spec: {
-              displayName: item.name,
-              href: item.url,
-              priority: item.priority,
-            },
+    const menusToCreate: MenuItem[] = menus.value
+      .reduce<Menu[]>((acc, val, _, array) => {
+        const children: string[] = [];
+        array.forEach((el) => {
+          if (children.includes(el.parentId + "") || el.parentId === val.id) {
+            children.push(el.id + "");
+          }
+        });
+        return acc.concat({ ...val, children });
+      }, [])
+      .map((menu) => {
+        return {
+          kind: "MenuItem",
+          apiVersion: "v1alpha1",
+          metadata: {
+            name: menu.id + "",
           },
-        })
-      );
-    });
+          spec: {
+            displayName: menu.name,
+            href: menu.url,
+            priority: menu.priority,
+            children: menu.children,
+          },
+        };
+      });
+
+    const menuItemRequests: Promise<AxiosResponse>[] = menusToCreate.map(
+      (menuItem) => {
+        return apiClient.extension.menuItem.createv1alpha1MenuItem({
+          menuItem: menuItem,
+        });
+      }
+    );
 
     return [...menuItemRequests, ...menuRequests];
   }

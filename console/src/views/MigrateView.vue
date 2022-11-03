@@ -8,6 +8,7 @@ import {
   VEntityField,
   VEntity,
   Toast,
+  Dialog,
 } from "@halo-dev/components";
 import { useFileSystemAccess } from "@vueuse/core";
 import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
@@ -25,6 +26,17 @@ import type {
 } from "../types/models";
 import { ref } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
+import { onBeforeRouteLeave } from "vue-router";
+
+onBeforeRouteLeave((to, from, next) => {
+  if (loading.value) {
+    Dialog.warning({
+      title: "提示",
+      description: "数据正在导入中，请勿关闭或刷新此页面。",
+    });
+    next(false);
+  }
+});
 
 const res = useFileSystemAccess({
   dataType: "Text",
@@ -106,6 +118,17 @@ async function handleOpenFile() {
 }
 
 const handleImport = async () => {
+  window.onbeforeunload = function (e) {
+    const message = "数据正在导入中，请勿关闭或刷新此页面。";
+    e = e || window.event;
+    if (e) {
+      e.returnValue = message;
+    }
+    return message;
+  };
+
+  loading.value = true;
+
   const tagCreateRequests = createTagRequests();
 
   try {
@@ -113,8 +136,6 @@ const handleImport = async () => {
   } catch (error) {
     console.error("Failed to create tags", error);
   }
-
-  loading.value = true;
 
   const categoryCreateRequests = createCategoryRequests();
 
@@ -166,7 +187,11 @@ const handleImport = async () => {
 
   loading.value = false;
 
-  Toast.success("导入完成");
+  Dialog.success({
+    title: "导入完成",
+  });
+
+  window.onbeforeunload = null;
 };
 </script>
 <template>

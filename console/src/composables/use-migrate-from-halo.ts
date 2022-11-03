@@ -59,142 +59,134 @@ export function useMigrateFromHalo(
   }
 
   function createCategoryRequests() {
-    return categories.value.map((item: Category) => {
-      return apiClient.extension.category.createcontentHaloRunV1alpha1Category({
-        category: {
-          metadata: {
-            name: item.id + "",
+    return categories.value
+      .reduce<Category[]>((acc, val, _, array) => {
+        const children: string[] = [];
+        array.forEach((el) => {
+          if (children.includes(el.parentId + "") || el.parentId === val.id) {
+            children.push(el.id + "");
+          }
+        });
+        return acc.concat({ ...val, children });
+      }, [])
+      .map((item: Category) => {
+        return apiClient.extension.category.createcontentHaloRunV1alpha1Category(
+          {
+            category: {
+              metadata: {
+                name: item.id + "",
+              },
+              kind: "Category",
+              apiVersion: "content.halo.run/v1alpha1",
+              spec: {
+                displayName: item.name,
+                slug: item.slug,
+                description: item.description,
+                cover: item.thumbnail,
+                priority: item.priority,
+                children: item.children || [],
+              },
+            },
+          }
+        );
+      });
+  }
+
+  function createPostRequests() {
+    return posts.value.map((item: Post) => {
+      const content = contents.value.find(
+        (content: Content) => content.id === item.id
+      );
+      const tagIds = postTags.value
+        .filter((postTag: PostTag) => postTag.postId === item.id)
+        .map((postTag: PostTag) => postTag.tagId + "");
+
+      const categoryIds = postCategories.value
+        .filter((postCategory: PostCategory) => postCategory.postId === item.id)
+        .map((postCategory: PostCategory) => postCategory.categoryId + "");
+
+      return apiClient.post.draftPost({
+        postRequest: {
+          post: {
+            spec: {
+              title: item.title,
+              slug: item.slug,
+              template: "",
+              cover: item.thumbnail,
+              deleted: item.status === "RECYCLE",
+              published: item.status === "PUBLISHED",
+              publishTime: new Date(item.createTime).toISOString(),
+              pinned: item.topPriority > 0,
+              allowComment: !item.disallowComment,
+              visible: "PUBLIC",
+              version: 1,
+              priority: 0,
+              excerpt: {
+                autoGenerate: false,
+                raw: item.summary,
+              },
+              categories: categoryIds,
+              tags: tagIds,
+              htmlMetas: [],
+            },
+            apiVersion: "content.halo.run/v1alpha1",
+            kind: "Post",
+            metadata: {
+              name: item.id + "",
+            },
           },
-          kind: "Category",
-          apiVersion: "content.halo.run/v1alpha1",
-          spec: {
-            displayName: item.name,
-            slug: item.slug,
-            description: item.description,
-            cover: item.thumbnail,
-            priority: item.priority,
-            children: [],
+          content: {
+            raw: content?.content,
+            content: content?.content,
+            rawType: "HTML",
           },
         },
       });
     });
   }
 
-  function createPostRequests() {
-    return [
-      ...posts.value.map((item: Post) => {
-        const content = contents.value.find(
-          (content: Content) => content.id === item.id
-        );
-        const tagIds = postTags.value
-          .filter((postTag: PostTag) => postTag.postId === item.id)
-          .map((postTag: PostTag) => postTag.tagId + "");
-
-        const categoryIds = postCategories.value
-          .filter(
-            (postCategory: PostCategory) => postCategory.postId === item.id
-          )
-          .map((postCategory: PostCategory) => postCategory.categoryId + "");
-
-        return apiClient.post.draftPost({
-          postRequest: {
-            post: {
-              spec: {
-                title: item.title,
-                slug: item.slug,
-                template: "",
-                cover: item.thumbnail,
-                deleted: item.status === "RECYCLE",
-                published: false,
-                publishTime: new Date(item.createTime).toISOString(),
-                pinned: item.topPriority > 0,
-                allowComment: !item.disallowComment,
-                visible: "PUBLIC",
-                version: 1,
-                priority: 0,
-                excerpt: {
-                  autoGenerate: false,
-                  raw: item.summary,
-                },
-                categories: categoryIds,
-                tags: tagIds,
-                htmlMetas: [],
-              },
-              apiVersion: "content.halo.run/v1alpha1",
-              kind: "Post",
-              metadata: {
-                name: item.id + "",
-              },
-            },
-            content: {
-              raw: content?.content,
-              content: content?.content,
-              rawType: "HTML",
-            },
-          },
-        });
-      }),
-      ...posts.value
-        .filter((post) => post.status === "PUBLISHED")
-        .map((item: Post) => {
-          return apiClient.post.publishPost({
-            name: item.id + "",
-          });
-        }),
-    ];
-  }
-
   function createSinglePageRequests() {
-    return [
-      ...sheets.value.map((item: Sheet) => {
-        const content = contents.value.find(
-          (content: Content) => content.id === item.id
-        );
+    return sheets.value.map((item: Sheet) => {
+      const content = contents.value.find(
+        (content: Content) => content.id === item.id
+      );
 
-        return apiClient.singlePage.draftSinglePage({
-          singlePageRequest: {
-            page: {
-              spec: {
-                title: item.title,
-                slug: item.slug,
-                template: "",
-                cover: item.thumbnail,
-                deleted: item.status === "RECYCLE",
-                published: false,
-                publishTime: new Date(item.createTime).toISOString(),
-                pinned: item.topPriority > 0,
-                allowComment: !item.disallowComment,
-                visible: "PUBLIC",
-                version: 1,
-                priority: 0,
-                excerpt: {
-                  autoGenerate: false,
-                  raw: item.summary,
-                },
-                htmlMetas: [],
+      return apiClient.singlePage.draftSinglePage({
+        singlePageRequest: {
+          page: {
+            spec: {
+              title: item.title,
+              slug: item.slug,
+              template: "",
+              cover: item.thumbnail,
+              deleted: item.status === "RECYCLE",
+              published: item.status === "PUBLISHED",
+              publishTime: new Date(item.createTime).toISOString(),
+              pinned: item.topPriority > 0,
+              allowComment: !item.disallowComment,
+              visible: "PUBLIC",
+              version: 1,
+              priority: 0,
+              excerpt: {
+                autoGenerate: false,
+                raw: item.summary,
               },
-              apiVersion: "content.halo.run/v1alpha1",
-              kind: "SinglePage",
-              metadata: {
-                name: item.id + "",
-              },
+              htmlMetas: [],
             },
-            content: {
-              raw: content?.content,
-              content: content?.content,
-              rawType: "HTML",
+            apiVersion: "content.halo.run/v1alpha1",
+            kind: "SinglePage",
+            metadata: {
+              name: item.id + "",
             },
           },
-        });
-      }),
-      ...sheets.value
-        .filter((sheet) => sheet.status === "PUBLISHED")
-        .map((item: Sheet) => {
-          return apiClient.singlePage.publishSinglePage({
-            name: item.id + "",
-          });
-        }),
-    ];
+          content: {
+            raw: content?.content,
+            content: content?.content,
+            rawType: "HTML",
+          },
+        },
+      });
+    });
   }
 
   function createCommentRequests(
@@ -369,7 +361,7 @@ export function useMigrateFromHalo(
             displayName: menu.name,
             href: menu.url,
             priority: menu.priority,
-            children: menu.children,
+            children: menu.children || [],
           },
         };
       });

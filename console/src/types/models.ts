@@ -28,7 +28,7 @@ export interface Sheet {
   updateTime: number;
   id: number;
   title: string;
-  status: string;
+  status: "PUBLISHED" | "DRAFT" | "RECYCLE";
   url: string;
   slug: string;
   editorType: string;
@@ -70,6 +70,7 @@ export interface Category {
   parentId: number;
   priority: number;
   password?: string;
+  children?: string[];
 }
 
 export interface Content {

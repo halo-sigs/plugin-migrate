@@ -21,6 +21,7 @@ import {
   V1alpha1MenuItemApi,
   V1alpha1SettingApi,
   V1alpha1UserApi,
+  MetricsHaloRunV1alpha1CounterApi,
 } from "@halo-dev/api-client";
 import type { AxiosInstance } from "axios";
 import axios from "axios";
@@ -82,6 +83,7 @@ function setupApiClient(axios: AxiosInstance) {
           axios
         ),
       },
+      counter: new MetricsHaloRunV1alpha1CounterApi(undefined, baseURL, axios),
     },
     // custom endpoints
     user: new ApiConsoleHaloRunV1alpha1UserApi(undefined, baseURL, axios),

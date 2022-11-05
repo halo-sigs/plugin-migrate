@@ -7,7 +7,7 @@ spec:
   version: 1.0.0-alpha.1
   requires: "*"
   author: halo-dev
-  logo: https://halo.run/logo
+  logo: logo.png
   homepage: https://github.com/halo-sigs/plugin-migrate
   displayName: "站点迁移"
   description: "支持从 Halo 1.5/1.6 迁移数据"

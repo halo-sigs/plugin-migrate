@@ -4,7 +4,7 @@ metadata:
   name: PluginMigrate
 spec:
   enabled: true
-  version: 1.0.0-alpha.1
+  version: 1.0.0-alpha.4
   requires: "*"
   author: halo-dev
   logo: logo.png

@@ -80,6 +80,14 @@ async function handleOpenFile() {
     return;
   }
 
+  const { protocol, hostname } = location;
+
+  // https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API
+  if (!["localhost", "127.0.0.1"].includes(hostname) && protocol === "http:") {
+    Toast.warning("当前无法选择文件，站点必须使用 HTTPS 协议");
+    return;
+  }
+
   await res.open();
 
   if (!res.data.value) {

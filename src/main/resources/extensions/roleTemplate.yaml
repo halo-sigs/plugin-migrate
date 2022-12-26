@@ -1,0 +1,16 @@
+apiVersion: v1alpha1
+kind: "Role"
+metadata:
+  name: role-template-migration
+  labels:
+    halo.run/role-template: "true"
+  annotations:
+    rbac.authorization.halo.run/module: "Migration"
+    rbac.authorization.halo.run/display-name: "Migration"
+    rbac.authorization.halo.run/ui-permissions: |
+      ["plugin:PluginMigrate:migrate"]
+rules:
+  - apiGroups: [ "plugin.halo.run" ]
+    resources: [ "plugins/import" ]
+    resourceNames: [ "PluginMigrate" ]
+    verbs: [ "create" ]

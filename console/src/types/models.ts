@@ -133,3 +133,12 @@ export interface Menu {
   team: string;
   children?: string[];
 }
+
+export interface Meta {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  postId: number;
+  key: string;
+  value: string;
+}

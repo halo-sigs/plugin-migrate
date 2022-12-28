@@ -11,6 +11,7 @@ import type {
   Tag,
   Comment,
   Menu,
+  Meta,
 } from "../types/models";
 import type { AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
@@ -34,8 +35,10 @@ export function useMigrateFromHalo(
   postTags: Ref<PostTag[]>,
   postCategories: Ref<PostCategory[]>,
   postComments: Ref<Comment[]>,
+  postMetas: Ref<Meta[]>,
   sheets: Ref<Sheet[]>,
   sheetComments: Ref<Comment[]>,
+  sheetMetas: Ref<Meta[]>,
   menus: Ref<Menu[]>
 ): useMigrateFromHaloReturn {
   function createTagRequests() {
@@ -108,6 +111,13 @@ export function useMigrateFromHalo(
           )
           .map((postCategory: PostCategory) => postCategory.categoryId + "");
 
+        const metas = postMetas.value
+          .filter((meta: Meta) => meta.postId === item.id)
+          .reduce<Record<string, string>>((acc, val) => {
+            acc[val.key] = val.value;
+            return acc;
+          }, {});
+
         return apiClient.post.draftPost({
           postRequest: {
             post: {
@@ -136,6 +146,7 @@ export function useMigrateFromHalo(
               kind: "Post",
               metadata: {
                 name: item.id + "",
+                annotations: metas,
               },
             },
             content: {
@@ -172,6 +183,13 @@ export function useMigrateFromHalo(
           (content: Content) => content.id === item.id
         );
 
+        const metas = sheetMetas.value
+          .filter((meta: Meta) => meta.postId === item.id)
+          .reduce<Record<string, string>>((acc, val) => {
+            acc[val.key] = val.value;
+            return acc;
+          }, {});
+
         return apiClient.singlePage.draftSinglePage({
           singlePageRequest: {
             page: {
@@ -198,6 +216,7 @@ export function useMigrateFromHalo(
               kind: "SinglePage",
               metadata: {
                 name: item.id + "",
+                annotations: metas,
               },
             },
             content: {

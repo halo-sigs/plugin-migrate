@@ -23,6 +23,7 @@ import type {
   Comment,
   Sheet,
   Menu,
+  Meta,
 } from "../types/models";
 import { ref } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
@@ -48,8 +49,10 @@ const contents = ref<Content[]>([] as Content[]);
 const postTags = ref<PostTag[]>([] as PostTag[]);
 const postCategories = ref<PostCategory[]>([] as PostCategory[]);
 const postComments = ref<Comment[]>([] as Comment[]);
+const postMetas = ref<Meta[]>([] as Meta[]);
 const sheets = ref<Sheet[]>([] as Sheet[]);
 const sheetComments = ref<Comment[]>([] as Comment[]);
+const sheetMetas = ref<Meta[]>([] as Meta[]);
 const menus = ref<Menu[]>([] as Menu[]);
 const loading = ref(false);
 
@@ -69,8 +72,10 @@ const {
   postTags,
   postCategories,
   postComments,
+  postMetas,
   sheets,
   sheetComments,
+  sheetMetas,
   menus
 );
 
@@ -110,8 +115,10 @@ async function handleOpenFile() {
   postTags.value = data.post_tags;
   postCategories.value = data.post_categories;
   postComments.value = data.post_comments;
+  postMetas.value = data.post_metas;
   sheets.value = data.sheets;
   sheetComments.value = data.sheet_comments;
+  sheetMetas.value = data.sheet_metas;
   menus.value = data.menus;
 }
 

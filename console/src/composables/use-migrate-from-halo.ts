@@ -150,9 +150,9 @@ export function useMigrateFromHalo(
               },
             },
             content: {
-              raw: content?.content,
+              raw: content?.originalContent,
               content: content?.content,
-              rawType: "HTML",
+              rawType: "markdown",
             },
           },
         });
@@ -220,9 +220,9 @@ export function useMigrateFromHalo(
               },
             },
             content: {
-              raw: content?.content,
+              raw: content?.originalContent,
               content: content?.content,
-              rawType: "HTML",
+              rawType: "markdown",
             },
           },
         });

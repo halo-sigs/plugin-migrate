@@ -28,8 +28,11 @@ import type {
 } from "../types/models";
 import { ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
+import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
-import axios from "axios";
+import axios, { type AxiosResponse } from "axios";
+import * as fastq from "fastq";
+import type { queueAsPromised } from "fastq";
 
 const { files, open, reset } = useFileDialog({
   multiple: false,
@@ -52,13 +55,13 @@ const loading = ref(false);
 const fetching = ref(false);
 
 const {
-  createTagRequests,
-  createCategoryRequests,
-  createPostRequests,
-  createSinglePageRequests,
-  createPostCommentRequests,
-  createSinglePageCommentRequests,
-  createMenuRequests,
+  createTagTasks,
+  createCategoryTasks,
+  createPostTasks,
+  createSinglePageTasks,
+  createPostCommentTasks,
+  createSinglePageCommentTasks,
+  createMenuTasks,
 } = useMigrateFromHalo(
   tags,
   categories,
@@ -140,69 +143,52 @@ const handleImport = async () => {
 
   loading.value = true;
 
-  const tagCreateRequests = createTagRequests();
+  const taskQueue: queueAsPromised<MigrateRequestTask<any>> = fastq.promise(
+    asyncWorker,
+    7
+  );
 
-  try {
-    await Promise.all(tagCreateRequests);
-  } catch (error) {
-    console.error("Failed to create tags", error);
-  }
-
-  const categoryCreateRequests = createCategoryRequests();
-
-  try {
-    await Promise.all(categoryCreateRequests);
-  } catch (error) {
-    console.error("Failed to create categories", error);
-  }
-
-  const postCreateRequests = createPostRequests();
-
-  try {
-    await Promise.all(postCreateRequests);
-  } catch (error) {
-    console.error("Failed to create posts", error);
-  }
-
-  const singlePageCreateRequests = createSinglePageRequests();
-
-  try {
-    await Promise.all(singlePageCreateRequests);
-  } catch (error) {
-    console.error("Failed to create single pages", error);
-  }
-
-  const postCommentCreateRequests = createPostCommentRequests();
-
-  try {
-    await Promise.all(postCommentCreateRequests);
-  } catch (error) {
-    console.error("Failed to create post comments", error);
-  }
-
-  const singlePageCommentCreateRequests = createSinglePageCommentRequests();
-
-  try {
-    await Promise.all(singlePageCommentCreateRequests);
-  } catch (error) {
-    console.error("Failed to create single page comments", error);
-  }
-
-  const menuCreateRequests = createMenuRequests();
-
-  try {
-    await Promise.all(menuCreateRequests);
-  } catch (error) {
-    console.error("Failed to create menus", error);
-  }
-
-  loading.value = false;
-
-  Dialog.success({
-    title: "导入完成",
+  createTagTasks().forEach((item) => {
+    taskQueue.push(item);
   });
 
-  window.onbeforeunload = null;
+  createCategoryTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createPostTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createSinglePageTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createPostCommentTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createSinglePageCommentTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createMenuTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  async function asyncWorker(arg: MigrateRequestTask<any>): Promise<AxiosResponse<any, any>> {
+    return arg.run();
+  }
+
+  taskQueue.drained().then(() => {
+    loading.value = false;
+
+    Dialog.success({
+      title: "导入完成",
+    });
+
+    window.onbeforeunload = null;
+  });
 };
 
 onBeforeRouteLeave((to, from, next) => {

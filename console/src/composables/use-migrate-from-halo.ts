@@ -17,14 +17,359 @@ import type { AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
 import type { MenuItem } from "@halo-dev/api-client/index";
 
+export interface MigrateRequestTask<T> {
+  item: T;
+  run: () => Promise<AxiosResponse<any, any>>;
+}
+
 interface useMigrateFromHaloReturn {
-  createTagRequests: () => Promise<AxiosResponse>[];
-  createCategoryRequests: () => Promise<AxiosResponse>[];
-  createPostRequests: () => Promise<AxiosResponse>[];
-  createSinglePageRequests: () => Promise<AxiosResponse>[];
-  createPostCommentRequests: () => Promise<AxiosResponse>[];
-  createSinglePageCommentRequests: () => Promise<AxiosResponse>[];
-  createMenuRequests: () => Promise<AxiosResponse>[];
+  createTagTasks: () => MigrateRequestTask<Tag>[];
+  createCategoryTasks: () => MigrateRequestTask<Category>[];
+  createPostTasks: () => MigrateRequestTask<Post>[];
+  createSinglePageTasks: () => MigrateRequestTask<Sheet>[];
+  createPostCommentTasks: () => MigrateRequestTask<Comment>[];
+  createSinglePageCommentTasks: () => MigrateRequestTask<Comment>[];
+  createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
+}
+
+class TagTask implements MigrateRequestTask<Tag> {
+  item: Tag;
+  constructor(item: Tag) {
+    this.item = item;
+  }
+
+  run() {
+    return apiClient.extension.tag.createcontentHaloRunV1alpha1Tag({
+      tag: {
+        metadata: {
+          name: this.item.id + "",
+        },
+        kind: "Tag",
+        apiVersion: "content.halo.run/v1alpha1",
+        spec: {
+          displayName: this.item.name,
+          slug: this.item.slug,
+          color: this.item.color,
+          cover: this.item.thumbnail,
+        },
+      },
+    });
+  }
+}
+
+class CategoryTask implements MigrateRequestTask<Category> {
+  item: Category;
+  constructor(item: Category) {
+    this.item = item;
+  }
+
+  run() {
+    return apiClient.extension.category.createcontentHaloRunV1alpha1Category({
+      category: {
+        metadata: {
+          name: this.item.id + "",
+        },
+        kind: "Category",
+        apiVersion: "content.halo.run/v1alpha1",
+        spec: {
+          displayName: this.item.name,
+          slug: this.item.slug,
+          description: this.item.description,
+          cover: this.item.thumbnail,
+          priority: this.item.priority,
+          children: this.item.children || [],
+        },
+      },
+    });
+  }
+}
+
+class PostTask implements MigrateRequestTask<Post> {
+  item: Post;
+  content: Content | undefined;
+  tagIds: string[];
+  categoryIds: string[];
+  metas: Record<string, string>;
+  constructor(
+    item: Post,
+    content: Content | undefined,
+    tagIds: string[],
+    categoryIds: string[],
+    metas: Record<string, string>
+  ) {
+    this.item = item;
+    this.content = content;
+    this.tagIds = tagIds;
+    this.categoryIds = categoryIds;
+    this.metas = metas;
+  }
+
+  async run() {
+    await apiClient.post.draftPost({
+      postRequest: {
+        post: {
+          spec: {
+            title: this.item.title,
+            slug: this.item.slug,
+            template: "",
+            cover: this.item.thumbnail,
+            deleted: this.item.status === "RECYCLE",
+            publish: this.item.status === "PUBLISHED",
+            publishTime: new Date(this.item.createTime).toISOString(),
+            pinned: this.item.topPriority > 0,
+            allowComment: !this.item.disallowComment,
+            visible: "PUBLIC",
+            version: 1,
+            priority: 0,
+            excerpt: {
+              autoGenerate: false,
+              raw: this.item.summary,
+            },
+            categories: this.categoryIds,
+            tags: this.tagIds,
+            htmlMetas: [],
+          },
+          apiVersion: "content.halo.run/v1alpha1",
+          kind: "Post",
+          metadata: {
+            name: this.item.id + "",
+            annotations: this.metas,
+          },
+        },
+        content: {
+          raw: this.content?.originalContent,
+          content: this.content?.content,
+          rawType: "markdown",
+        },
+      },
+    });
+    return apiClient.extension.counter.createmetricsHaloRunV1alpha1Counter({
+      counter: {
+        visit: this.item.visits,
+        upvote: this.item.likes,
+        downvote: 0,
+        totalComment: 0,
+        approvedComment: 0,
+        apiVersion: "metrics.halo.run/v1alpha1",
+        kind: "Counter",
+        metadata: {
+          name: `posts.content.halo.run/${this.item.id}`,
+        },
+      },
+    });
+  }
+}
+
+class SinglePageTask implements MigrateRequestTask<Sheet> {
+  item: Sheet;
+  content: Content | undefined;
+  metas: Record<string, string>;
+  constructor(
+    item: Sheet,
+    content: Content | undefined,
+    metas: Record<string, string>
+  ) {
+    this.item = item;
+    this.content = content;
+    this.metas = metas;
+  }
+
+  async run() {
+    await apiClient.singlePage.draftSinglePage({
+      singlePageRequest: {
+        page: {
+          spec: {
+            title: this.item.title,
+            slug: this.item.slug,
+            template: "",
+            cover: this.item.thumbnail,
+            deleted: this.item.status === "RECYCLE",
+            publish: this.item.status === "PUBLISHED",
+            publishTime: new Date(this.item.createTime).toISOString(),
+            pinned: this.item.topPriority > 0,
+            allowComment: !this.item.disallowComment,
+            visible: "PUBLIC",
+            version: 1,
+            priority: 0,
+            excerpt: {
+              autoGenerate: false,
+              raw: this.item.summary,
+            },
+            htmlMetas: [],
+          },
+          apiVersion: "content.halo.run/v1alpha1",
+          kind: "SinglePage",
+          metadata: {
+            name: this.item.id + "",
+            annotations: this.metas,
+          },
+        },
+        content: {
+          raw: this.content?.originalContent,
+          content: this.content?.content,
+          rawType: "markdown",
+        },
+      },
+    });
+    return apiClient.extension.counter.createmetricsHaloRunV1alpha1Counter({
+      counter: {
+        visit: this.item.visits,
+        upvote: this.item.likes,
+        downvote: 0,
+        totalComment: 0,
+        approvedComment: 0,
+        apiVersion: "metrics.halo.run/v1alpha1",
+        kind: "Counter",
+        metadata: {
+          name: `singlepages.content.halo.run/${this.item.id}`,
+        },
+      },
+    });
+  }
+}
+
+interface CommentTask extends MigrateRequestTask<Comment> {
+  item: Comment;
+
+  run: () => Promise<AxiosResponse<any, any>>;
+}
+
+class CreateCommentTask implements CommentTask {
+  item: Comment;
+  subjectRef: { kind: string; group: string; version: string };
+  constructor(
+    item: Comment,
+    subjectRef: {
+      kind: string;
+      group: string;
+      version: string;
+    }
+  ) {
+    this.item = item;
+    this.subjectRef = subjectRef;
+  }
+
+  run() {
+    return apiClient.extension.comment.createcontentHaloRunV1alpha1Comment({
+      comment: {
+        kind: "Comment",
+        apiVersion: "content.halo.run/v1alpha1",
+        spec: {
+          raw: this.item.content,
+          content: this.item.content,
+          owner: {
+            kind: "Email",
+            name: this.item.email,
+            displayName: this.item.author,
+            annotations: {
+              avatar: `https://www.gravatar.com/avatar/${this.item.gravatarMd5}?s=64&d=identicon&r=PG`,
+              website: this.item.authorUrl,
+            },
+          },
+          userAgent: this.item.userAgent,
+          ipAddress: this.item.ipAddress,
+          priority: 0,
+          top: false,
+          allowNotification: this.item.allowNotification,
+          approved: this.item.status === "PUBLISHED",
+          approvedTime: new Date(this.item.createTime).toISOString(),
+          hidden: false,
+          subjectRef: {
+            ...this.subjectRef,
+            name: this.item.postId + "",
+          },
+          lastReadTime: undefined,
+        },
+        metadata: {
+          name: this.item.id + "",
+        },
+      },
+    });
+  }
+}
+
+class replyCreateComment implements CommentTask {
+  item: Comment;
+  commentName: number | undefined;
+  constructor(item: Comment, commentName: number | undefined) {
+    this.item = item;
+    this.commentName = commentName;
+  }
+
+  run() {
+    return apiClient.extension.reply.createcontentHaloRunV1alpha1Reply({
+      reply: {
+        kind: "Reply",
+        apiVersion: "content.halo.run/v1alpha1",
+        metadata: {
+          name: this.item.id + "",
+        },
+        spec: {
+          raw: this.item.content,
+          content: this.item.content,
+          owner: {
+            kind: "Email",
+            name: this.item.email,
+            displayName: this.item.author,
+            annotations: {
+              avatar: `https://www.gravatar.com/avatar/${this.item.gravatarMd5}?s=64&d=identicon&r=PG`,
+              website: this.item.authorUrl,
+            },
+          },
+          userAgent: this.item.userAgent,
+          ipAddress: this.item.ipAddress,
+          priority: 0,
+          top: false,
+          allowNotification: this.item.allowNotification,
+          approved: this.item.status === "PUBLISHED",
+          approvedTime: new Date(this.item.createTime).toISOString(),
+          hidden: false,
+          commentName: this.commentName + "",
+          quoteReply: this.item.parentId + "",
+        },
+      },
+    });
+  }
+}
+
+class MenuTask implements MigrateRequestTask<string> {
+  item: string;
+  menuItem: Menu[];
+  constructor(item: string, menuItem: Menu[]) {
+    this.item = item;
+    this.menuItem = menuItem;
+  }
+
+  run() {
+    return apiClient.extension.menu.createv1alpha1Menu({
+      menu: {
+        kind: "Menu",
+        apiVersion: "v1alpha1",
+        metadata: {
+          name: this.item ? this.item : "default",
+        },
+        spec: {
+          displayName: this.item ? this.item : "未分组",
+          menuItems: this.menuItem.map((item: Menu) => {
+            return item.id + "";
+          }),
+        },
+      },
+    });
+  }
+}
+
+class MenuItemTask implements MigrateRequestTask<MenuItem> {
+  item: MenuItem;
+  constructor(item: MenuItem) {
+    this.item = item;
+  }
+
+  run() {
+    return apiClient.extension.menuItem.createv1alpha1MenuItem({
+      menuItem: this.item,
+    });
+  }
 }
 
 export function useMigrateFromHalo(
@@ -41,27 +386,13 @@ export function useMigrateFromHalo(
   sheetMetas: Ref<Meta[]>,
   menus: Ref<Menu[]>
 ): useMigrateFromHaloReturn {
-  function createTagRequests() {
+  function createTagTasks() {
     return tags.value.map((item: Tag) => {
-      return apiClient.extension.tag.createcontentHaloRunV1alpha1Tag({
-        tag: {
-          metadata: {
-            name: item.id + "",
-          },
-          kind: "Tag",
-          apiVersion: "content.halo.run/v1alpha1",
-          spec: {
-            displayName: item.name,
-            slug: item.slug,
-            color: item.color,
-            cover: item.thumbnail,
-          },
-        },
-      });
+      return new TagTask(item);
     });
   }
 
-  function createCategoryRequests() {
+  function createCategoryTasks() {
     return categories.value
       .reduce<Category[]>((acc, val, _, array) => {
         const children: string[] = [];
@@ -73,185 +404,57 @@ export function useMigrateFromHalo(
         return acc.concat({ ...val, children });
       }, [])
       .map((item: Category) => {
-        return apiClient.extension.category.createcontentHaloRunV1alpha1Category(
-          {
-            category: {
-              metadata: {
-                name: item.id + "",
-              },
-              kind: "Category",
-              apiVersion: "content.halo.run/v1alpha1",
-              spec: {
-                displayName: item.name,
-                slug: item.slug,
-                description: item.description,
-                cover: item.thumbnail,
-                priority: item.priority,
-                children: item.children || [],
-              },
-            },
-          }
-        );
+        return new CategoryTask(item);
       });
   }
 
-  function createPostRequests() {
-    return [
-      ...posts.value.map((item: Post) => {
-        const content = contents.value.find(
-          (content: Content) => content.id === item.id
-        );
-        const tagIds = postTags.value
-          .filter((postTag: PostTag) => postTag.postId === item.id)
-          .map((postTag: PostTag) => postTag.tagId + "");
+  function createPostTasks() {
+    return posts.value.map((item: Post) => {
+      const content = contents.value.find(
+        (content: Content) => content.id === item.id
+      );
+      const tagIds = postTags.value
+        .filter((postTag: PostTag) => postTag.postId === item.id)
+        .map((postTag: PostTag) => postTag.tagId + "");
 
-        const categoryIds = postCategories.value
-          .filter(
-            (postCategory: PostCategory) => postCategory.postId === item.id
-          )
-          .map((postCategory: PostCategory) => postCategory.categoryId + "");
+      const categoryIds = postCategories.value
+        .filter((postCategory: PostCategory) => postCategory.postId === item.id)
+        .map((postCategory: PostCategory) => postCategory.categoryId + "");
 
-        const metas = postMetas.value
-          .filter((meta: Meta) => meta.postId === item.id)
-          .reduce<Record<string, string>>((acc, val) => {
-            acc[val.key] = val.value;
-            return acc;
-          }, {});
+      const metas = postMetas.value
+        .filter((meta: Meta) => meta.postId === item.id)
+        .reduce<Record<string, string>>((acc, val) => {
+          acc[val.key] = val.value;
+          return acc;
+        }, {});
 
-        return apiClient.post.draftPost({
-          postRequest: {
-            post: {
-              spec: {
-                title: item.title,
-                slug: item.slug,
-                template: "",
-                cover: item.thumbnail,
-                deleted: item.status === "RECYCLE",
-                publish: item.status === "PUBLISHED",
-                publishTime: new Date(item.createTime).toISOString(),
-                pinned: item.topPriority > 0,
-                allowComment: !item.disallowComment,
-                visible: "PUBLIC",
-                version: 1,
-                priority: 0,
-                excerpt: {
-                  autoGenerate: false,
-                  raw: item.summary,
-                },
-                categories: categoryIds,
-                tags: tagIds,
-                htmlMetas: [],
-              },
-              apiVersion: "content.halo.run/v1alpha1",
-              kind: "Post",
-              metadata: {
-                name: item.id + "",
-                annotations: metas,
-              },
-            },
-            content: {
-              raw: content?.originalContent,
-              content: content?.content,
-              rawType: "markdown",
-            },
-          },
-        });
-      }),
-      ...posts.value.map((post) => {
-        return apiClient.extension.counter.createmetricsHaloRunV1alpha1Counter({
-          counter: {
-            visit: post.visits,
-            upvote: post.likes,
-            downvote: 0,
-            totalComment: 0,
-            approvedComment: 0,
-            apiVersion: "metrics.halo.run/v1alpha1",
-            kind: "Counter",
-            metadata: {
-              name: `posts.content.halo.run/${post.id}`,
-            },
-          },
-        });
-      }),
-    ];
+      return new PostTask(item, content, tagIds, categoryIds, metas);
+    });
   }
 
-  function createSinglePageRequests() {
-    return [
-      ...sheets.value.map((item: Sheet) => {
-        const content = contents.value.find(
-          (content: Content) => content.id === item.id
-        );
+  function createSinglePageTasks() {
+    return sheets.value.map((item: Sheet) => {
+      const content = contents.value.find(
+        (content: Content) => content.id === item.id
+      );
 
-        const metas = sheetMetas.value
-          .filter((meta: Meta) => meta.postId === item.id)
-          .reduce<Record<string, string>>((acc, val) => {
-            acc[val.key] = val.value;
-            return acc;
-          }, {});
+      const metas = sheetMetas.value
+        .filter((meta: Meta) => meta.postId === item.id)
+        .reduce<Record<string, string>>((acc, val) => {
+          acc[val.key] = val.value;
+          return acc;
+        }, {});
 
-        return apiClient.singlePage.draftSinglePage({
-          singlePageRequest: {
-            page: {
-              spec: {
-                title: item.title,
-                slug: item.slug,
-                template: "",
-                cover: item.thumbnail,
-                deleted: item.status === "RECYCLE",
-                publish: item.status === "PUBLISHED",
-                publishTime: new Date(item.createTime).toISOString(),
-                pinned: item.topPriority > 0,
-                allowComment: !item.disallowComment,
-                visible: "PUBLIC",
-                version: 1,
-                priority: 0,
-                excerpt: {
-                  autoGenerate: false,
-                  raw: item.summary,
-                },
-                htmlMetas: [],
-              },
-              apiVersion: "content.halo.run/v1alpha1",
-              kind: "SinglePage",
-              metadata: {
-                name: item.id + "",
-                annotations: metas,
-              },
-            },
-            content: {
-              raw: content?.originalContent,
-              content: content?.content,
-              rawType: "markdown",
-            },
-          },
-        });
-      }),
-      ...sheets.value.map((sheet) => {
-        return apiClient.extension.counter.createmetricsHaloRunV1alpha1Counter({
-          counter: {
-            visit: sheet.visits,
-            upvote: sheet.likes,
-            downvote: 0,
-            totalComment: 0,
-            approvedComment: 0,
-            apiVersion: "metrics.halo.run/v1alpha1",
-            kind: "Counter",
-            metadata: {
-              name: `singlepages.content.halo.run/${sheet.id}`,
-            },
-          },
-        });
-      }),
-    ];
+      return new SinglePageTask(item, content, metas);
+    });
   }
 
-  function createCommentRequests(
+  function createCommentTasks(
     commentsTree: Comment[],
     subjectRef: { kind: string; group: string; version: string }
   ) {
-    const commentCreateRequests: Promise<AxiosResponse>[] = [];
-    const replyCreateRequests: Promise<AxiosResponse>[] = [];
+    const commentCreateRequests: CommentTask[] = [];
+    const replyCreateRequests: CommentTask[] = [];
 
     createCommentOrReply(commentsTree, undefined);
 
@@ -260,76 +463,11 @@ export function useMigrateFromHalo(
         if (comment.parentId === 0) {
           commentName = comment.id;
           commentCreateRequests.push(
-            apiClient.extension.comment.createcontentHaloRunV1alpha1Comment({
-              comment: {
-                kind: "Comment",
-                apiVersion: "content.halo.run/v1alpha1",
-                spec: {
-                  raw: comment.content,
-                  content: comment.content,
-                  owner: {
-                    kind: "Email",
-                    name: comment.email,
-                    displayName: comment.author,
-                    annotations: {
-                      avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-                      website: comment.authorUrl,
-                    },
-                  },
-                  userAgent: comment.userAgent,
-                  ipAddress: comment.ipAddress,
-                  priority: 0,
-                  top: false,
-                  allowNotification: comment.allowNotification,
-                  approved: comment.status === "PUBLISHED",
-                  approvedTime: new Date(comment.createTime).toISOString(),
-                  hidden: false,
-                  subjectRef: {
-                    ...subjectRef,
-                    name: comment.postId + "",
-                  },
-                  lastReadTime: undefined,
-                },
-                metadata: {
-                  name: comment.id + "",
-                },
-              },
-            })
+            new CreateCommentTask(comment, subjectRef)
           );
         } else {
           replyCreateRequests.push(
-            apiClient.extension.reply.createcontentHaloRunV1alpha1Reply({
-              reply: {
-                kind: "Reply",
-                apiVersion: "content.halo.run/v1alpha1",
-                metadata: {
-                  name: comment.id + "",
-                },
-                spec: {
-                  raw: comment.content,
-                  content: comment.content,
-                  owner: {
-                    kind: "Email",
-                    name: comment.email,
-                    displayName: comment.author,
-                    annotations: {
-                      avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-                      website: comment.authorUrl,
-                    },
-                  },
-                  userAgent: comment.userAgent,
-                  ipAddress: comment.ipAddress,
-                  priority: 0,
-                  top: false,
-                  allowNotification: comment.allowNotification,
-                  approved: comment.status === "PUBLISHED",
-                  approvedTime: new Date(comment.createTime).toISOString(),
-                  hidden: false,
-                  commentName: commentName + "",
-                  quoteReply: comment.parentId + "",
-                },
-              },
-            })
+            new replyCreateComment(comment, commentName)
           );
         }
 
@@ -341,8 +479,8 @@ export function useMigrateFromHalo(
     return [...commentCreateRequests, ...replyCreateRequests];
   }
 
-  function createPostCommentRequests() {
-    return createCommentRequests(
+  function createPostCommentTasks() {
+    return createCommentTasks(
       arrayToTree(postComments.value, {
         dataField: null,
         rootParentIds: {
@@ -357,8 +495,8 @@ export function useMigrateFromHalo(
     );
   }
 
-  function createSinglePageCommentRequests() {
-    return createCommentRequests(
+  function createSinglePageCommentTasks() {
+    return createCommentTasks(
       arrayToTree(sheetComments.value, {
         dataField: null,
         rootParentIds: {
@@ -373,30 +511,14 @@ export function useMigrateFromHalo(
     );
   }
 
-  function createMenuRequests() {
+  function createMenuTasks() {
     const groupedMenus = groupBy(menus.value, "team");
 
     // create menu and menuitem request
-    const menuRequests: Promise<AxiosResponse>[] = [];
+    const menuRequests: MigrateRequestTask<any>[] = [];
 
     Object.keys(groupedMenus).forEach((team) => {
-      menuRequests.push(
-        apiClient.extension.menu.createv1alpha1Menu({
-          menu: {
-            kind: "Menu",
-            apiVersion: "v1alpha1",
-            metadata: {
-              name: team ? team : "default",
-            },
-            spec: {
-              displayName: team ? team : "未分组",
-              menuItems: groupedMenus[team].map((item: Menu) => {
-                return item.id + "";
-              }),
-            },
-          },
-        })
-      );
+      menuRequests.push(new MenuTask(team, groupedMenus[team]));
     });
 
     const menusToCreate: MenuItem[] = menus.value
@@ -425,11 +547,9 @@ export function useMigrateFromHalo(
         };
       });
 
-    const menuItemRequests: Promise<AxiosResponse>[] = menusToCreate.map(
+    const menuItemRequests: MigrateRequestTask<MenuItem>[] = menusToCreate.map(
       (menuItem) => {
-        return apiClient.extension.menuItem.createv1alpha1MenuItem({
-          menuItem: menuItem,
-        });
+        return new MenuItemTask(menuItem);
       }
     );
 
@@ -437,12 +557,12 @@ export function useMigrateFromHalo(
   }
 
   return {
-    createTagRequests,
-    createCategoryRequests,
-    createPostRequests,
-    createSinglePageRequests,
-    createPostCommentRequests,
-    createSinglePageCommentRequests,
-    createMenuRequests,
+    createTagTasks,
+    createCategoryTasks,
+    createPostTasks,
+    createSinglePageTasks,
+    createPostCommentTasks,
+    createSinglePageCommentTasks,
+    createMenuTasks,
   };
 }

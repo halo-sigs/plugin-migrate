@@ -176,7 +176,9 @@ const handleImport = async () => {
     taskQueue.push(item);
   });
 
-  async function asyncWorker(arg: MigrateRequestTask<any>): Promise<AxiosResponse<any, any>> {
+  async function asyncWorker(
+    arg: MigrateRequestTask<any>
+  ): Promise<AxiosResponse<any, any>> {
     return arg.run();
   }
 

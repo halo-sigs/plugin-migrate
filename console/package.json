@@ -16,6 +16,7 @@
     "@halo-dev/console-shared": "^2.0.0-rc.1",
     "@vueuse/core": "^9.6.0",
     "axios": "^1.2.0",
+    "fastq": "^1.15.0",
     "lodash.groupby": "^4.6.0",
     "performant-array-to-tree": "^1.11.0",
     "vue": "^3.2.45",

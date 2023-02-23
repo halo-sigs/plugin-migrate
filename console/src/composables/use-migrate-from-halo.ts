@@ -273,6 +273,7 @@ class CreateCommentTask implements CommentTask {
           allowNotification: this.item.allowNotification,
           approved: this.item.status === "PUBLISHED",
           approvedTime: new Date(this.item.createTime).toISOString(),
+          creationTime: new Date(this.item.createTime).toISOString(),
           hidden: false,
           subjectRef: {
             ...this.subjectRef,
@@ -323,6 +324,7 @@ class replyCreateComment implements CommentTask {
           allowNotification: this.item.allowNotification,
           approved: this.item.status === "PUBLISHED",
           approvedTime: new Date(this.item.createTime).toISOString(),
+          creationTime: new Date(this.item.createTime).toISOString(),
           hidden: false,
           commentName: this.commentName + "",
           quoteReply: this.item.parentId + "",

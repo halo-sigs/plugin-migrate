@@ -119,7 +119,6 @@ class PostTask implements MigrateRequestTask<Post> {
             pinned: this.item.topPriority > 0,
             allowComment: !this.item.disallowComment,
             visible: "PUBLIC",
-            version: 1,
             priority: 0,
             excerpt: {
               autoGenerate: false,
@@ -189,7 +188,6 @@ class SinglePageTask implements MigrateRequestTask<Sheet> {
             pinned: this.item.topPriority > 0,
             allowComment: !this.item.disallowComment,
             visible: "PUBLIC",
-            version: 1,
             priority: 0,
             excerpt: {
               autoGenerate: false,

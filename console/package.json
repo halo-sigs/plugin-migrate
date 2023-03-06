@@ -11,7 +11,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
   },
   "dependencies": {
-    "@halo-dev/api-client": "^0.0.66",
+    "@halo-dev/api-client": "^2.3.0",
     "@halo-dev/components": "^0.0.0-alpha.8",
     "@halo-dev/console-shared": "^2.0.0-rc.1",
     "@vueuse/core": "^9.6.0",

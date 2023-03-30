@@ -1,7 +1,7 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@halo-dev/api-client': ^0.0.66
+  '@halo-dev/api-client': ^2.3.0
   '@halo-dev/components': ^0.0.0-alpha.8
   '@halo-dev/console-shared': ^2.0.0-rc.1
   '@iconify/json': ^2.1.144
@@ -38,7 +38,7 @@ specifiers:
   vue-tsc: ^0.35.2
 
 dependencies:
-  '@halo-dev/api-client': 0.0.66
+  '@halo-dev/api-client': 2.3.0
   '@halo-dev/components': 0.0.0-alpha.8_xsxatmlnmmg5bcuv3xdnj6fj7y
   '@halo-dev/console-shared': 2.0.0-rc.1_xsxatmlnmmg5bcuv3xdnj6fj7y
   '@vueuse/core': 9.6.0_vue@3.2.45
@@ -512,8 +512,8 @@ packages:
       - supports-color
     dev: true
 
-  /@halo-dev/api-client/0.0.66:
-    resolution: {integrity: sha512-TxiNVki2FGUXYCy/zmvHQJV5BfXIF6dT3JwtoT0Vo6IjlN47lxND1y8ZV4QB+msj4u/jIF3s9skxzvMoyqRbog==}
+  /@halo-dev/api-client/2.3.0:
+    resolution: {integrity: sha512-llu60ioQEp/sGUduTos5SLXVXEJ0fl5dLionr6oS9Ykwu1xbuFFpIcNmlCJZX/qZb/ZRfM9WOAxPA1EL0sn64w==}
     dev: false
 
   /@halo-dev/components/0.0.0-alpha.8_xsxatmlnmmg5bcuv3xdnj6fj7y:

@@ -12,8 +12,9 @@ import type {
   Comment,
   Menu,
   Meta,
+  Journal,
 } from "../types/models";
-import type { AxiosResponse } from "axios";
+import axios, { type AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
 import type { MenuItem } from "@halo-dev/api-client/index";
 
@@ -26,10 +27,12 @@ interface useMigrateFromHaloReturn {
   createTagTasks: () => MigrateRequestTask<Tag>[];
   createCategoryTasks: () => MigrateRequestTask<Category>[];
   createPostTasks: () => MigrateRequestTask<Post>[];
-  createSinglePageTasks: () => MigrateRequestTask<Sheet>[];
   createPostCommentTasks: () => MigrateRequestTask<Comment>[];
+  createSinglePageTasks: () => MigrateRequestTask<Sheet>[];
   createSinglePageCommentTasks: () => MigrateRequestTask<Comment>[];
   createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
+  createMomentTasks: () => MigrateRequestTask<Journal>[];
+  createMomentCommentTasks: () => MigrateRequestTask<Comment>[];
 }
 
 class TagTask implements MigrateRequestTask<Tag> {
@@ -372,6 +375,35 @@ class MenuItemTask implements MigrateRequestTask<MenuItem> {
   }
 }
 
+class MomentTask implements MigrateRequestTask<Journal> {
+  item: Journal;
+  constructor(item: Journal) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(
+      `/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMoments/moments`,
+      {
+        spec: {
+          content: {
+            raw: this.item.content,
+            html: this.item.content,
+            medium: [],
+          },
+          releaseTime: new Date(this.item.createTime),
+          visible: this.item.type == "PUBLIC" ? "PUBLIC" : "PRIVATE",
+        },
+        metadata: {
+          name: this.item.id + "",
+        },
+        kind: "Moment",
+        apiVersion: "moment.halo.run/v1alpha1",
+      }
+    );
+  }
+}
+
 export function useMigrateFromHalo(
   tags: Ref<Tag[]>,
   categories: Ref<Category[]>,
@@ -384,7 +416,9 @@ export function useMigrateFromHalo(
   sheets: Ref<Sheet[]>,
   sheetComments: Ref<Comment[]>,
   sheetMetas: Ref<Meta[]>,
-  menus: Ref<Menu[]>
+  menus: Ref<Menu[]>,
+  journals: Ref<Journal[]>,
+  journalComments: Ref<Comment[]>
 ): useMigrateFromHaloReturn {
   function createTagTasks() {
     return tags.value.map((item: Tag) => {
@@ -556,6 +590,28 @@ export function useMigrateFromHalo(
     return [...menuItemRequests, ...menuRequests];
   }
 
+  function createMomentTasks() {
+    return journals.value.map((item: Journal) => {
+      return new MomentTask(item);
+    });
+  }
+
+  function createMomentCommentTasks() {
+    return createCommentTasks(
+      arrayToTree(journalComments.value, {
+        dataField: null,
+        rootParentIds: {
+          0: true,
+        },
+      }) as Comment[],
+      {
+        kind: "Moment",
+        group: "moment.halo.run",
+        version: "v1alpha1",
+      }
+    );
+  }
+
   return {
     createTagTasks,
     createCategoryTasks,
@@ -564,5 +620,7 @@ export function useMigrateFromHalo(
     createPostCommentTasks,
     createSinglePageCommentTasks,
     createMenuTasks,
+    createMomentTasks,
+    createMomentCommentTasks,
   };
 }

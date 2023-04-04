@@ -25,8 +25,10 @@ import type {
   Sheet,
   Menu,
   Meta,
+  Journal,
 } from "../types/models";
-import { ref, watch } from "vue";
+import type { Plugin, PluginList } from "@halo-dev/api-client";
+import { onBeforeMount, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
@@ -51,6 +53,8 @@ const sheets = ref<Sheet[]>([] as Sheet[]);
 const sheetComments = ref<Comment[]>([] as Comment[]);
 const sheetMetas = ref<Meta[]>([] as Meta[]);
 const menus = ref<Menu[]>([] as Menu[]);
+const journals = ref<Journal[]>([] as Journal[]);
+const journalComments = ref<Comment[]>([] as Comment[]);
 const loading = ref(false);
 const fetching = ref(false);
 
@@ -62,6 +66,8 @@ const {
   createPostCommentTasks,
   createSinglePageCommentTasks,
   createMenuTasks,
+  createMomentTasks,
+  createMomentCommentTasks,
 } = useMigrateFromHalo(
   tags,
   categories,
@@ -74,13 +80,34 @@ const {
   sheets,
   sheetComments,
   sheetMetas,
-  menus
+  menus,
+  journals,
+  journalComments
 );
 
 const handleOpenFileDialog = () => {
   reset();
   open();
 };
+
+const activatedPluginNames = ref<string[]>([]);
+
+onBeforeMount(async () => {
+  const { data }: { data: PluginList } = await axios.get(
+    "/apis/api.console.halo.run/v1alpha1/plugins",
+    {
+      params: {
+        enabled: true,
+        size: 0,
+        page: 0,
+      },
+    }
+  );
+  activatedPluginNames.value =
+    data.items.map((plugin) => {
+      return plugin.metadata.name;
+    }) || [];
+});
 
 watch(
   () => files.value,
@@ -120,6 +147,8 @@ watch(
           sheetComments.value = data.sheet_comments;
           sheetMetas.value = data.sheet_metas;
           menus.value = data.menus;
+          journals.value = data.journals;
+          journalComments.value = data.journal_comments;
 
           fetching.value = false;
         })
@@ -145,7 +174,7 @@ const handleImport = async () => {
 
   const taskQueue: queueAsPromised<MigrateRequestTask<any>> = fastq.promise(
     asyncWorker,
-    7
+    9
   );
 
   createTagTasks().forEach((item) => {
@@ -173,6 +202,14 @@ const handleImport = async () => {
   });
 
   createMenuTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createMomentTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
+
+  createMomentCommentTasks().forEach((item) => {
     taskQueue.push(item);
   });
 
@@ -308,6 +345,28 @@ onBeforeRouteLeave((to, from, next) => {
               </ul>
             </VCard>
           </div>
+
+          <div class="migrate-h-96">
+            <VCard
+              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+              class="h-full"
+              :title="`文章评论（${postComments.length}）`"
+            >
+              <ul
+                class="box-border h-full w-full divide-y divide-gray-100"
+                role="list"
+              >
+                <li v-for="(postComment, index) in postComments" :key="index">
+                  <VEntity>
+                    <template #start>
+                      <VEntityField :title="postComment.author"></VEntityField>
+                    </template>
+                  </VEntity>
+                </li>
+              </ul>
+            </VCard>
+          </div>
+
           <div class="migrate-h-96">
             <VCard
               :body-class="['h-full', '!p-0', 'overflow-y-auto']"
@@ -325,27 +384,6 @@ onBeforeRouteLeave((to, from, next) => {
                         :title="sheet.title"
                         :description="sheet.slug"
                       ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`文章评论（${postComments.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(postComment, index) in postComments" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField :title="postComment.author"></VEntityField>
                     </template>
                   </VEntity>
                 </li>
@@ -397,6 +435,57 @@ onBeforeRouteLeave((to, from, next) => {
               </ul>
             </VCard>
           </div>
+
+          <template>
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`日志（${journals.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li v-for="(journal, index) in journals" :key="index">
+                    <VEntity>
+                      <template #start>
+                        <VEntityField
+                          :title="journal.sourceContent"
+                        ></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`日志评论（${journalComments.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li
+                    v-for="(journalComment, index) in journalComments"
+                    :key="index"
+                  >
+                    <VEntity>
+                      <template #start>
+                        <VEntityField
+                          :title="journalComment.author"
+                        ></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+          </template>
         </div>
         <div class="migrate-mt-8 migrate-self-center">
           <VButton :loading="loading" type="secondary" @click="handleImport">

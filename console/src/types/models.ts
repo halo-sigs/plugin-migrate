@@ -142,3 +142,14 @@ export interface Meta {
   key: string;
   value: string;
 }
+
+export interface Journal {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  sourceContent: string;
+  content: string;
+  likes: number;
+  commentCount?: number;
+  type: "PUBLIC" | "INTIMATE";
+}

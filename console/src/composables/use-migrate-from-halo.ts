@@ -13,6 +13,7 @@ import type {
   Menu,
   Meta,
   Journal,
+  Photo,
 } from "../types/models";
 import axios, { type AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
@@ -33,6 +34,7 @@ interface useMigrateFromHaloReturn {
   createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
   createMomentTasks: () => MigrateRequestTask<Journal>[];
   createMomentCommentTasks: () => MigrateRequestTask<Comment>[];
+  createPhotoTasks: () => MigrateRequestTask<string | Photo>[];
 }
 
 class TagTask implements MigrateRequestTask<Tag> {
@@ -404,6 +406,51 @@ class MomentTask implements MigrateRequestTask<Journal> {
   }
 }
 
+class PhotoGroupTask implements MigrateRequestTask<string> {
+  item: string;
+  constructor(item: string) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/photogroups`, {
+      spec: {
+        displayName: this.item ? this.item : "未分组",
+        priority: 0,
+      },
+      metadata: {
+        name: this.item ? this.item : "default",
+      },
+      kind: "PhotoGroup",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
+class PhotoTask implements MigrateRequestTask<Photo> {
+  item: Photo;
+  constructor(item: Photo) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/photos`, {
+      metadata: {
+        name: this.item.id + "",
+      },
+      spec: {
+        displayName: this.item.name,
+        url: this.item.url,
+        cover: this.item.thumbnail,
+        groupName: this.item.team ? this.item.team : "default",
+        description: this.item.description,
+      },
+      kind: "Photo",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
 export function useMigrateFromHalo(
   tags: Ref<Tag[]>,
   categories: Ref<Category[]>,
@@ -418,7 +465,8 @@ export function useMigrateFromHalo(
   sheetMetas: Ref<Meta[]>,
   menus: Ref<Menu[]>,
   journals: Ref<Journal[]>,
-  journalComments: Ref<Comment[]>
+  journalComments: Ref<Comment[]>,
+  photos: Ref<Photo[]>
 ): useMigrateFromHaloReturn {
   function createTagTasks() {
     return tags.value.map((item: Tag) => {
@@ -612,6 +660,25 @@ export function useMigrateFromHalo(
     );
   }
 
+  function createPhotoTasks() {
+    const groupedPhotos = groupBy(photos.value, "team");
+
+    // create photoGroupRequest
+    const photoGroupRequests: MigrateRequestTask<string>[] = [];
+
+    Object.keys(groupedPhotos).forEach((group) => {
+      photoGroupRequests.push(new PhotoGroupTask(group));
+    });
+
+    // create photoRequest
+    const photoRequests: MigrateRequestTask<Photo>[] = [];
+    photos.value.map((item: Photo) => {
+      photoRequests.push(new PhotoTask(item));
+    });
+
+    return [...photoGroupRequests, ...photoRequests];
+  }
+
   return {
     createTagTasks,
     createCategoryTasks,
@@ -622,5 +689,6 @@ export function useMigrateFromHalo(
     createMenuTasks,
     createMomentTasks,
     createMomentCommentTasks,
+    createPhotoTasks,
   };
 }

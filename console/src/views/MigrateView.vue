@@ -26,9 +26,10 @@ import type {
   Menu,
   Meta,
   Journal,
+  Photo,
 } from "../types/models";
-import type { Plugin, PluginList } from "@halo-dev/api-client";
-import { onBeforeMount, ref, watch } from "vue";
+import type { PluginList } from "@halo-dev/api-client";
+import { onBeforeMount, onMounted, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
@@ -55,6 +56,7 @@ const sheetMetas = ref<Meta[]>([] as Meta[]);
 const menus = ref<Menu[]>([] as Menu[]);
 const journals = ref<Journal[]>([] as Journal[]);
 const journalComments = ref<Comment[]>([] as Comment[]);
+const photos = ref<Photo[]>([] as Photo[]);
 const loading = ref(false);
 const fetching = ref(false);
 
@@ -68,6 +70,7 @@ const {
   createMenuTasks,
   createMomentTasks,
   createMomentCommentTasks,
+  createPhotoTasks,
 } = useMigrateFromHalo(
   tags,
   categories,
@@ -82,7 +85,8 @@ const {
   sheetMetas,
   menus,
   journals,
-  journalComments
+  journalComments,
+  photos
 );
 
 const handleOpenFileDialog = () => {
@@ -92,7 +96,7 @@ const handleOpenFileDialog = () => {
 
 const activatedPluginNames = ref<string[]>([]);
 
-onBeforeMount(async () => {
+onMounted(async () => {
   const { data }: { data: PluginList } = await axios.get(
     "/apis/api.console.halo.run/v1alpha1/plugins",
     {
@@ -104,9 +108,11 @@ onBeforeMount(async () => {
     }
   );
   activatedPluginNames.value =
-    data.items.map((plugin) => {
-      return plugin.metadata.name;
-    }) || [];
+    data.items
+      .filter((plugin) => plugin.status?.phase === "STARTED")
+      .map((plugin) => {
+        return plugin.metadata.name;
+      }) || [];
 });
 
 watch(
@@ -149,6 +155,7 @@ watch(
           menus.value = data.menus;
           journals.value = data.journals;
           journalComments.value = data.journal_comments;
+          photos.value = data.photos;
 
           fetching.value = false;
         })
@@ -205,13 +212,21 @@ const handleImport = async () => {
     taskQueue.push(item);
   });
 
-  createMomentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  if (activatedPluginNames.value.includes("PluginMoments")) {
+    createMomentTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
 
-  createMomentCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+    createMomentCommentTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+  }
+
+  if (activatedPluginNames.value.includes("PluginPhotos")) {
+    createPhotoTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+  }
 
   async function asyncWorker(
     arg: MigrateRequestTask<any>
@@ -436,7 +451,7 @@ onBeforeRouteLeave((to, from, next) => {
             </VCard>
           </div>
 
-          <template>
+          <template v-if="activatedPluginNames.includes('PluginMoments')">
             <div class="migrate-h-96">
               <VCard
                 :body-class="['h-full', '!p-0', 'overflow-y-auto']"
@@ -479,6 +494,29 @@ onBeforeRouteLeave((to, from, next) => {
                         <VEntityField
                           :title="journalComment.author"
                         ></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+          </template>
+
+          <template v-if="activatedPluginNames.includes('PluginPhotos')">
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`图库（${photos.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li v-for="(photo, index) in photos" :key="index">
+                    <VEntity>
+                      <template #start>
+                        <VEntityField :title="photo.name"></VEntityField>
                       </template>
                     </VEntity>
                   </li>

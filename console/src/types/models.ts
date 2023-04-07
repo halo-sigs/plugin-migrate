@@ -153,3 +153,17 @@ export interface Journal {
   commentCount?: number;
   type: "PUBLIC" | "INTIMATE";
 }
+
+export interface Photo {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  name: string;
+  description?: number;
+  takeTime?: number;
+  location?: number;
+  thumbnail: string;
+  url: string;
+  team?: string;
+  likes?: number;
+}

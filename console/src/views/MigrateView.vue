@@ -27,9 +27,10 @@ import type {
   Meta,
   Journal,
   Photo,
+  Link,
 } from "../types/models";
 import type { PluginList } from "@halo-dev/api-client";
-import { onBeforeMount, onMounted, ref, watch } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
@@ -57,6 +58,8 @@ const menus = ref<Menu[]>([] as Menu[]);
 const journals = ref<Journal[]>([] as Journal[]);
 const journalComments = ref<Comment[]>([] as Comment[]);
 const photos = ref<Photo[]>([] as Photo[]);
+const links = ref<Link[]>([] as Link[]);
+
 const loading = ref(false);
 const fetching = ref(false);
 
@@ -71,6 +74,7 @@ const {
   createMomentTasks,
   createMomentCommentTasks,
   createPhotoTasks,
+  createLinkTasks,
 } = useMigrateFromHalo(
   tags,
   categories,
@@ -86,7 +90,8 @@ const {
   menus,
   journals,
   journalComments,
-  photos
+  photos,
+  links
 );
 
 const handleOpenFileDialog = () => {
@@ -156,6 +161,7 @@ watch(
           journals.value = data.journals;
           journalComments.value = data.journal_comments;
           photos.value = data.photos;
+          links.value = data.links;
 
           fetching.value = false;
         })
@@ -184,33 +190,33 @@ const handleImport = async () => {
     9
   );
 
-  createTagTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createTagTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createCategoryTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createCategoryTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createPostTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createPostTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createSinglePageTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createSinglePageTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createPostCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createPostCommentTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createSinglePageCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createSinglePageCommentTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createMenuTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createMenuTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
   if (activatedPluginNames.value.includes("PluginMoments")) {
     createMomentTasks().forEach((item) => {
@@ -224,6 +230,12 @@ const handleImport = async () => {
 
   if (activatedPluginNames.value.includes("PluginPhotos")) {
     createPhotoTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+  }
+
+  if (activatedPluginNames.value.includes("PluginLinks")) {
+    createLinkTasks().forEach((item) => {
       taskQueue.push(item);
     });
   }
@@ -517,6 +529,29 @@ onBeforeRouteLeave((to, from, next) => {
                     <VEntity>
                       <template #start>
                         <VEntityField :title="photo.name"></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+          </template>
+
+          <template v-if="activatedPluginNames.includes('PluginLinks')">
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`友情链接（${links.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li v-for="(link, index) in links" :key="index">
+                    <VEntity>
+                      <template #start>
+                        <VEntityField :title="link.name"></VEntityField>
                       </template>
                     </VEntity>
                   </li>

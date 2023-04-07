@@ -167,3 +167,15 @@ export interface Photo {
   team?: string;
   likes?: number;
 }
+
+export interface Link {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  name: string;
+  url: string;
+  logo: string;
+  description: string;
+  team: string;
+  priority: number;
+}

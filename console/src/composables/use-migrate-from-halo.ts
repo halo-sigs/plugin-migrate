@@ -14,6 +14,7 @@ import type {
   Meta,
   Journal,
   Photo,
+  Link,
 } from "../types/models";
 import axios, { type AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
@@ -35,6 +36,7 @@ interface useMigrateFromHaloReturn {
   createMomentTasks: () => MigrateRequestTask<Journal>[];
   createMomentCommentTasks: () => MigrateRequestTask<Comment>[];
   createPhotoTasks: () => MigrateRequestTask<string | Photo>[];
+  createLinkTasks: () => MigrateRequestTask<string | Link>[];
 }
 
 class TagTask implements MigrateRequestTask<Tag> {
@@ -451,6 +453,53 @@ class PhotoTask implements MigrateRequestTask<Photo> {
   }
 }
 
+class LinkGroupTask implements MigrateRequestTask<string> {
+  item: string;
+  constructor(item: string) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/linkgroups`, {
+      spec: {
+        displayName: this.item ? this.item : "未分组",
+        priority: 0,
+        links: [],
+      },
+      metadata: {
+        name: this.item ? this.item : "default",
+      },
+      kind: "LinkGroup",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
+class LinkTask implements MigrateRequestTask<Link> {
+  item: Link;
+  constructor(item: Link) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/links`, {
+      metadata: {
+        name: this.item.id + "",
+      },
+      spec: {
+        displayName: this.item.name,
+        url: this.item.url,
+        logo: this.item.logo,
+        groupName: this.item.team ? this.item.team : "default",
+        description: this.item.description,
+        priority: this.item.priority,
+      },
+      kind: "Link",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
 export function useMigrateFromHalo(
   tags: Ref<Tag[]>,
   categories: Ref<Category[]>,
@@ -466,7 +515,8 @@ export function useMigrateFromHalo(
   menus: Ref<Menu[]>,
   journals: Ref<Journal[]>,
   journalComments: Ref<Comment[]>,
-  photos: Ref<Photo[]>
+  photos: Ref<Photo[]>,
+  links: Ref<Link[]>,
 ): useMigrateFromHaloReturn {
   function createTagTasks() {
     return tags.value.map((item: Tag) => {
@@ -679,6 +729,23 @@ export function useMigrateFromHalo(
     return [...photoGroupRequests, ...photoRequests];
   }
 
+  function createLinkTasks() {
+    const groupLinks = groupBy(links.value, "team");
+
+    const linkGroupRequests: MigrateRequestTask<string>[] = [];
+
+    Object.keys(groupLinks).forEach((group) => {
+      linkGroupRequests.push(new LinkGroupTask(group));
+    });
+
+    const linkRequests: MigrateRequestTask<Link>[] = [];
+    links.value.map((item: Link) => {
+      linkRequests.push(new LinkTask(item));
+    });
+
+    return [...linkGroupRequests, ...linkRequests];
+  }
+
   return {
     createTagTasks,
     createCategoryTasks,
@@ -690,5 +757,6 @@ export function useMigrateFromHalo(
     createMomentTasks,
     createMomentCommentTasks,
     createPhotoTasks,
+    createLinkTasks,
   };
 }

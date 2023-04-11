@@ -12,10 +12,11 @@ import type {
   Comment,
   Menu,
   Meta,
+  Attachment as AttachmentModel,
 } from "../types/models";
 import type { AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
-import type { MenuItem } from "@halo-dev/api-client/index";
+import type { Attachment, MenuItem } from "@halo-dev/api-client/index";
 
 export interface MigrateRequestTask<T> {
   item: T;
@@ -30,6 +31,7 @@ interface useMigrateFromHaloReturn {
   createPostCommentTasks: () => MigrateRequestTask<Comment>[];
   createSinglePageCommentTasks: () => MigrateRequestTask<Comment>[];
   createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
+  createAttachmentTasks: () => MigrateRequestTask<string | MenuItem>[];
 }
 
 class TagTask implements MigrateRequestTask<Tag> {
@@ -372,6 +374,95 @@ class MenuItemTask implements MigrateRequestTask<MenuItem> {
   }
 }
 
+interface AttachmentTask extends MigrateRequestTask<AttachmentModel> {
+  item: AttachmentModel;
+
+  run: () => Promise<AxiosResponse<any, any>>;
+}
+
+class NoSupportAttachmentTask implements AttachmentTask {
+  item: AttachmentModel;
+  constructor(item: AttachmentModel) {
+    this.item = item;
+  }
+
+  run() {
+    return Promise.reject(
+      new Error("尚未支持 【" + this.item.type + "】 类型的附件迁移")
+    );
+  }
+}
+
+abstract class AbstractAttachmentTask implements AttachmentTask {
+  item: AttachmentModel;
+  constructor(item: AttachmentModel) {
+    this.item = item;
+  }
+
+  abstract buildModel(item: AttachmentModel): Attachment;
+
+  run() {
+    return apiClient.extension.storage.attachment.createstorageHaloRunV1alpha1Attachment(
+      {
+        attachment: this.buildModel(this.item),
+      }
+    );
+  }
+}
+
+class LocalAttachmentTask extends AbstractAttachmentTask {
+  buildModel(item: AttachmentModel) {
+    return {
+      apiVersion: "storage.halo.run/v1alpha1",
+      kind: "Attachment",
+      metadata: {
+        generateName: "attachment-",
+        name: item.id + "",
+        annotations: {
+          "storage.halo.run/local-relative-path": `migrate-from-1.x`,
+          "storage.halo.run/uri": `/migrate-from-1.x`,
+          "storage.halo.run/suffix": `"${item.suffix}"`,
+          "storage.halo.run/width": `"${item.width}"`,
+          "storage.halo.run/height": `"${item.height}"`,
+        },
+      },
+      spec: {
+        displayName: `${item.name}`,
+        groupName: ``,
+        policyName: `default-policy`,
+        mediaType: `${item.mediaType}`,
+        size: Number.parseInt(`${item.size}`),
+      },
+    };
+  }
+}
+
+class AliOssAttachmentTask extends AbstractAttachmentTask {
+  buildModel(item: AttachmentModel) {
+    return {
+      apiVersion: "storage.halo.run/v1alpha1",
+      kind: "Attachment",
+      metadata: {
+        generateName: "attachment-",
+        name: item.id + "",
+        annotations: {
+          "storage.halo.run/external-link": `${item.path}` + "",
+          "storage.halo.run/suffix": `${item.suffix}` + "",
+          "storage.halo.run/width": `${item.width}` + "",
+          "storage.halo.run/height": `${item.height}` + "",
+        },
+      },
+      spec: {
+        displayName: `${item.name}`,
+        groupName: "",
+        policyName: "policy-aliyun-illustration",
+        mediaType: `${item.mediaType}`,
+        size: Number.parseInt(`${item.size}`),
+      },
+    };
+  }
+}
+
 export function useMigrateFromHalo(
   tags: Ref<Tag[]>,
   categories: Ref<Category[]>,
@@ -384,7 +475,8 @@ export function useMigrateFromHalo(
   sheets: Ref<Sheet[]>,
   sheetComments: Ref<Comment[]>,
   sheetMetas: Ref<Meta[]>,
-  menus: Ref<Menu[]>
+  menus: Ref<Menu[]>,
+  attachments: Ref<AttachmentModel[]>
 ): useMigrateFromHaloReturn {
   function createTagTasks() {
     return tags.value.map((item: Tag) => {
@@ -556,6 +648,34 @@ export function useMigrateFromHalo(
     return [...menuItemRequests, ...menuRequests];
   }
 
+  function createAttachmentTasks() {
+    const typeGroupAttachments = groupBy(attachments.value, "type");
+
+    // create menu and menuitem request
+    let attachmentRequests: MigrateRequestTask<any>[] = [];
+
+    Object.keys(typeGroupAttachments).forEach((type) => {
+      const attachments = typeGroupAttachments[type];
+      attachmentRequests = [
+        ...attachmentRequests,
+        ...attachments
+          .map((item) => {
+            switch (item.type) {
+              case "LOCAL":
+                return new LocalAttachmentTask(item);
+              case "ALIOSS":
+                return new AliOssAttachmentTask(item);
+              default:
+                return new NoSupportAttachmentTask(item);
+            }
+          })
+          .filter((item) => item && item != undefined),
+      ];
+    });
+
+    return attachmentRequests;
+  }
+
   return {
     createTagTasks,
     createCategoryTasks,
@@ -564,5 +684,6 @@ export function useMigrateFromHalo(
     createPostCommentTasks,
     createSinglePageCommentTasks,
     createMenuTasks,
+    createAttachmentTasks,
   };
 }

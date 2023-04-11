@@ -25,6 +25,7 @@ import type {
   Sheet,
   Menu,
   Meta,
+  Attachment,
 } from "../types/models";
 import { ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
@@ -51,6 +52,7 @@ const sheets = ref<Sheet[]>([] as Sheet[]);
 const sheetComments = ref<Comment[]>([] as Comment[]);
 const sheetMetas = ref<Meta[]>([] as Meta[]);
 const menus = ref<Menu[]>([] as Menu[]);
+const attachments = ref<Attachment[]>([] as Attachment[]);
 const loading = ref(false);
 const fetching = ref(false);
 
@@ -120,6 +122,7 @@ watch(
           sheetComments.value = data.sheet_comments;
           sheetMetas.value = data.sheet_metas;
           menus.value = data.menus;
+          attachments.value = data.attachments;
 
           fetching.value = false;
         })

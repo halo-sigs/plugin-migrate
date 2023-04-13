@@ -10,6 +10,7 @@ import {
   Toast,
   Dialog,
   VLoading,
+  VModal,
 } from "@halo-dev/components";
 import { useFileDialog } from "@vueuse/core";
 import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
@@ -27,13 +28,16 @@ import type {
   Meta,
   Attachment,
 } from "../types/models";
-import { ref, watch } from "vue";
+import type { PluginList } from "@halo-dev/api-client";
+import { onMounted, reactive, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
 import axios, { type AxiosResponse } from "axios";
 import * as fastq from "fastq";
 import type { queueAsPromised } from "fastq";
+import groupBy from "lodash.groupby";
+import { apiClient } from "@/utils/api-client";
 
 const { files, open, reset } = useFileDialog({
   multiple: false,
@@ -64,6 +68,7 @@ const {
   createPostCommentTasks,
   createSinglePageCommentTasks,
   createMenuTasks,
+  createAttachmentTasks,
 } = useMigrateFromHalo(
   tags,
   categories,
@@ -76,13 +81,34 @@ const {
   sheets,
   sheetComments,
   sheetMetas,
-  menus
+  menus,
+  attachments
 );
 
 const handleOpenFileDialog = () => {
   reset();
   open();
 };
+
+const activatedPluginNames = ref<string[]>([]);
+onMounted(async () => {
+  const { data }: { data: PluginList } = await axios.get(
+    "/apis/api.console.halo.run/v1alpha1/plugins",
+    {
+      params: {
+        enabled: true,
+        size: 0,
+        page: 0,
+      },
+    }
+  );
+  activatedPluginNames.value =
+    data.items
+      .filter((plugin) => plugin.status?.phase === "STARTED")
+      .map((plugin) => {
+        return plugin.metadata.name;
+      }) || [];
+});
 
 watch(
   () => files.value,
@@ -134,6 +160,106 @@ watch(
   }
 );
 
+const attachmentStorageVisible = ref(false);
+const isReady = ref(false);
+const attachmentTypes = ref<{ type: string; policyName: string }[]>([]);
+const policyOptions = ref<
+  { label: string; value: string; templateName: string }[]
+>([]);
+const localPolicyOptions = ref<
+  { label: string; value: string; templateName: string }[]
+>([]);
+
+const attachementPolicy = async () => {
+  const { data } =
+    await apiClient.extension.storage.policy.liststorageHaloRunV1alpha1Policy();
+  policyOptions.value = data.items.map((policy) => {
+    return {
+      label: policy.spec.displayName,
+      value: policy.metadata.name,
+      templateName: policy.spec.templateName,
+    };
+  });
+
+  localPolicyOptions.value = policyOptions.value.filter(
+    (item) => item.templateName === "local"
+  );
+
+  attachmentTypes.value = Object.keys(groupBy(attachments.value, "type")).map(
+    (type) => {
+      return {
+        type: type,
+        policyName:
+          type == "LOCAL"
+            ? localPolicyOptions.value[0]?.value
+            : policyOptions.value[0]?.value,
+      };
+    }
+  );
+
+  if (activatedPluginNames.value.includes("PluginS3ObjectStorage")) {
+    attachmentStorageVisible.value = true;
+  } else {
+    Dialog.warning({
+      title: "附件导入警告",
+      description:
+        "当前未安装/启用 S3 插件，所有附件只能导入到本地，原云存储文件将不能进行远程管理",
+      confirmText: "我已了解",
+      cancelText: "取消",
+      confirmType: "secondary",
+      onConfirm: () => {
+        policyOptions.value = localPolicyOptions.value;
+        attachmentStorageVisible.value = true;
+      },
+    });
+  }
+};
+
+const typeToPolicyMap = reactive(new Map<string, string>());
+
+const submitAttachment = () => {
+  let isToast = false;
+  attachmentTypes.value.forEach((item) => {
+    typeToPolicyMap.set(item.type, item.policyName);
+  });
+  if (Array.from(typeToPolicyMap.values()).includes("")) {
+    Toast.warning("请选择存储策略或前往附件新建本地策略。");
+    return;
+  }
+  for (let type of typeToPolicyMap.keys()) {
+    if (type !== "LOCAL") {
+      isToast =
+        policyOptions.value.filter(
+          (item) =>
+            item.value === typeToPolicyMap.get(type) &&
+            item.templateName === "local"
+        ).length > 0
+          ? true
+          : false;
+    }
+    if (isToast) {
+      break;
+    }
+  }
+  if (isToast && activatedPluginNames.value.includes("PluginS3ObjectStorage")) {
+    Dialog.warning({
+      title: "附件导入警告",
+      description:
+        "部分云存储附件选择了本地存储策略，原云存储文件将不能进行远程管理",
+      confirmText: "我已了解",
+      confirmType: "secondary",
+      cancelText: "重新选择",
+      onConfirm: () => {
+        attachmentStorageVisible.value = false;
+        isReady.value = true;
+      },
+    });
+  } else {
+    attachmentStorageVisible.value = false;
+    isReady.value = true;
+  }
+};
+
 const handleImport = async () => {
   window.onbeforeunload = function (e) {
     const message = "数据正在导入中，请勿关闭或刷新此页面。";
@@ -151,31 +277,35 @@ const handleImport = async () => {
     7
   );
 
-  createTagTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createTagTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createCategoryTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createCategoryTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createPostTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createPostTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createSinglePageTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createSinglePageTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createPostCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createPostCommentTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createSinglePageCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
+  // createSinglePageCommentTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
 
-  createMenuTasks().forEach((item) => {
+  // createMenuTasks().forEach((item) => {
+  //   taskQueue.push(item);
+  // });
+
+  createAttachmentTasks(typeToPolicyMap).forEach((item) => {
     taskQueue.push(item);
   });
 
@@ -400,10 +530,83 @@ onBeforeRouteLeave((to, from, next) => {
               </ul>
             </VCard>
           </div>
+
+          <div class="migrate-h-96">
+            <VModal
+              :visible="attachmentStorageVisible"
+              :width="500"
+              title="设置附件迁移存储策略"
+              @close="attachmentStorageVisible = false"
+            >
+              <ul>
+                <li
+                  v-for="(type, index) in attachmentTypes"
+                  :key="index"
+                  class="migrate-mb-4"
+                >
+                  <FormKit
+                    v-model="type.policyName"
+                    type="select"
+                    :label="'将 ' + type.type + ' 迁移至哪个存储策略下？'"
+                    :options="
+                      type.type === 'LOCAL' ? localPolicyOptions : policyOptions
+                    "
+                  />
+                </li>
+              </ul>
+              <template #footer>
+                <VSpace>
+                  <VButton @click="submitAttachment"> 确定 </VButton>
+                  <VButton
+                    @click="
+                      () =>
+                        (attachmentStorageVisible = false) && (isReady = false)
+                    "
+                  >
+                    取消
+                  </VButton>
+                </VSpace>
+              </template>
+            </VModal>
+            <VCard
+              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+              class="h-full"
+              :title="`附件（${attachments.length}）`"
+            >
+              <ul
+                class="box-border h-full w-full divide-y divide-gray-100"
+                role="list"
+              >
+                <li v-for="(attachment, index) in attachments" :key="index">
+                  <VEntity>
+                    <template #start>
+                      <VEntityField
+                        :title="attachment.name"
+                        :description="attachment.path"
+                      ></VEntityField>
+                    </template>
+                  </VEntity>
+                </li>
+              </ul>
+            </VCard>
+          </div>
         </div>
         <div class="migrate-mt-8 migrate-self-center">
-          <VButton :loading="loading" type="secondary" @click="handleImport">
+          <VButton
+            v-if="isReady"
+            :loading="loading"
+            type="secondary"
+            @click="handleImport"
+          >
             执行导入
+          </VButton>
+          <VButton
+            v-if="!isReady"
+            :loading="loading"
+            type="secondary"
+            @click="attachementPolicy"
+          >
+            选择附件存储策略
           </VButton>
         </div>
       </div>

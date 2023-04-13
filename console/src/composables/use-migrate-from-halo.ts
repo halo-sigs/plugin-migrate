@@ -31,7 +31,9 @@ interface useMigrateFromHaloReturn {
   createPostCommentTasks: () => MigrateRequestTask<Comment>[];
   createSinglePageCommentTasks: () => MigrateRequestTask<Comment>[];
   createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
-  createAttachmentTasks: () => MigrateRequestTask<string | MenuItem>[];
+  createAttachmentTasks: (
+    typeToPolicyMap: Map<string, string>
+  ) => MigrateRequestTask<string | MenuItem>[];
 }
 
 class TagTask implements MigrateRequestTask<Tag> {
@@ -395,28 +397,29 @@ class NoSupportAttachmentTask implements AttachmentTask {
 
 abstract class AbstractAttachmentTask implements AttachmentTask {
   item: AttachmentModel;
-  constructor(item: AttachmentModel) {
+  policyName: string;
+  constructor(item: AttachmentModel, policyName: string) {
     this.item = item;
+    this.policyName = policyName;
   }
 
-  abstract buildModel(item: AttachmentModel): Attachment;
+  abstract buildModel(item: AttachmentModel, policyName: string): Attachment;
 
   run() {
     return apiClient.extension.storage.attachment.createstorageHaloRunV1alpha1Attachment(
       {
-        attachment: this.buildModel(this.item),
+        attachment: this.buildModel(this.item, this.policyName),
       }
     );
   }
 }
 
 class LocalAttachmentTask extends AbstractAttachmentTask {
-  buildModel(item: AttachmentModel) {
+  buildModel(item: AttachmentModel, policyName: string) {
     return {
       apiVersion: "storage.halo.run/v1alpha1",
       kind: "Attachment",
       metadata: {
-        generateName: "attachment-",
         name: item.id + "",
         annotations: {
           "storage.halo.run/local-relative-path": `migrate-from-1.x`,
@@ -429,7 +432,7 @@ class LocalAttachmentTask extends AbstractAttachmentTask {
       spec: {
         displayName: `${item.name}`,
         groupName: ``,
-        policyName: `default-policy`,
+        policyName: `${policyName}`,
         mediaType: `${item.mediaType}`,
         size: Number.parseInt(`${item.size}`),
       },
@@ -437,13 +440,12 @@ class LocalAttachmentTask extends AbstractAttachmentTask {
   }
 }
 
-class AliOssAttachmentTask extends AbstractAttachmentTask {
-  buildModel(item: AttachmentModel) {
+class S3OSSAttachmentTask extends AbstractAttachmentTask {
+  buildModel(item: AttachmentModel, policyName: string) {
     return {
       apiVersion: "storage.halo.run/v1alpha1",
       kind: "Attachment",
       metadata: {
-        generateName: "attachment-",
         name: item.id + "",
         annotations: {
           "storage.halo.run/external-link": `${item.path}` + "",
@@ -455,7 +457,7 @@ class AliOssAttachmentTask extends AbstractAttachmentTask {
       spec: {
         displayName: `${item.name}`,
         groupName: "",
-        policyName: "policy-aliyun-illustration",
+        policyName: `${policyName}`,
         mediaType: `${item.mediaType}`,
         size: Number.parseInt(`${item.size}`),
       },
@@ -648,7 +650,7 @@ export function useMigrateFromHalo(
     return [...menuItemRequests, ...menuRequests];
   }
 
-  function createAttachmentTasks() {
+  function createAttachmentTasks(typeToPolicyMap: Map<string, string>) {
     const typeGroupAttachments = groupBy(attachments.value, "type");
 
     // create menu and menuitem request
@@ -662,9 +664,18 @@ export function useMigrateFromHalo(
           .map((item) => {
             switch (item.type) {
               case "LOCAL":
-                return new LocalAttachmentTask(item);
+                return new LocalAttachmentTask(
+                  item,
+                  typeToPolicyMap.get(item.type) || "default-policy"
+                );
               case "ALIOSS":
-                return new AliOssAttachmentTask(item);
+              case "BAIDUBOS":
+              case "TENCENTCOS":
+              case "QINIUOSS":
+                return new S3OSSAttachmentTask(
+                  item,
+                  typeToPolicyMap.get(item.type) || "default-policy"
+                );
               default:
                 return new NoSupportAttachmentTask(item);
             }

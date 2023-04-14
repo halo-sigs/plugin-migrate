@@ -281,33 +281,33 @@ const handleImport = async () => {
     7
   );
 
-  // createTagTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createTagTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
-  // createCategoryTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createCategoryTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
-  // createPostTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createPostTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
-  // createSinglePageTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createSinglePageTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
-  // createPostCommentTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createPostCommentTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
-  // createSinglePageCommentTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createSinglePageCommentTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
-  // createMenuTasks().forEach((item) => {
-  //   taskQueue.push(item);
-  // });
+  createMenuTasks().forEach((item) => {
+    taskQueue.push(item);
+  });
 
   if (currentUser.value != undefined) {
     createAttachmentTasks(typeToPolicyMap, currentUser.value).forEach(

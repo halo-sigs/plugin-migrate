@@ -666,7 +666,6 @@ export function useMigrateFromHalo(
   ) {
     const typeGroupAttachments = groupBy(attachments.value, "type");
 
-    // create menu and menuitem request
     let attachmentRequests: MigrateRequestTask<any>[] = [];
     const userName = user.metadata.name;
     Object.keys(typeGroupAttachments).forEach((type) => {

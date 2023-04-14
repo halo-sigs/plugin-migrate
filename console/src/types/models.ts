@@ -142,3 +142,40 @@ export interface Meta {
   key: string;
   value: string;
 }
+
+export interface Journal {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  sourceContent: string;
+  content: string;
+  likes: number;
+  commentCount?: number;
+  type: "PUBLIC" | "INTIMATE";
+}
+
+export interface Photo {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  name: string;
+  description?: number;
+  takeTime?: number;
+  location?: number;
+  thumbnail: string;
+  url: string;
+  team?: string;
+  likes?: number;
+}
+
+export interface Link {
+  createTime: number;
+  updateTime: number;
+  id: number;
+  name: string;
+  url: string;
+  logo: string;
+  description: string;
+  team: string;
+  priority: number;
+}

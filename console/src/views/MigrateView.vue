@@ -28,7 +28,7 @@ import type {
   Meta,
   Attachment,
 } from "../types/models";
-import type { PluginList } from "@halo-dev/api-client";
+import type { User, PluginList } from "@halo-dev/api-client";
 import { onMounted, reactive, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
@@ -91,6 +91,7 @@ const handleOpenFileDialog = () => {
 };
 
 const activatedPluginNames = ref<string[]>([]);
+const currentUser = ref<User>();
 onMounted(async () => {
   const { data }: { data: PluginList } = await axios.get(
     "/apis/api.console.halo.run/v1alpha1/plugins",
@@ -108,6 +109,9 @@ onMounted(async () => {
       .map((plugin) => {
         return plugin.metadata.name;
       }) || [];
+
+  const userDetailResponse = await apiClient.user.getCurrentUserDetail();
+  currentUser.value = userDetailResponse.data.user;
 });
 
 watch(
@@ -305,9 +309,13 @@ const handleImport = async () => {
   //   taskQueue.push(item);
   // });
 
-  createAttachmentTasks(typeToPolicyMap).forEach((item) => {
-    taskQueue.push(item);
-  });
+  if (currentUser.value != undefined) {
+    createAttachmentTasks(typeToPolicyMap, currentUser.value).forEach(
+      (item) => {
+        taskQueue.push(item);
+      }
+    );
+  }
 
   async function asyncWorker(
     arg: MigrateRequestTask<any>

@@ -1,5 +1,6 @@
 import type { Ref } from "vue";
 import { apiClient } from "@/utils/api-client";
+import type { User } from "@halo-dev/api-client";
 import { arrayToTree } from "performant-array-to-tree";
 import type {
   Category,
@@ -32,7 +33,8 @@ interface useMigrateFromHaloReturn {
   createSinglePageCommentTasks: () => MigrateRequestTask<Comment>[];
   createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
   createAttachmentTasks: (
-    typeToPolicyMap: Map<string, string>
+    typeToPolicyMap: Map<string, string>,
+    user: User
   ) => MigrateRequestTask<string | MenuItem>[];
 }
 
@@ -398,68 +400,76 @@ class NoSupportAttachmentTask implements AttachmentTask {
 abstract class AbstractAttachmentTask implements AttachmentTask {
   item: AttachmentModel;
   policyName: string;
-  constructor(item: AttachmentModel, policyName: string) {
+  ownerName: string;
+  constructor(item: AttachmentModel, policyName: string, ownerName: string) {
     this.item = item;
     this.policyName = policyName;
+    this.ownerName = ownerName;
   }
 
-  abstract buildModel(item: AttachmentModel, policyName: string): Attachment;
+  abstract buildModel(): Attachment;
 
   run() {
     return apiClient.extension.storage.attachment.createstorageHaloRunV1alpha1Attachment(
       {
-        attachment: this.buildModel(this.item, this.policyName),
+        attachment: this.buildModel(),
       }
     );
   }
 }
 
 class LocalAttachmentTask extends AbstractAttachmentTask {
-  buildModel(item: AttachmentModel, policyName: string) {
+  buildModel() {
+    let relativePath = this.item.path;
+    if (this.item.path.startsWith("upload/")) {
+      relativePath = relativePath.replace("upload/", "");
+    }
     return {
       apiVersion: "storage.halo.run/v1alpha1",
       kind: "Attachment",
       metadata: {
-        name: item.id + "",
+        name: this.item.id + "",
         annotations: {
-          "storage.halo.run/local-relative-path": `migrate-from-1.x`,
-          "storage.halo.run/uri": `/migrate-from-1.x`,
-          "storage.halo.run/suffix": `"${item.suffix}"`,
-          "storage.halo.run/width": `"${item.width}"`,
-          "storage.halo.run/height": `"${item.height}"`,
+          "storage.halo.run/local-relative-path": `migrate-from-1.x/${relativePath}`,
+          "storage.halo.run/uri": `/${this.item.path}`,
+          "storage.halo.run/suffix": `${this.item.suffix}`,
+          "storage.halo.run/width": `${this.item.width}`,
+          "storage.halo.run/height": `${this.item.height}`,
         },
       },
       spec: {
-        displayName: `${item.name}`,
+        displayName: `${this.item.name}`,
         groupName: ``,
-        policyName: `${policyName}`,
-        mediaType: `${item.mediaType}`,
-        size: Number.parseInt(`${item.size}`),
+        ownerName: `${this.ownerName}`,
+        policyName: `${this.policyName}`,
+        mediaType: `${this.item.mediaType}`,
+        size: Number.parseInt(`${this.item.size}`),
       },
     };
   }
 }
 
 class S3OSSAttachmentTask extends AbstractAttachmentTask {
-  buildModel(item: AttachmentModel, policyName: string) {
+  buildModel() {
     return {
       apiVersion: "storage.halo.run/v1alpha1",
       kind: "Attachment",
       metadata: {
-        name: item.id + "",
+        name: this.item.id + "",
         annotations: {
-          "storage.halo.run/external-link": `${item.path}` + "",
-          "storage.halo.run/suffix": `${item.suffix}` + "",
-          "storage.halo.run/width": `${item.width}` + "",
-          "storage.halo.run/height": `${item.height}` + "",
+          "storage.halo.run/external-link": `${this.item.path}`,
+          "storage.halo.run/suffix": `${this.item.suffix}`,
+          "storage.halo.run/width": `${this.item.width}`,
+          "storage.halo.run/height": `${this.item.height}`,
         },
       },
       spec: {
-        displayName: `${item.name}`,
+        displayName: `${this.item.name}`,
         groupName: "",
-        policyName: `${policyName}`,
-        mediaType: `${item.mediaType}`,
-        size: Number.parseInt(`${item.size}`),
+        policyName: `${this.policyName}`,
+        ownerName: `${this.ownerName}`,
+        mediaType: `${this.item.mediaType}`,
+        size: Number.parseInt(`${this.item.size}`),
       },
     };
   }
@@ -650,12 +660,15 @@ export function useMigrateFromHalo(
     return [...menuItemRequests, ...menuRequests];
   }
 
-  function createAttachmentTasks(typeToPolicyMap: Map<string, string>) {
+  function createAttachmentTasks(
+    typeToPolicyMap: Map<string, string>,
+    user: User
+  ) {
     const typeGroupAttachments = groupBy(attachments.value, "type");
 
     // create menu and menuitem request
     let attachmentRequests: MigrateRequestTask<any>[] = [];
-
+    const userName = user.metadata.name;
     Object.keys(typeGroupAttachments).forEach((type) => {
       const attachments = typeGroupAttachments[type];
       attachmentRequests = [
@@ -666,7 +679,8 @@ export function useMigrateFromHalo(
               case "LOCAL":
                 return new LocalAttachmentTask(
                   item,
-                  typeToPolicyMap.get(item.type) || "default-policy"
+                  typeToPolicyMap.get(item.type) || "default-policy",
+                  userName
                 );
               case "ALIOSS":
               case "BAIDUBOS":
@@ -674,7 +688,8 @@ export function useMigrateFromHalo(
               case "QINIUOSS":
                 return new S3OSSAttachmentTask(
                   item,
-                  typeToPolicyMap.get(item.type) || "default-policy"
+                  typeToPolicyMap.get(item.type) || "default-policy",
+                  userName
                 );
               default:
                 return new NoSupportAttachmentTask(item);

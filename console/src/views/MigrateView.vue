@@ -11,6 +11,7 @@ import {
   Dialog,
   VLoading,
   VModal,
+  VAlert,
 } from "@halo-dev/components";
 import { useFileDialog } from "@vueuse/core";
 import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
@@ -32,7 +33,7 @@ import type {
   Attachment,
 } from "../types/models";
 import type { User, PluginList } from "@halo-dev/api-client";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";
@@ -174,6 +175,7 @@ watch(
           links.value = data.links;
           attachments.value = data.attachments;
 
+          attachementPolicy();
           fetching.value = false;
         })
         .catch((e) => {
@@ -187,12 +189,37 @@ watch(
 const attachmentStorageVisible = ref(false);
 const isReady = ref(false);
 const attachmentTypes = ref<{ type: string; policyName: string }[]>([]);
+const isSelectLocal = ref(false);
 const policyOptions = ref<
   { label: string; value: string; templateName: string }[]
 >([]);
 const localPolicyOptions = ref<
   { label: string; value: string; templateName: string }[]
 >([]);
+
+watch(
+  () => attachmentTypes.value,
+  () => {
+    let isToast = false;
+    for (let { type, policyName } of attachmentTypes.value) {
+      if (type !== "LOCAL") {
+        isToast =
+          policyOptions.value.filter(
+            (item) => item.value === policyName && item.templateName === "local"
+          ).length > 0
+            ? true
+            : false;
+      }
+      if (isToast) {
+        break;
+      }
+    }
+    isSelectLocal.value = isToast;
+  },
+  {
+    deep: true,
+  }
+);
 
 const attachementPolicy = async () => {
   const { data } =
@@ -209,40 +236,29 @@ const attachementPolicy = async () => {
     (item) => item.templateName === "local"
   );
 
-  attachmentTypes.value = Object.keys(groupBy(attachments.value, "type")).map(
-    (type) => {
-      return {
-        type: type,
-        policyName:
-          type == "LOCAL"
-            ? localPolicyOptions.value[0]?.value
-            : policyOptions.value[0]?.value,
-      };
-    }
-  );
-
-  if (activatedPluginNames.value.includes("PluginS3ObjectStorage")) {
-    attachmentStorageVisible.value = true;
-  } else {
-    Dialog.warning({
-      title: "附件导入警告",
-      description:
-        "当前未安装/启用 S3 插件，所有附件只能导入到本地，原云存储文件将不能进行远程管理",
-      confirmText: "我已了解",
-      cancelText: "取消",
-      confirmType: "secondary",
-      onConfirm: () => {
-        policyOptions.value = localPolicyOptions.value;
-        attachmentStorageVisible.value = true;
-      },
-    });
+  if (attachmentTypes.value.length === 0) {
+    attachmentTypes.value = Object.keys(groupBy(attachments.value, "type")).map(
+      (type) => {
+        return {
+          type: type,
+          policyName:
+            type == "LOCAL"
+              ? localPolicyOptions.value[0]?.value
+              : policyOptions.value[0]?.value,
+        };
+      }
+    );
   }
+
+  if (!activatedPluginNames.value.includes("PluginS3ObjectStorage")) {
+    policyOptions.value = localPolicyOptions.value;
+  }
+  attachmentStorageVisible.value = true;
 };
 
 const typeToPolicyMap = reactive(new Map<string, string>());
 
 const submitAttachment = () => {
-  let isToast = false;
   attachmentTypes.value.forEach((item) => {
     typeToPolicyMap.set(item.type, item.policyName);
   });
@@ -250,38 +266,8 @@ const submitAttachment = () => {
     Toast.warning("请选择存储策略或前往附件新建本地策略。");
     return;
   }
-  for (let type of typeToPolicyMap.keys()) {
-    if (type !== "LOCAL") {
-      isToast =
-        policyOptions.value.filter(
-          (item) =>
-            item.value === typeToPolicyMap.get(type) &&
-            item.templateName === "local"
-        ).length > 0
-          ? true
-          : false;
-    }
-    if (isToast) {
-      break;
-    }
-  }
-  if (isToast && activatedPluginNames.value.includes("PluginS3ObjectStorage")) {
-    Dialog.warning({
-      title: "附件导入警告",
-      description:
-        "部分云存储附件选择了本地存储策略，原云存储文件将不能进行远程管理",
-      confirmText: "我已了解",
-      confirmType: "secondary",
-      cancelText: "重新选择",
-      onConfirm: () => {
-        attachmentStorageVisible.value = false;
-        isReady.value = true;
-      },
-    });
-  } else {
-    attachmentStorageVisible.value = false;
-    isReady.value = true;
-  }
+  attachmentStorageVisible.value = false;
+  isReady.value = true;
 };
 
 const handleImport = async () => {
@@ -686,6 +672,24 @@ onBeforeRouteLeave((to, from, next) => {
               title="设置附件迁移存储策略"
               @close="attachmentStorageVisible = false"
             >
+              <div>
+                <VAlert
+                  v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
+                  title="警告"
+                  type="warning"
+                >
+                  <template #description>
+                    当前未安装/启用 S3
+                    插件，所有附件只能导入到本地，原云存储文件将无法远程管理
+                  </template>
+                </VAlert>
+                <VAlert v-else-if="isSelectLocal" title="警告" type="warning">
+                  <template #description>
+                    部分云存储附件选择了本地存储策略，原云存储文件将不能进行远程管理
+                  </template>
+                </VAlert>
+              </div>
+
               <ul>
                 <li
                   v-for="(type, index) in attachmentTypes"
@@ -721,6 +725,17 @@ onBeforeRouteLeave((to, from, next) => {
               class="h-full"
               :title="`附件（${attachments.length}）`"
             >
+              <template #actions>
+                <VButton
+                  class="migrate-mr-2"
+                  :loading="loading"
+                  type="secondary"
+                  size="sm"
+                  @click="attachementPolicy"
+                >
+                  迁移存储策略
+                </VButton>
+              </template>
               <ul
                 class="box-border h-full w-full divide-y divide-gray-100"
                 role="list"
@@ -741,20 +756,12 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
         <div class="migrate-mt-8 migrate-self-center">
           <VButton
-            v-if="isReady"
+            :disabled="!isReady"
             :loading="loading"
             type="secondary"
             @click="handleImport"
           >
             执行导入
-          </VButton>
-          <VButton
-            v-if="!isReady"
-            :loading="loading"
-            type="secondary"
-            @click="attachementPolicy"
-          >
-            选择附件存储策略
           </VButton>
         </div>
       </div>

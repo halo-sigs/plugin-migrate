@@ -13,9 +13,12 @@ import type {
   Comment,
   Menu,
   Meta,
+  Journal,
+  Photo,
+  Link,
   Attachment as AttachmentModel,
 } from "../types/models";
-import type { AxiosResponse } from "axios";
+import axios, { type AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
 import type { Attachment, MenuItem } from "@halo-dev/api-client/index";
 
@@ -28,10 +31,14 @@ interface useMigrateFromHaloReturn {
   createTagTasks: () => MigrateRequestTask<Tag>[];
   createCategoryTasks: () => MigrateRequestTask<Category>[];
   createPostTasks: () => MigrateRequestTask<Post>[];
-  createSinglePageTasks: () => MigrateRequestTask<Sheet>[];
   createPostCommentTasks: () => MigrateRequestTask<Comment>[];
+  createSinglePageTasks: () => MigrateRequestTask<Sheet>[];
   createSinglePageCommentTasks: () => MigrateRequestTask<Comment>[];
   createMenuTasks: () => MigrateRequestTask<string | MenuItem>[];
+  createMomentTasks: () => MigrateRequestTask<Journal>[];
+  createMomentCommentTasks: () => MigrateRequestTask<Comment>[];
+  createPhotoTasks: () => MigrateRequestTask<string | Photo>[];
+  createLinkTasks: () => MigrateRequestTask<string | Link>[];
   createAttachmentTasks: (
     typeToPolicyMap: Map<string, string>,
     user: User
@@ -378,6 +385,127 @@ class MenuItemTask implements MigrateRequestTask<MenuItem> {
   }
 }
 
+class MomentTask implements MigrateRequestTask<Journal> {
+  item: Journal;
+  constructor(item: Journal) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(
+      `/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMoments/moments`,
+      {
+        spec: {
+          content: {
+            raw: this.item.content,
+            html: this.item.content,
+            medium: [],
+          },
+          releaseTime: new Date(this.item.createTime),
+          visible: this.item.type == "PUBLIC" ? "PUBLIC" : "PRIVATE",
+        },
+        metadata: {
+          name: this.item.id + "",
+        },
+        kind: "Moment",
+        apiVersion: "moment.halo.run/v1alpha1",
+      }
+    );
+  }
+}
+
+class PhotoGroupTask implements MigrateRequestTask<string> {
+  item: string;
+  constructor(item: string) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/photogroups`, {
+      spec: {
+        displayName: this.item ? this.item : "未分组",
+        priority: 0,
+      },
+      metadata: {
+        name: this.item ? this.item : "default",
+      },
+      kind: "PhotoGroup",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
+class PhotoTask implements MigrateRequestTask<Photo> {
+  item: Photo;
+  constructor(item: Photo) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/photos`, {
+      metadata: {
+        name: this.item.id + "",
+      },
+      spec: {
+        displayName: this.item.name,
+        url: this.item.url,
+        cover: this.item.thumbnail,
+        groupName: this.item.team ? this.item.team : "default",
+        description: this.item.description,
+      },
+      kind: "Photo",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
+class LinkGroupTask implements MigrateRequestTask<string> {
+  item: string;
+  constructor(item: string) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/linkgroups`, {
+      spec: {
+        displayName: this.item ? this.item : "未分组",
+        priority: 0,
+        links: [],
+      },
+      metadata: {
+        name: this.item ? this.item : "default",
+      },
+      kind: "LinkGroup",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
+class LinkTask implements MigrateRequestTask<Link> {
+  item: Link;
+  constructor(item: Link) {
+    this.item = item;
+  }
+
+  run() {
+    return axios.post(`/apis/core.halo.run/v1alpha1/links`, {
+      metadata: {
+        name: this.item.id + "",
+      },
+      spec: {
+        displayName: this.item.name,
+        url: this.item.url,
+        logo: this.item.logo,
+        groupName: this.item.team ? this.item.team : "default",
+        description: this.item.description,
+        priority: this.item.priority,
+      },
+      kind: "Link",
+      apiVersion: "core.halo.run/v1alpha1",
+    });
+  }
+}
+
 interface AttachmentTask extends MigrateRequestTask<AttachmentModel> {
   item: AttachmentModel;
 
@@ -488,6 +616,10 @@ export function useMigrateFromHalo(
   sheetComments: Ref<Comment[]>,
   sheetMetas: Ref<Meta[]>,
   menus: Ref<Menu[]>,
+  journals: Ref<Journal[]>,
+  journalComments: Ref<Comment[]>,
+  photos: Ref<Photo[]>,
+  links: Ref<Link[]>,
   attachments: Ref<AttachmentModel[]>
 ): useMigrateFromHaloReturn {
   function createTagTasks() {
@@ -660,6 +792,64 @@ export function useMigrateFromHalo(
     return [...menuItemRequests, ...menuRequests];
   }
 
+  function createMomentTasks() {
+    return journals.value.map((item: Journal) => {
+      return new MomentTask(item);
+    });
+  }
+
+  function createMomentCommentTasks() {
+    return createCommentTasks(
+      arrayToTree(journalComments.value, {
+        dataField: null,
+        rootParentIds: {
+          0: true,
+        },
+      }) as Comment[],
+      {
+        kind: "Moment",
+        group: "moment.halo.run",
+        version: "v1alpha1",
+      }
+    );
+  }
+
+  function createPhotoTasks() {
+    const groupedPhotos = groupBy(photos.value, "team");
+
+    // create photoGroupRequest
+    const photoGroupRequests: MigrateRequestTask<string>[] = [];
+
+    Object.keys(groupedPhotos).forEach((group) => {
+      photoGroupRequests.push(new PhotoGroupTask(group));
+    });
+
+    // create photoRequest
+    const photoRequests: MigrateRequestTask<Photo>[] = [];
+    photos.value.map((item: Photo) => {
+      photoRequests.push(new PhotoTask(item));
+    });
+
+    return [...photoGroupRequests, ...photoRequests];
+  }
+
+  function createLinkTasks() {
+    const groupLinks = groupBy(links.value, "team");
+
+    const linkGroupRequests: MigrateRequestTask<string>[] = [];
+
+    Object.keys(groupLinks).forEach((group) => {
+      linkGroupRequests.push(new LinkGroupTask(group));
+    });
+
+    const linkRequests: MigrateRequestTask<Link>[] = [];
+    links.value.map((item: Link) => {
+      linkRequests.push(new LinkTask(item));
+    });
+
+    return [...linkGroupRequests, ...linkRequests];
+  }
+
   function createAttachmentTasks(
     typeToPolicyMap: Map<string, string>,
     user: User
@@ -709,6 +899,10 @@ export function useMigrateFromHalo(
     createPostCommentTasks,
     createSinglePageCommentTasks,
     createMenuTasks,
+    createMomentTasks,
+    createMomentCommentTasks,
+    createPhotoTasks,
+    createLinkTasks,
     createAttachmentTasks,
   };
 }

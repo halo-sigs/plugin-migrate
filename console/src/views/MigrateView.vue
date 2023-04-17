@@ -26,6 +26,9 @@ import type {
   Sheet,
   Menu,
   Meta,
+  Journal,
+  Photo,
+  Link,
   Attachment,
 } from "../types/models";
 import type { User, PluginList } from "@halo-dev/api-client";
@@ -56,6 +59,11 @@ const sheets = ref<Sheet[]>([] as Sheet[]);
 const sheetComments = ref<Comment[]>([] as Comment[]);
 const sheetMetas = ref<Meta[]>([] as Meta[]);
 const menus = ref<Menu[]>([] as Menu[]);
+const journals = ref<Journal[]>([] as Journal[]);
+const journalComments = ref<Comment[]>([] as Comment[]);
+const photos = ref<Photo[]>([] as Photo[]);
+const links = ref<Link[]>([] as Link[]);
+
 const attachments = ref<Attachment[]>([] as Attachment[]);
 const loading = ref(false);
 const fetching = ref(false);
@@ -68,6 +76,10 @@ const {
   createPostCommentTasks,
   createSinglePageCommentTasks,
   createMenuTasks,
+  createMomentTasks,
+  createMomentCommentTasks,
+  createPhotoTasks,
+  createLinkTasks,
   createAttachmentTasks,
 } = useMigrateFromHalo(
   tags,
@@ -82,6 +94,10 @@ const {
   sheetComments,
   sheetMetas,
   menus,
+  journals,
+  journalComments,
+  photos,
+  links,
   attachments
 );
 
@@ -152,6 +168,10 @@ watch(
           sheetComments.value = data.sheet_comments;
           sheetMetas.value = data.sheet_metas;
           menus.value = data.menus;
+          journals.value = data.journals;
+          journalComments.value = data.journal_comments;
+          photos.value = data.photos;
+          links.value = data.links;
           attachments.value = data.attachments;
 
           fetching.value = false;
@@ -278,7 +298,7 @@ const handleImport = async () => {
 
   const taskQueue: queueAsPromised<MigrateRequestTask<any>> = fastq.promise(
     asyncWorker,
-    7
+    9
   );
 
   createTagTasks().forEach((item) => {
@@ -308,6 +328,28 @@ const handleImport = async () => {
   createMenuTasks().forEach((item) => {
     taskQueue.push(item);
   });
+
+  if (activatedPluginNames.value.includes("PluginMoments")) {
+    createMomentTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+
+    createMomentCommentTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+  }
+
+  if (activatedPluginNames.value.includes("PluginPhotos")) {
+    createPhotoTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+  }
+
+  if (activatedPluginNames.value.includes("PluginLinks")) {
+    createLinkTasks().forEach((item) => {
+      taskQueue.push(item);
+    });
+  }
 
   if (currentUser.value != undefined) {
     createAttachmentTasks(typeToPolicyMap, currentUser.value).forEach(
@@ -449,6 +491,28 @@ onBeforeRouteLeave((to, from, next) => {
               </ul>
             </VCard>
           </div>
+
+          <div class="migrate-h-96">
+            <VCard
+              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+              class="h-full"
+              :title="`文章评论（${postComments.length}）`"
+            >
+              <ul
+                class="box-border h-full w-full divide-y divide-gray-100"
+                role="list"
+              >
+                <li v-for="(postComment, index) in postComments" :key="index">
+                  <VEntity>
+                    <template #start>
+                      <VEntityField :title="postComment.author"></VEntityField>
+                    </template>
+                  </VEntity>
+                </li>
+              </ul>
+            </VCard>
+          </div>
+
           <div class="migrate-h-96">
             <VCard
               :body-class="['h-full', '!p-0', 'overflow-y-auto']"
@@ -466,27 +530,6 @@ onBeforeRouteLeave((to, from, next) => {
                         :title="sheet.title"
                         :description="sheet.slug"
                       ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`文章评论（${postComments.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(postComment, index) in postComments" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField :title="postComment.author"></VEntityField>
                     </template>
                   </VEntity>
                 </li>
@@ -538,6 +581,103 @@ onBeforeRouteLeave((to, from, next) => {
               </ul>
             </VCard>
           </div>
+
+          <template v-if="activatedPluginNames.includes('PluginMoments')">
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`日志（${journals.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li v-for="(journal, index) in journals" :key="index">
+                    <VEntity>
+                      <template #start>
+                        <VEntityField
+                          :title="journal.sourceContent"
+                        ></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`日志评论（${journalComments.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li
+                    v-for="(journalComment, index) in journalComments"
+                    :key="index"
+                  >
+                    <VEntity>
+                      <template #start>
+                        <VEntityField
+                          :title="journalComment.author"
+                        ></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+          </template>
+
+          <template v-if="activatedPluginNames.includes('PluginPhotos')">
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`图库（${photos.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li v-for="(photo, index) in photos" :key="index">
+                    <VEntity>
+                      <template #start>
+                        <VEntityField :title="photo.name"></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+          </template>
+
+          <template v-if="activatedPluginNames.includes('PluginLinks')">
+            <div class="migrate-h-96">
+              <VCard
+                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
+                class="h-full"
+                :title="`友情链接（${links.length}）`"
+              >
+                <ul
+                  class="box-border h-full w-full divide-y divide-gray-100"
+                  role="list"
+                >
+                  <li v-for="(link, index) in links" :key="index">
+                    <VEntity>
+                      <template #start>
+                        <VEntityField :title="link.name"></VEntityField>
+                      </template>
+                    </VEntity>
+                  </li>
+                </ul>
+              </VCard>
+            </div>
+          </template>
 
           <div class="migrate-h-96">
             <VModal

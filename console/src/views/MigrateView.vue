@@ -672,7 +672,7 @@ onBeforeRouteLeave((to, from, next) => {
               title="设置附件迁移存储策略"
               @close="attachmentStorageVisible = false"
             >
-              <div>
+              <div class="migrate-mb-5">
                 <VAlert
                   v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
                   title="警告"
@@ -728,7 +728,6 @@ onBeforeRouteLeave((to, from, next) => {
               <template #actions>
                 <VButton
                   class="migrate-mr-2"
-                  :loading="loading"
                   type="secondary"
                   size="sm"
                   @click="attachementPolicy"

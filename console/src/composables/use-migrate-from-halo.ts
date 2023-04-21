@@ -1,5 +1,6 @@
 import type { Ref } from "vue";
 import { apiClient } from "@/utils/api-client";
+import type { User } from "@halo-dev/api-client";
 import { arrayToTree } from "performant-array-to-tree";
 import type {
   Category,
@@ -15,10 +16,11 @@ import type {
   Journal,
   Photo,
   Link,
+  Attachment as AttachmentModel,
 } from "../types/models";
 import axios, { type AxiosResponse } from "axios";
 import groupBy from "lodash.groupby";
-import type { MenuItem } from "@halo-dev/api-client/index";
+import type { Attachment, MenuItem } from "@halo-dev/api-client/index";
 
 export interface MigrateRequestTask<T> {
   item: T;
@@ -37,6 +39,10 @@ interface useMigrateFromHaloReturn {
   createMomentCommentTasks: () => MigrateRequestTask<Comment>[];
   createPhotoTasks: () => MigrateRequestTask<string | Photo>[];
   createLinkTasks: () => MigrateRequestTask<string | Link>[];
+  createAttachmentTasks: (
+    typeToPolicyMap: Map<string, string>,
+    user: User
+  ) => MigrateRequestTask<string | MenuItem>[];
 }
 
 class TagTask implements MigrateRequestTask<Tag> {
@@ -500,6 +506,103 @@ class LinkTask implements MigrateRequestTask<Link> {
   }
 }
 
+interface AttachmentTask extends MigrateRequestTask<AttachmentModel> {
+  item: AttachmentModel;
+
+  run: () => Promise<AxiosResponse<any, any>>;
+}
+
+class NoSupportAttachmentTask implements AttachmentTask {
+  item: AttachmentModel;
+  constructor(item: AttachmentModel) {
+    this.item = item;
+  }
+
+  run() {
+    return Promise.reject(
+      new Error("尚未支持 【" + this.item.type + "】 类型的附件迁移")
+    );
+  }
+}
+
+abstract class AbstractAttachmentTask implements AttachmentTask {
+  item: AttachmentModel;
+  policyName: string;
+  ownerName: string;
+  constructor(item: AttachmentModel, policyName: string, ownerName: string) {
+    this.item = item;
+    this.policyName = policyName;
+    this.ownerName = ownerName;
+  }
+
+  abstract buildModel(): Attachment;
+
+  run() {
+    return apiClient.extension.storage.attachment.createstorageHaloRunV1alpha1Attachment(
+      {
+        attachment: this.buildModel(),
+      }
+    );
+  }
+}
+
+class LocalAttachmentTask extends AbstractAttachmentTask {
+  buildModel() {
+    let relativePath = this.item.path;
+    if (this.item.path.startsWith("upload/")) {
+      relativePath = relativePath.replace("upload/", "");
+    }
+    return {
+      apiVersion: "storage.halo.run/v1alpha1",
+      kind: "Attachment",
+      metadata: {
+        name: this.item.id + "",
+        annotations: {
+          "storage.halo.run/local-relative-path": `migrate-from-1.x/${relativePath}`,
+          "storage.halo.run/uri": `/${this.item.path}`,
+          "storage.halo.run/suffix": `${this.item.suffix}`,
+          "storage.halo.run/width": `${this.item.width}`,
+          "storage.halo.run/height": `${this.item.height}`,
+        },
+      },
+      spec: {
+        displayName: `${this.item.name}`,
+        groupName: ``,
+        ownerName: `${this.ownerName}`,
+        policyName: `${this.policyName}`,
+        mediaType: `${this.item.mediaType}`,
+        size: Number.parseInt(`${this.item.size}`),
+      },
+    };
+  }
+}
+
+class S3OSSAttachmentTask extends AbstractAttachmentTask {
+  buildModel() {
+    return {
+      apiVersion: "storage.halo.run/v1alpha1",
+      kind: "Attachment",
+      metadata: {
+        name: this.item.id + "",
+        annotations: {
+          "storage.halo.run/external-link": `${this.item.path}`,
+          "storage.halo.run/suffix": `${this.item.suffix}`,
+          "storage.halo.run/width": `${this.item.width}`,
+          "storage.halo.run/height": `${this.item.height}`,
+        },
+      },
+      spec: {
+        displayName: `${this.item.name}`,
+        groupName: "",
+        policyName: `${this.policyName}`,
+        ownerName: `${this.ownerName}`,
+        mediaType: `${this.item.mediaType}`,
+        size: Number.parseInt(`${this.item.size}`),
+      },
+    };
+  }
+}
+
 export function useMigrateFromHalo(
   tags: Ref<Tag[]>,
   categories: Ref<Category[]>,
@@ -517,6 +620,7 @@ export function useMigrateFromHalo(
   journalComments: Ref<Comment[]>,
   photos: Ref<Photo[]>,
   links: Ref<Link[]>,
+  attachments: Ref<AttachmentModel[]>
 ): useMigrateFromHaloReturn {
   function createTagTasks() {
     return tags.value.map((item: Tag) => {
@@ -746,6 +850,47 @@ export function useMigrateFromHalo(
     return [...linkGroupRequests, ...linkRequests];
   }
 
+  function createAttachmentTasks(
+    typeToPolicyMap: Map<string, string>,
+    user: User
+  ) {
+    const typeGroupAttachments = groupBy(attachments.value, "type");
+
+    let attachmentRequests: MigrateRequestTask<any>[] = [];
+    const userName = user.metadata.name;
+    Object.keys(typeGroupAttachments).forEach((type) => {
+      const attachments = typeGroupAttachments[type];
+      attachmentRequests = [
+        ...attachmentRequests,
+        ...attachments
+          .map((item) => {
+            switch (item.type) {
+              case "LOCAL":
+                return new LocalAttachmentTask(
+                  item,
+                  typeToPolicyMap.get(item.type) || "default-policy",
+                  userName
+                );
+              case "ALIOSS":
+              case "BAIDUBOS":
+              case "TENCENTCOS":
+              case "QINIUOSS":
+                return new S3OSSAttachmentTask(
+                  item,
+                  typeToPolicyMap.get(item.type) || "default-policy",
+                  userName
+                );
+              default:
+                return new NoSupportAttachmentTask(item);
+            }
+          })
+          .filter((item) => item && item != undefined),
+      ];
+    });
+
+    return attachmentRequests;
+  }
+
   return {
     createTagTasks,
     createCategoryTasks,
@@ -758,5 +903,6 @@ export function useMigrateFromHalo(
     createMomentCommentTasks,
     createPhotoTasks,
     createLinkTasks,
+    createAttachmentTasks,
   };
 }

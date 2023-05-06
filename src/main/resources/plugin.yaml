@@ -14,4 +14,5 @@ spec:
   displayName: "站点迁移"
   description: "支持从 Halo 1.5/1.6 迁移数据"
   license:
-    - name: "MIT"
+    - name: "GPL-3.0"
+      url: "https://github.com/halo-sigs/plugin-migrate/blob/main/LICENSE"

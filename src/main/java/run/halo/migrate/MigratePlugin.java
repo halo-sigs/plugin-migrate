@@ -10,15 +10,15 @@ import run.halo.app.plugin.BasePlugin;
  */
 @Component
 public class MigratePlugin extends BasePlugin {
-
+    
     public MigratePlugin(PluginWrapper wrapper) {
         super(wrapper);
     }
-
+    
     @Override
     public void start() {
     }
-
+    
     @Override
     public void stop() {
     }

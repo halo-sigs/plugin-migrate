@@ -1,5 +1,4 @@
 import {
-  ApiConsoleHaloRunV1alpha1ContentApi,
   ApiConsoleHaloRunV1alpha1PostApi,
   ApiConsoleHaloRunV1alpha1SinglePageApi,
   ApiConsoleHaloRunV1alpha1UserApi,
@@ -93,7 +92,6 @@ function setupApiClient(axios: AxiosInstance) {
       baseURL,
       axios
     ),
-    content: new ApiConsoleHaloRunV1alpha1ContentApi(undefined, baseURL, axios),
     comment: new ApiConsoleHaloRunV1alpha1CommentApi(undefined, baseURL, axios),
     reply: new ApiConsoleHaloRunV1alpha1ReplyApi(undefined, baseURL, axios),
     stats: new ApiConsoleHaloRunV1alpha1StatsApi(undefined, baseURL, axios),

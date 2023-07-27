@@ -33,7 +33,7 @@ import type {
   Attachment,
 } from "../types/models";
 import type { User, PluginList } from "@halo-dev/api-client";
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { onMounted, reactive, ref, watch } from "vue";
 import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
 import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
 import { onBeforeRouteLeave } from "vue-router";

@@ -81,22 +81,20 @@ const defaultStepItems: Step[] = [
   {
     key: "provider",
     name: "选择渠道",
-    nextDisabled: disabledProviderView.value,
+    nextDisabled: disabledProviderView,
   },
   {
     key: "migrate",
     name: "待迁移文件",
-  },
-  {
-    key: "check",
-    name: "状态检测",
   },
 ];
 
 const attachmentPolicyStepItem: Step = {
   key: "attachmentPolicy",
   name: "设置附件存储策略",
-  nextDisabled: policyMap.value.size === 0,
+  nextDisabled: computed(() => {
+    return policyMap.value.size === 0;
+  }),
 };
 
 const stepItems = computed(() => {

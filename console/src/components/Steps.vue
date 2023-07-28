@@ -7,7 +7,7 @@ export interface Step {
   name: string;
   description?: string;
   nextHandler?: () => void;
-  nextDisabled?: boolean;
+  nextDisabled?: ComputedRef;
 }
 
 const props = withDefaults(
@@ -80,15 +80,13 @@ const activeClass = (index: number) => {
     </header>
 
     <main class="migrate-h-96">
-      <Transition>
         <div
           v-for="(item, index) in items"
           :key="index"
           v-show="index === activeIndex"
         >
-          <slot :name="item.key"></slot>
+          <slot :name="item.key" :key="item.key"></slot>
         </div>
-      </Transition>
     </main>
 
     <footer class="migrate-mb-2 migrate-ml-2">
@@ -97,7 +95,7 @@ const activeClass = (index: number) => {
           上一步
         </VButton>
         <VButton
-          :disabled="items[activeIndex].nextDisabled"
+          :disabled="items[activeIndex].nextDisabled?.value"
           @click="activeIndex++"
           v-show="activeIndex != items.length - 1"
         >

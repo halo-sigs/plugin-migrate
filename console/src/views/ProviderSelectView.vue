@@ -128,35 +128,40 @@ const handleImport = (
     </template>
   </VPageHeader>
 
-  <div class="migrate-flex migrate-flex-1 migrate-flex-col">
-    <div v-if="!openProviderView">
-      <h1 class="migrate-mx-auto migrate-text-center migrate-text-2xl">
-        请选择迁移数据来源
-      </h1>
-      <ul
-        class="grid migrate-m-10 migrate-mt-4 migrate-cursor-pointer migrate-grid-cols-3 migrate-gap-20"
-      >
-        <li
-          v-for="provider in providerItems"
-          :key="provider.name"
-          @click="handleOpenFile(provider)"
-          class=":hover:migrate-bg-gray-100 migrate-flex migrate-items-center migrate-justify-center migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-border-opacity-50 migrate-bg-slate-400 migrate-p-4"
-        >
-          <img
-            :src="provider.icon"
-            :alt="provider.name"
-            class="migrate-mr-2 migrate-h-10 migrate-w-10"
-          />
-          <div class="migrate-flex migrate-flex-col">
-            <span>{{ provider.name }}</span>
-            <span class="migrate-text-gray-500">{{
-              provider.description
-            }}</span>
-          </div>
-        </li>
-      </ul>
-    </div>
-    <Transition v-else appear name="fade">
+  <div class="migrate-m-6 migrate-flex migrate-flex-1 migrate-flex-col">
+    <Steps :items="stepItems">
+      <template #provider>
+        <div>
+          <h1 class="migrate-mx-auto migrate-text-center migrate-text-2xl">
+            请选择迁移数据来源
+          </h1>
+          <ul
+            class="grid migrate-m-4 migrate-mt-4 migrate-cursor-pointer migrate-grid-cols-3 migrate-gap-16"
+          >
+            <li
+              v-for="provider in providerItems"
+              :key="provider.name"
+              @click="handleOpenFile(provider)"
+              class=":hover:migrate-bg-gray-100 migrate-flex migrate-items-center migrate-justify-center migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-border-opacity-50 migrate-bg-gray-300 migrate-p-2"
+            >
+              <img
+                :src="provider.icon"
+                :alt="provider.name"
+                class="migrate-mr-6 migrate-h-10 migrate-w-10"
+              />
+              <div class="migrate-flex migrate-flex-col">
+                <span>{{ provider.name }}</span>
+                <span class="migrate-text-gray-500">
+                  {{ provider.description }}
+                </span>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </template>
+      <template #migrate> 选择迁移文件页面 </template>
+    </Steps>
+    <!-- <Transition appear name="fade">
       <div>
         <MigratePreview
           :provider="currentProvider"
@@ -164,6 +169,6 @@ const handleImport = (
           @import="handleImport"
         ></MigratePreview>
       </div>
-    </Transition>
+    </Transition> -->
   </div>
 </template>

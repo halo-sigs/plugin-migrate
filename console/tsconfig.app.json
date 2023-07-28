@@ -9,6 +9,6 @@
       "@/*": ["./src/*"]
     },
     "types": ["unplugin-icons/types/vue"],
-    "lib": ["esnext"]
+    "lib": ["esnext", "DOM"]
   }
 }

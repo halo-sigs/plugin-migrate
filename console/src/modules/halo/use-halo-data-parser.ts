@@ -1,6 +1,5 @@
 import type {
   MigrateData,
-  MigrateDataParser,
   MigratePost,
   MigrateSinglePage,
   MigrateMenu,
@@ -15,19 +14,13 @@ import type {
 } from "@/types";
 import { arrayToTree } from "performant-array-to-tree";
 
-export class HaloMigrateDataParser implements MigrateDataParser {
-  files: FileList;
+interface useHaloDataParserReturn {
+  parse: () => Promise<MigrateData>;
+}
 
-  constructor(files: FileList) {
-    this.files = files;
-  }
-
-  parse = (): Promise<MigrateData> => {
+export function useHaloDataParser(file: File): useHaloDataParserReturn {
+  const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
-      if (this.files.length === 0) {
-        reject("No file selected");
-      }
-      const file = this.files[0];
       const reader = new FileReader();
       reader.onload = (event) => {
         const fileContent = event.target?.result as string;
@@ -37,7 +30,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
           reject("暂不支持该版本的迁移，仅支持 Halo 1.5 / 1.6 版本");
         }
 
-        resolve(this.#parseData(data));
+        resolve(parseData(data));
       };
       reader.onerror = () => {
         reject("Failed to fetch data");
@@ -46,22 +39,22 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseData = (data: any): MigrateData => {
+  const parseData = (data: any): MigrateData => {
     return {
-      tags: this.#parseTags(data.tags),
-      categories: this.#parseCategories(data.categories),
-      posts: this.#parsePosts(data),
-      pages: this.#parseSinglePages(data),
-      comments: this.#parseComments(data),
-      menuItems: this.#parseMenus(data.menus),
-      moments: this.#parseMoments(data.journals),
-      photos: this.#parsePhotos(data.photos),
-      links: this.#parseLinks(data.links),
-      attachments: this.#parseAttachments(data.attachments),
+      tags: parseTags(data.tags),
+      categories: parseCategories(data.categories),
+      posts: parsePosts(data),
+      pages: parseSinglePages(data),
+      comments: parseComments(data),
+      menuItems: parseMenus(data.menus),
+      moments: parseMoments(data.journals),
+      photos: parsePhotos(data.photos),
+      links: parseLinks(data.links),
+      attachments: parseAttachments(data.attachments),
     } as MigrateData;
   };
 
-  #parseTags = (tags: any[]): MigrateTag[] => {
+  const parseTags = (tags: any[]): MigrateTag[] => {
     return tags.map((tag: Tag) => {
       return {
         metadata: {
@@ -79,7 +72,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseCategories = (categories: any[]): MigrateCategory[] => {
+  const parseCategories = (categories: any[]): MigrateCategory[] => {
     return categories
       .reduce<Category[]>((acc, val, _, array) => {
         const children: string[] = [];
@@ -109,7 +102,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
       });
   };
 
-  #parsePosts = (data: any): MigratePost[] => {
+  const parsePosts = (data: any): MigratePost[] => {
     const { posts, contents, post_tags, post_categories, post_metas } = data;
     return posts.map((post: Post) => {
       const content = contents.find(
@@ -174,7 +167,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseSinglePages = (data: any): MigrateSinglePage[] => {
+  const parseSinglePages = (data: any): MigrateSinglePage[] => {
     const { sheets, contents, sheet_metas } = data;
     return sheets.map((sheet: Sheet) => {
       const content = contents.find(
@@ -230,10 +223,10 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseComments = (data: any): (MigrateComment | MigrateReply)[] => {
+  const parseComments = (data: any): (MigrateComment | MigrateReply)[] => {
     const { post_comments, sheet_comments, journal_comments } = data;
     // 文章评论
-    const postComments = this.#createCommentOrReply(
+    const postComments = createCommentOrReply(
       arrayToTree(post_comments, {
         dataField: null,
         rootParentIds: {
@@ -247,7 +240,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
       }
     );
     // 页面评论
-    const sheetComments = this.#createCommentOrReply(
+    const sheetComments = createCommentOrReply(
       arrayToTree(sheet_comments, {
         dataField: null,
         rootParentIds: {
@@ -261,7 +254,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
       }
     );
     // 日志（瞬间）评论
-    const journalComments = this.#createCommentOrReply(
+    const journalComments = createCommentOrReply(
       arrayToTree(journal_comments, {
         dataField: null,
         rootParentIds: {
@@ -278,11 +271,10 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     return [...postComments, ...sheetComments, ...journalComments];
   };
 
-  #createCommentOrReply = (
+  const createCommentOrReply = (
     commentsTree: Comment[],
     subjectRef: { kind: string; group: string; version: string }
   ): (MigrateComment | MigrateReply)[] => {
-    const _self = this;
     const commentRequests: (MigrateComment | MigrateReply)[] = [];
     createCommentOrReply(commentsTree, undefined);
 
@@ -290,10 +282,10 @@ export class HaloMigrateDataParser implements MigrateDataParser {
       comments.forEach((comment: Comment) => {
         if (comment.parentId === 0) {
           commentName = comment.id;
-          commentRequests.push(_self.#createComment(comment, subjectRef));
+          commentRequests.push(createComment(comment, subjectRef));
         } else {
           commentRequests.push(
-            _self.#createReply(comment, commentName, subjectRef.kind as any)
+            createReply(comment, commentName, subjectRef.kind as any)
           );
         }
 
@@ -306,7 +298,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     return commentRequests;
   };
 
-  #createComment = (
+  const createComment = (
     comment: Comment,
     subjectRef: { kind: string; group: string; version: string }
   ): MigrateComment => {
@@ -347,7 +339,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     };
   };
 
-  #createReply = (
+  const createReply = (
     comment: Comment,
     commentName: number | undefined,
     refType: "Post" | "SinglePage" | "Moment"
@@ -386,7 +378,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     };
   };
 
-  #parseMenus = (menus: Menu[]): MigrateMenu[] => {
+  const parseMenus = (menus: Menu[]): MigrateMenu[] => {
     return menus
       .reduce<Menu[]>((acc, val, _, array) => {
         const children: string[] = [];
@@ -417,7 +409,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
       });
   };
 
-  #parseMoments = (journals: Journal[]): MigrateMoment[] => {
+  const parseMoments = (journals: Journal[]): MigrateMoment[] => {
     return journals.map((journal) => {
       return {
         spec: {
@@ -438,7 +430,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parsePhotos = (photos: Photo[]): MigratePhoto[] => {
+  const parsePhotos = (photos: Photo[]): MigratePhoto[] => {
     return photos.map((photo) => {
       return {
         metadata: {
@@ -457,7 +449,7 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseLinks = (links: Link[]): MigrateLink[] => {
+  const parseLinks = (links: Link[]): MigrateLink[] => {
     return links.map((link) => {
       return {
         metadata: {
@@ -477,8 +469,12 @@ export class HaloMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseAttachments = (attachments: Attachment[]): MigrateAttachment[] => {
+  const parseAttachments = (attachments: Attachment[]): MigrateAttachment[] => {
     return attachments;
+  };
+
+  return {
+    parse,
   };
 }
 

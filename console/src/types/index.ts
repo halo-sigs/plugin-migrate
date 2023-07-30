@@ -8,14 +8,13 @@ import type {
   SinglePageRequest,
   Tag,
 } from "@halo-dev/api-client/index";
+import type { Component } from "vue";
 
 export interface Provider {
   name: string;
   icon: string;
   description: string;
-  accept: string;
-  multiple?: boolean;
-  parser: new (files: FileList) => MigrateDataParser;
+  importComponent?: string | Component;
 }
 
 export interface MigrateDataParser {

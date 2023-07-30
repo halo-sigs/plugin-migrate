@@ -2,24 +2,19 @@ import type {
   MigrateCategory,
   MigrateComment,
   MigrateData,
-  MigrateDataParser,
   MigrateReply,
 } from "@/types";
 import { XMLParser } from "fast-xml-parser";
 
-export class WordPressMigrateDataParser implements MigrateDataParser {
-  files: FileList;
+interface useWordPressDataParserReturn {
+  parse: () => Promise<MigrateData>;
+}
 
-  constructor(files: FileList) {
-    this.files = files;
-  }
-
-  parse = (): Promise<MigrateData> => {
+export function useWordPressDataParser(
+  file: File
+): useWordPressDataParserReturn {
+  const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
-      if (this.files.length === 0) {
-        reject("No file selected");
-      }
-      const file = this.files[0];
       const reader = new FileReader();
       reader.onload = (event) => {
         const xmlData = event.target?.result as string;
@@ -42,19 +37,15 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
           const channel = result.rss.channel as Channel;
           // 校验 wxr 版本 result.rss.channel["wp:wxr_version"]
           // 解析 item 数据，获取文章、页面、附件
-          const { posts, pages, attachments } = this.#itemClassification(
+          const { posts, pages, attachments } = itemClassification(
             channel.item
           );
           resolve({
-            posts: this.#parsePosts(
-              posts,
-              channel["wp:tag"],
-              channel["wp:category"]
-            ),
-            pages: this.#parsePages(pages),
-            comments: this.#parseComments(channel.item),
-            tags: this.#parseTags(channel["wp:tag"]),
-            categories: this.#parseCategories(channel["wp:category"]),
+            posts: parsePosts(posts, channel["wp:tag"], channel["wp:category"]),
+            pages: parsePages(pages),
+            comments: parseComments(channel.item),
+            tags: parseTags(channel["wp:tag"]),
+            categories: parseCategories(channel["wp:category"]),
           } as MigrateData);
         } catch (error) {
           reject("Failed to parse data. error -> " + error);
@@ -67,7 +58,7 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #itemClassification = (items: Item[]) => {
+  const itemClassification = (items: Item[]) => {
     const posts: Item[] = [];
     const pages: Item[] = [];
     const attachments: Item[] = [];
@@ -91,7 +82,7 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     return { posts, pages, attachments, others };
   };
 
-  #parsePosts = (posts: Item[], tags: Tag[], categories: Category[]) => {
+  const parsePosts = (posts: Item[], tags: Tag[], categories: Category[]) => {
     return posts.map((post: Item) => {
       const publish =
         post["wp:status"] === "publish" ||
@@ -162,7 +153,7 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parsePages = (pages: Item[]) => {
+  const parsePages = (pages: Item[]) => {
     return pages.map((page: Item) => {
       const publish =
         page["wp:status"] === "publish" ||
@@ -204,22 +195,26 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseComments = (items: Item[]): (MigrateComment | MigrateReply)[] => {
+  const parseComments = (items: Item[]): (MigrateComment | MigrateReply)[] => {
     const comments: (MigrateComment | MigrateReply)[] = [];
     items.forEach((item) => {
       const refType = item["wp:post_type"] == "post" ? "Post" : "SinglePage";
       item["wp:comment"]?.forEach((comment) => {
         if (comment["wp:comment_parent"] === 0) {
-          comments.push(this.#createComment(comment, item, refType));
+          comments.push(createComment(comment, item, refType));
         } else {
-          comments.push(this.#createReply(comment, refType));
+          comments.push(createReply(comment, refType));
         }
       });
     });
     return comments;
   };
 
-  #createComment = (comment: Comment, item: Item, refType: "Post" | "SinglePage"): MigrateComment => {
+  const createComment = (
+    comment: Comment,
+    item: Item,
+    refType: "Post" | "SinglePage"
+  ): MigrateComment => {
     return {
       refType: refType,
       kind: "Comment",
@@ -257,7 +252,10 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     };
   };
 
-  #createReply = (reply: Comment, refType: "Post" | "SinglePage"): MigrateReply => {
+  const createReply = (
+    reply: Comment,
+    refType: "Post" | "SinglePage"
+  ): MigrateReply => {
     return {
       refType: refType,
       kind: "Reply",
@@ -290,7 +288,7 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     };
   };
 
-  #parseTags = (tags: Tag[]) => {
+  const parseTags = (tags: Tag[]) => {
     return tags.map((tag) => {
       return {
         metadata: {
@@ -306,7 +304,7 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  #parseCategories = (categories: Category[]) => {
+  const parseCategories = (categories: Category[]) => {
     return categories.map((category) => {
       const children = categories
         .filter((item) => {
@@ -331,7 +329,9 @@ export class WordPressMigrateDataParser implements MigrateDataParser {
     });
   };
 
-  // TODO 附件
+  return {
+    parse,
+  };
 }
 
 interface Category {

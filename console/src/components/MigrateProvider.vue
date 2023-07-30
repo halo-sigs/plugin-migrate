@@ -1,48 +1,21 @@
 <script setup lang="ts">
-import type { Provider, MigrateData } from "@/types";
-import { useFileDialog } from "@vueuse/core";
-import { ref, watch } from "vue";
-
-const { files, open, reset } = useFileDialog();
+import type { Provider } from "@/types";
+import { ref } from "vue";
 
 defineProps<{
   providers: Provider[];
 }>();
 
 const emit = defineEmits<{
-  (event: "fileChange", value: MigrateData, provider: Provider): void;
+  (event: "selectProvider", provider: Provider): void;
 }>();
 
 const currentProvider = ref<Provider>();
 
-const handleOpenFile = (provider: Provider) => {
-  reset();
-  open({
-    accept: provider.accept,
-    multiple: provider.multiple,
-  });
+const handleSelectProvider = (provider: Provider) => {
   currentProvider.value = provider;
+  emit("selectProvider", provider);
 };
-
-watch(
-  () => files.value,
-  () => {
-    if (!files.value || !currentProvider.value) {
-      return;
-    }
-
-    // 初始化解析器
-    const parser = new currentProvider.value.parser(files.value);
-    parser
-      .parse()
-      .then((data: MigrateData) => {
-        emit("fileChange", data, currentProvider.value as Provider);
-      })
-      .catch((error: any) => {
-        console.error(error);
-      });
-  }
-);
 </script>
 <template>
   <ul
@@ -51,8 +24,11 @@ watch(
     <li
       v-for="provider in providers"
       :key="provider.name"
-      @click="handleOpenFile(provider)"
+      @click="handleSelectProvider(provider)"
       class=":hover:migrate-bg-gray-100 migrate-flex migrate-items-center migrate-justify-center migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-border-opacity-50 migrate-bg-gray-300 migrate-p-2"
+      :class="{
+        '!migrate-bg-blue-500': currentProvider?.name == provider.name,
+      }"
     >
       <img
         :src="provider.icon"

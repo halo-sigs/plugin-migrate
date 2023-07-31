@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { VCard, VEntityField, VEntity } from "@halo-dev/components";
 import type { MigrateData, Provider } from "../types";
 import { ref } from "vue";
 
@@ -21,228 +20,130 @@ const handleImport = () => {
 };
 </script>
 <template>
-  <div class="migrate-flex migrate-flex-1 migrate-flex-col">
-    <div
-      class="migrate-grid migrate-grid-cols-1 migrate-gap-3 sm:migrate-grid-cols-4"
+  <div>
+    <ul
+      class="migrate-divide-y migrate-divide-gray-200 dark:migrate-divide-gray-700"
     >
-      <div v-if="data.tags" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`标签（${data.tags.length}）`"
+      <li v-if="data.tags" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>标签</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(tag, index) in data.tags" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField :title="tag.spec.displayName"></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.categories" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`分类（${data.categories.length}）`"
+            共 {{ data.tags.length }} 条
+          </div>
+        </div>
+      </li>
+      <li v-if="data.categories" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>分类</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(category, index) in data.categories" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="category.spec.displayName"
-                    :description="category.spec.description"
-                  ></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.posts" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`文章（${data.posts.length}）`"
+            共 {{ data.categories.length }} 条
+          </div>
+        </div>
+      </li>
+      <li v-if="data.posts" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>文章</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(post, index) in data.posts" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="post.postRequest.post.spec.title"
-                    :description="post.postRequest.post.spec.excerpt.raw"
-                  ></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.pages" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`自定义页面（${data.pages.length}）`"
+            共 {{ data.posts.length }} 篇
+          </div>
+        </div>
+      </li>
+      <li v-if="data.pages" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>页面</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(page, index) in data.pages" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="page.singlePageRequest.page.spec.title"
-                    :description="page.singlePageRequest.page.spec.excerpt.raw"
-                  ></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.comments" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`评论（${data.comments.length}）`"
+            共 {{ data.pages.length }} 个
+          </div>
+        </div>
+      </li>
+      <li v-if="data.comments" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>评论及回复</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(comment, index) in data.comments" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField :title="comment.spec.content"></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.menuItems" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`菜单（${data.menuItems.length}）`"
+            共 {{ data.comments.length }} 条
+          </div>
+        </div>
+      </li>
+      <li v-if="data.menuItems" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>菜单</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(menu, index) in data.menuItems" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="menu.menu.spec.displayName"
-                    :description="menu.menu.spec.href"
-                  ></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.moments" class="migrate-h-96">
-        <!-- TODO: 没有插件时进行提示-->
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`日志（${data.moments.length}）`"
+            共 {{ data.menuItems.length }} 个
+          </div>
+        </div>
+      </li>
+      <li v-if="data.moments" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>日志</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(moment, index) in data.moments" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="moment.spec.content.html"
-                  ></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.photos" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`图库（${data.photos.length}）`"
+            共 {{ data.moments.length }} 条
+          </div>
+        </div>
+      </li>
+      <li v-if="data.photos" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>图库</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(photo, index) in data.photos" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField :title="photo.spec.displayName"></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.links" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`友情链接（${data.links.length}）`"
+            共 {{ data.photos.length }} 张
+          </div>
+        </div>
+      </li>
+      <li v-if="data.links" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>友情链接</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(link, index) in data.links" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField :title="link.spec.displayName"></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-      <div v-if="data.attachments" class="migrate-h-96">
-        <VCard
-          :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-          class="h-full"
-          :title="`附件（${data.attachments.length}）`"
+            共 {{ data.links.length }} 个
+          </div>
+        </div>
+      </li>
+      <li v-if="data.attachments" class="migrate-py-3 sm:migrate-py-4">
+        <div
+          class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
         >
-          <ul
-            class="box-border h-full w-full divide-y divide-gray-100"
-            role="list"
+          <span>附件</span>
+          <div
+            class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
           >
-            <li v-for="(attachment, index) in data.attachments" :key="index">
-              <VEntity>
-                <template #start>
-                  <VEntityField
-                    :title="attachment.name"
-                    :description="attachment.path"
-                  ></VEntityField>
-                </template>
-              </VEntity>
-            </li>
-          </ul>
-        </VCard>
-      </div>
-    </div>
+            共 {{ data.attachments.length }} 个
+          </div>
+        </div>
+      </li>
+    </ul>
   </div>
 </template>

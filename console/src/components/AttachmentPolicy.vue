@@ -3,7 +3,7 @@ import { VAlert } from "@halo-dev/components";
 import type { MigrateAttachment } from "@/types";
 import { apiClient } from "@/utils/api-client";
 import groupBy from "lodash.groupby";
-import { onUpdated, reactive, ref, watch } from "vue";
+import { onMounted, onUpdated, reactive, ref, watch } from "vue";
 
 const props = defineProps<{
   activatedPluginNames: string[];
@@ -23,7 +23,7 @@ const localPolicyOptions = ref<
   { label: string; value: string; templateName: string }[]
 >([]);
 
-onUpdated(() => {
+onMounted(() => {
   attachmentPolicy();
 });
 
@@ -95,6 +95,7 @@ watch(
         v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
         title="警告"
         type="warning"
+        :closable="false"
       >
         <template #description>
           当前未安装/启用 S3

@@ -4,6 +4,7 @@ import type {
   MigrateData,
   MigrateReply,
 } from "@/types";
+import type { Ref } from "@halo-dev/api-client/index";
 import { XMLParser } from "fast-xml-parser";
 
 interface useWordPressDataParserReturn {
@@ -13,6 +14,8 @@ interface useWordPressDataParserReturn {
 export function useWordPressDataParser(
   file: File
 ): useWordPressDataParserReturn {
+  const menuChildrenMap = new Map<string, string[]>();
+
   const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
       const reader = new FileReader();
@@ -37,15 +40,31 @@ export function useWordPressDataParser(
           const channel = result.rss.channel as Channel;
           // 校验 wxr 版本 result.rss.channel["wp:wxr_version"]
           // 解析 item 数据，获取文章、页面、附件
-          const { posts, pages, attachments } = itemClassification(
-            channel.item
-          );
+          const { posts, pages, attachments, navMenuItems } =
+            itemClassification(channel.item);
+          const menuItems = parseMenuItems(channel["wp:term"], navMenuItems);
+          menuItems.map((item) => {
+            if (menuChildrenMap.has(item.menu.metadata.name)) {
+              item.menu.spec.children = menuChildrenMap.get(
+                item.menu.metadata.name
+              ) as string[];
+            }
+          });
           resolve({
-            posts: parsePosts(posts, channel["wp:tag"], channel["wp:category"]),
+            posts: parsePosts(
+              posts,
+              channel["wp:tag"],
+              channel["wp:category"],
+              attachments
+            ),
             pages: parsePages(pages),
             comments: parseComments(channel.item),
             tags: parseTags(channel["wp:tag"]),
             categories: parseCategories(channel["wp:category"]),
+            // 菜单
+            menuItems: menuItems,
+            // 附件
+            attachments: parseAttachments(attachments),
           } as MigrateData);
         } catch (error) {
           reject("Failed to parse data. error -> " + error);
@@ -62,6 +81,7 @@ export function useWordPressDataParser(
     const posts: Item[] = [];
     const pages: Item[] = [];
     const attachments: Item[] = [];
+    const navMenuItems: Item[] = [];
     const others: Item[] = [];
     items.forEach((item) => {
       switch (item["wp:post_type"]) {
@@ -74,15 +94,23 @@ export function useWordPressDataParser(
         case "attachment":
           attachments.push(item);
           break;
+        case "nav_menu_item":
+          navMenuItems.push(item);
+          break;
         default:
           others.push(item);
           break;
       }
     });
-    return { posts, pages, attachments, others };
+    return { posts, pages, attachments, navMenuItems, others };
   };
 
-  const parsePosts = (posts: Item[], tags: Tag[], categories: Category[]) => {
+  const parsePosts = (
+    posts: Item[],
+    tags: Tag[],
+    categories: Category[],
+    attachments: Item[]
+  ) => {
     return posts.map((post: Item) => {
       const publish =
         post["wp:status"] === "publish" ||
@@ -116,6 +144,19 @@ export function useWordPressDataParser(
           return postCategorySlugs?.includes(category["wp:category_nicename"]);
         })
         .map((category: Category) => category["wp:term_id"] + "");
+
+      const thumbnail = post["wp:postmeta"]
+        ?.filter((meta) => {
+          if (meta["wp:meta_key"] === "") {
+            return true;
+          }
+        })
+        .map((meta) => {
+          const attachment = attachments.find((attachment) => {
+            return attachment["wp:post_id"] === Number(meta["wp:meta_value"]);
+          });
+          return attachment?.["wp:attachment_url"];
+        })[0];
       return {
         postRequest: {
           post: {
@@ -136,6 +177,7 @@ export function useWordPressDataParser(
               categories: categoryIds,
               tags: tagIds,
               htmlMetas: [],
+              cover: thumbnail,
             },
             apiVersion: "content.halo.run/v1alpha1",
             kind: "Post",
@@ -146,7 +188,7 @@ export function useWordPressDataParser(
           content: {
             raw: post["content:encoded"],
             content: post["content:encoded"],
-            rawType: "markdown",
+            rawType: "HTML",
           },
         },
       };
@@ -188,7 +230,7 @@ export function useWordPressDataParser(
           content: {
             raw: page["content:encoded"],
             content: page["content:encoded"],
-            rawType: "markdown",
+            rawType: "HTML",
           },
         },
       };
@@ -329,6 +371,90 @@ export function useWordPressDataParser(
     });
   };
 
+  const parseMenuItems = (terms: Term[], navMenuItems: Item[]) => {
+    return terms.map((term) => {
+      const navMenuItem = navMenuItems.find((item) => {
+        const category = item.category?.filter((category) => {
+          return category._domain === "nav_menu";
+        })[0];
+        if (!category) {
+          return false;
+        }
+        return category._nicename === term["wp:term_name"];
+      });
+      const children: string[] = [];
+      const metas = navMenuItem?.["wp:postmeta"] || [];
+      const targetRef: Ref = {
+        name: "",
+      };
+      let href = "";
+      metas.forEach((meta) => {
+        switch (meta["wp:meta_key"]) {
+          case "_menu_item_object":
+            targetRef.group = "content.halo.run";
+            targetRef.name = navMenuItem?.["wp:post_id"] + "";
+            targetRef.version = "v1alpha1";
+            if (meta["wp:meta_value"] == "page") {
+              targetRef.kind = "SinglePage";
+            } else if (meta["wp:meta_value"] == "post") {
+              targetRef.kind = "Post";
+            } else if (meta["wp:meta_value"] == "category") {
+              targetRef.kind = "Category";
+            }
+            break;
+          case "_menu_item_object_id":
+            href = meta["wp:meta_value"];
+            break;
+          case "_menu_item_url":
+            href = meta["wp:meta_value"] || href;
+            break;
+        }
+        if (meta["wp:meta_key"] === "_menu_item_menu_item_parent") {
+          let childrenNames = menuChildrenMap.get(meta["wp:meta_value"]);
+          if (!childrenNames) {
+            childrenNames = new Array<string>();
+          }
+          childrenNames.push(navMenuItem?.["wp:post_id"] + "");
+          menuChildrenMap.set(meta["wp:meta_value"], childrenNames);
+        }
+      });
+      return {
+        menu: {
+          kind: "MenuItem",
+          apiVersion: "v1alpha1",
+          metadata: {
+            name: navMenuItem?.["wp:post_id"] + "",
+          },
+          spec: {
+            displayName: navMenuItem?.title,
+            priority: Number(navMenuItem?.["wp:menu_order"]),
+            children: children,
+            href: !targetRef.kind ? href : undefined,
+          },
+        },
+        groupId: term["wp:term_id"] + "",
+        groupName: term["wp:term_name"],
+      };
+    });
+  };
+
+  const parseAttachments = (attachments: Item[]) => {
+    return attachments.map((attachment) => {
+      let path = "";
+      attachment["wp:postmeta"]?.forEach((meta) => {
+        if (meta["wp:meta_key"] === "_wp_attached_file") {
+          path = meta["wp:meta_value"];
+        }
+      });
+      return {
+        id: attachment["wp:post_id"] + "",
+        name: attachment.title,
+        path: path as string,
+        type: "LOCAL",
+      };
+    });
+  };
+
   return {
     parse,
   };
@@ -367,7 +493,12 @@ interface Item {
   "wp:status": "publish" | "draft" | "trash" | "inherit" | "private";
   "wp:post_parent": string | number;
   "wp:menu_order": number;
-  "wp:post_type": "post" | "page" | "attachment" | "wp_global_styles";
+  "wp:post_type":
+    | "post"
+    | "page"
+    | "attachment"
+    | "wp_global_styles"
+    | "nav_menu_item";
   "wp:post_password": string;
   "wp:is_sticky": 0 | 1;
   "wp:attachment_url"?: string;
@@ -384,7 +515,7 @@ interface Guid {
 
 interface ItemCategory {
   value: string;
-  _domain: "category" | "post_tag";
+  _domain: "category" | "post_tag" | "nav_menu";
   _nicename: string;
 }
 
@@ -423,6 +554,15 @@ interface Author {
   "wp:author_last_name": string;
 }
 
+interface Term {
+  "wp:term_id": number;
+  "wp:term_taxonomy": "post_tag" | "category" | "nav_menu";
+  "wp:term_slug": string;
+  "wp:term_parent": string;
+  "wp:term_name": string;
+  "wp:term_description": string;
+}
+
 interface Channel {
   title: string;
   link: string;
@@ -435,8 +575,7 @@ interface Channel {
   "wp:author": Author[];
   "wp:category": Category[];
   "wp:tag": Tag[];
-  "wp:term": Tag[];
-  "wp:term_taxonomy": Tag[];
+  "wp:term": Term[];
   "wp:generator": string;
   item: Item[];
 }

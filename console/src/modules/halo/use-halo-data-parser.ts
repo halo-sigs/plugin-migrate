@@ -404,7 +404,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
               children: menu.children || [],
             },
           },
-          group: menu.team,
+          groupId: menu.team,
         };
       });
   };

@@ -13,8 +13,11 @@ export interface Step {
 const props = withDefaults(
   defineProps<{
     items: Step[];
+    submitText?: string;
   }>(),
-  {}
+  {
+    submitText: "完成",
+  }
 );
 
 const activeIndex = ref<number>(0);
@@ -34,10 +37,18 @@ const activeClass = (index: number) => {
     return ["migrate-border-blue-600", "dark:migrate-border-blue-500"];
   }
 };
+
+const handleNext = (item: Step) => {
+  if (item.nextHandler) {
+    item.nextHandler();
+  } else if (activeIndex.value != props.items.length - 1) {
+    activeIndex.value++;
+  }
+};
 </script>
 <template>
   <div
-    class="migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-bg-white"
+    class="migrate-relative migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-bg-white"
   >
     <header>
       <ol
@@ -79,14 +90,15 @@ const activeClass = (index: number) => {
       </ol>
     </header>
 
-    <main class="migrate-h-96">
-        <div
-          v-for="(item, index) in items"
-          :key="index"
-          v-show="index === activeIndex"
-        >
-          <slot :name="item.key" :key="item.key"></slot>
-        </div>
+    <main class="migrate-flex migrate-min-h-[50vh] migrate-items-stretch">
+      <div
+        class="migrate-flex-1"
+        v-for="(item, index) in items"
+        :key="index"
+        v-show="index === activeIndex"
+      >
+        <slot :name="item.key" :key="item.key"></slot>
+      </div>
     </main>
 
     <footer class="migrate-mb-2 migrate-ml-2">
@@ -96,12 +108,17 @@ const activeClass = (index: number) => {
         </VButton>
         <VButton
           :disabled="items[activeIndex].nextDisabled?.value"
-          @click="activeIndex++"
+          @click="handleNext(items[activeIndex])"
           v-show="activeIndex != items.length - 1"
         >
           下一步
         </VButton>
-        <VButton v-show="activeIndex == items.length - 1"> 完成 </VButton>
+        <VButton
+          v-show="activeIndex == items.length - 1"
+          @click="handleNext(items[activeIndex])"
+        >
+          {{ submitText }}
+        </VButton>
       </VSpace>
     </footer>
   </div>

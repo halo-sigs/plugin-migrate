@@ -10,11 +10,16 @@ import type {
 } from "@halo-dev/api-client/index";
 import type { Component } from "vue";
 
+export interface MigrationOption {
+  attachmentFolderPath?: string;
+}
+
 export interface Provider {
   name: string;
   icon: string;
   description: string;
   importComponent?: string | Component;
+  options?: MigrationOption;
 }
 
 export interface MigrateDataParser {
@@ -78,6 +83,7 @@ export interface MigrateAttachment {
   id: number | string;
   name: string;
   path: string;
+  groupName?: string;
   fileKey?: string;
   thumbPath?: string;
   mediaType?: string;
@@ -85,6 +91,7 @@ export interface MigrateAttachment {
   width?: number;
   height?: number;
   size?: number;
+  tags?: string[];
   type:
     | "LOCAL"
     | "UPOSS"
@@ -101,7 +108,8 @@ export interface MigrateAttachment {
 
 export interface MigrateMenu {
   menu: MenuItem;
-  group?: string;
+  groupName?: string;
+  groupId: string | number | "default";
 }
 
 export interface MigrateMoment {

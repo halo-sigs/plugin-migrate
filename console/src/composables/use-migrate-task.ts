@@ -32,20 +32,24 @@ export interface MigrateRequestTask<T> {
 }
 
 interface useMigrateTaskReturn {
-  createTagTasks?: () => MigrateRequestTask<MigrateTag>[];
-  createCategoryTasks?: () => MigrateRequestTask<MigrateCategory>[];
-  createPostTasks?: () => MigrateRequestTask<Counter | MigratePost>[];
-  createSinglePageTasks?: () => MigrateRequestTask<
+  createTagTasks: () => MigrateRequestTask<MigrateTag>[];
+  createCategoryTasks: () => MigrateRequestTask<MigrateCategory>[];
+  createPostTasks: () => MigrateRequestTask<Counter | MigratePost>[];
+  createSinglePageTasks: () => MigrateRequestTask<
     Counter | MigrateSinglePage
   >[];
-  createCommentAndReplyTasks?: () => MigrateRequestTask<
+  createCommentAndReplyTasks: () => MigrateRequestTask<
     MigrateComment | MigrateReply
   >[];
-  createMenuTasks?: () => MigrateRequestTask<string | MigrateMenu>[];
-  createMomentTasks?: () => MigrateRequestTask<MigrateMoment>[];
-  createPhotoTasks?: () => MigrateRequestTask<string | MigratePhoto>[];
-  createLinkTasks?: () => MigrateRequestTask<string | MigrateLink>[];
-  createAttachmentTasks?: () => MigrateRequestTask<MigrateAttachment>[];
+  createMenuTasks: () => MigrateRequestTask<string | MigrateMenu>[];
+  createMomentTasks: () => MigrateRequestTask<MigrateMoment>[];
+  createPhotoTasks: () => MigrateRequestTask<string | MigratePhoto>[];
+  createLinkTasks: () => MigrateRequestTask<string | MigrateLink>[];
+  createAttachmentTasks: (
+    relativePathFolder: string,
+    user: User,
+    typeToPolicyMap: Map<string, string>
+  ) => MigrateRequestTask<MigrateAttachment>[];
 }
 
 class TagTask implements MigrateRequestTask<MigrateTag> {
@@ -154,9 +158,11 @@ class ReplyTask implements MigrateRequestTask<MigrateReply> {
 
 class MenuTask implements MigrateRequestTask<string> {
   item: string;
+  menuName: string;
   items: string[];
-  constructor(item: string, items: string[]) {
+  constructor(item: string, menuName: string, items: string[]) {
     this.item = item;
+    this.menuName = menuName;
     this.items = items;
   }
 
@@ -169,7 +175,7 @@ class MenuTask implements MigrateRequestTask<string> {
           name: this.item ? this.item : "default",
         },
         spec: {
-          displayName: this.item ? this.item : "未分组",
+          displayName: this.menuName ? this.menuName : "未分组",
           menuItems: this.items,
         },
       },
@@ -292,10 +298,17 @@ abstract class AbstractAttachmentTask implements AttachmentTask {
   item: MigrateAttachment;
   policyName: string;
   ownerName: string;
-  constructor(item: MigrateAttachment, policyName: string, ownerName: string) {
+  relativePathFolder: string;
+  constructor(
+    item: MigrateAttachment,
+    policyName: string,
+    ownerName: string,
+    relativePathFolder: string
+  ) {
     this.item = item;
     this.policyName = policyName;
     this.ownerName = ownerName;
+    this.relativePathFolder = relativePathFolder;
   }
 
   abstract buildModel(): Attachment;
@@ -321,7 +334,7 @@ class LocalAttachmentTask extends AbstractAttachmentTask {
       metadata: {
         name: this.item.id + "",
         annotations: {
-          "storage.halo.run/local-relative-path": `migrate-from-1.x/${relativePath}`,
+          "storage.halo.run/local-relative-path": `${this.relativePathFolder}/${relativePath}`,
           "storage.halo.run/uri": `/${this.item.path}`,
           "storage.halo.run/suffix": `${this.item.suffix}`,
           "storage.halo.run/width": `${this.item.width}`,
@@ -330,11 +343,12 @@ class LocalAttachmentTask extends AbstractAttachmentTask {
       },
       spec: {
         displayName: `${this.item.name}`,
-        groupName: ``,
+        groupName: `${this.item.groupName}`,
         ownerName: `${this.ownerName}`,
         policyName: `${this.policyName}`,
         mediaType: `${this.item.mediaType}`,
         size: Number.parseInt(`${this.item.size}`),
+        tags: this.item.tags,
       },
     };
   }
@@ -356,21 +370,18 @@ class S3OSSAttachmentTask extends AbstractAttachmentTask {
       },
       spec: {
         displayName: `${this.item.name}`,
-        groupName: "",
-        policyName: `${this.policyName}`,
+        groupName: `${this.item.groupName}`,
         ownerName: `${this.ownerName}`,
+        policyName: `${this.policyName}`,
         mediaType: `${this.item.mediaType}`,
         size: Number.parseInt(`${this.item.size}`),
+        tags: this.item.tags,
       },
     };
   }
 }
 
-export function useMigrateTask(
-  data: MigrateData,
-  user?: User,
-  typeToPolicyMap?: Map<string, string>
-): useMigrateTaskReturn {
+export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
   const createTagTasks = () => {
     const tags = data.tags || [];
     return tags.map((tag) => new TagTask(tag));
@@ -433,13 +444,14 @@ export function useMigrateTask(
 
   const createMenuTasks = () => {
     const menus = data.menuItems || [];
-    const groupedMenus = groupBy(menus, "group");
+    const groupedMenus = groupBy(menus, "groupId");
     const menuTask: MenuTask[] = [];
     Object.keys(groupedMenus).forEach((key) => {
       const itemNames = groupedMenus[key].map(
         (item) => item.menu.metadata.name
       );
-      menuTask.push(new MenuTask(key, itemNames));
+      const menuName = groupedMenus[key][0].groupName || key;
+      menuTask.push(new MenuTask(key, menuName, itemNames));
     });
 
     const menuItemTasks: MenuItemTask[] = [];
@@ -484,7 +496,11 @@ export function useMigrateTask(
     return [...linkGroupTasks, ...linkTasks];
   };
 
-  function createAttachmentTasks() {
+  function createAttachmentTasks(
+    relativePathFolder: string,
+    user?: User,
+    typeToPolicyMap?: Map<string, string>
+  ) {
     const attachments = data.attachments || [];
     if (!user || !typeToPolicyMap || typeToPolicyMap.size === 0) {
       return [];
@@ -504,7 +520,8 @@ export function useMigrateTask(
                 return new LocalAttachmentTask(
                   item,
                   typeToPolicyMap.get(item.type) || "default-policy",
-                  userName
+                  userName,
+                  relativePathFolder
                 );
               case "ALIOSS":
               case "BAIDUBOS":
@@ -513,7 +530,8 @@ export function useMigrateTask(
                 return new S3OSSAttachmentTask(
                   item,
                   typeToPolicyMap.get(item.type) || "default-policy",
-                  userName
+                  userName,
+                  relativePathFolder
                 );
               default:
                 return new NoSupportAttachmentTask(item);

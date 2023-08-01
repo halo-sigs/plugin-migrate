@@ -6,7 +6,7 @@ export interface Step {
   key: string;
   name: string;
   description?: string;
-  nextHandler?: () => void;
+  nextHandler?: () => Promise<boolean>;
   nextDisabled?: ComputedRef;
 }
 

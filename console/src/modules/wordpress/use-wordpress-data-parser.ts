@@ -22,6 +22,7 @@ export function useWordPressDataParser(
       reader.onload = (event) => {
         const xmlData = event.target?.result as string;
         const isArrayPath = [
+          "rss.channel.item",
           "rss.channel.item.category",
           "rss.channel.item.wp:postmeta",
           "rss.channel.item.wp:comment",

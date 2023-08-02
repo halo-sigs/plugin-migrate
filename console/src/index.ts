@@ -2,7 +2,7 @@ import { definePlugin } from "@halo-dev/console-shared";
 import { markRaw } from "vue";
 import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
 import "./styles/tailwind.css";
-import MigrateViewTwoVue from "./views/MigrateViewTwo.vue";
+import MigrateViewVue from "./views/MigrateView.vue";
 
 export default definePlugin({
   name: "PluginMigrate",
@@ -16,7 +16,7 @@ export default definePlugin({
           {
             path: "",
             name: "Migrate",
-            component: MigrateViewTwoVue,
+            component: MigrateViewVue,
             meta: {
               title: "迁移",
               searchable: true,

@@ -362,6 +362,7 @@ class S3OSSAttachmentTask extends AbstractAttachmentTask {
       metadata: {
         name: this.item.id + "",
         annotations: {
+          "s3os.plugin.halo.run/object-key": `${this.item.fileKey}`,
           "storage.halo.run/external-link": `${this.item.path}`,
           "storage.halo.run/suffix": `${this.item.suffix}`,
           "storage.halo.run/width": `${this.item.width}`,

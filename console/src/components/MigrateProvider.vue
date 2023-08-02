@@ -27,7 +27,7 @@ const handleSelectProvider = (provider: Provider) => {
       @click="handleSelectProvider(provider)"
       class=":hover:migrate-bg-gray-100 migrate-flex migrate-items-center migrate-justify-center migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-border-opacity-50 migrate-bg-gray-300 migrate-p-2"
       :class="{
-        '!migrate-bg-blue-500': currentProvider?.name == provider.name,
+        '!migrate-bg-blue-400': currentProvider?.name == provider.name,
       }"
     >
       <img
@@ -37,7 +37,7 @@ const handleSelectProvider = (provider: Provider) => {
       />
       <div class="migrate-flex migrate-flex-col">
         <span>{{ provider.name }}</span>
-        <span class="migrate-text-gray-500">
+        <span class="migrate-text-sm migrate-text-gray-500">
           {{ provider.description }}
         </span>
       </div>

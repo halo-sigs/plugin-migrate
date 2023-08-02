@@ -6,7 +6,7 @@ export interface Step {
   key: string;
   name: string;
   description?: string;
-  nextHandler?: () => Promise<boolean>;
+  nextHandler?: () => void | Promise<boolean>;
   nextDisabled?: ComputedRef;
 }
 
@@ -24,11 +24,11 @@ const activeIndex = ref<number>(0);
 
 const itemClass = (index: number) => {
   if (index === activeIndex.value) {
-    return ["migrate-text-blue-700", "dark:migrate-text-blue-400"];
+    return ["migrate-text-blue-600"];
   } else if (index < activeIndex.value) {
-    return ["migrate-text-green-700", "dark:migrate-text-green-400"];
+    return ["migrate-text-sky-300"];
   } else {
-    return ["migrate-text-gray-900", "dark:migrate-text-gray-400"];
+    return ["migrate-text-gray-400"];
   }
 };
 
@@ -48,7 +48,7 @@ const handleNext = (item: Step) => {
 </script>
 <template>
   <div
-    class="migrate-relative migrate-rounded-lg migrate-border migrate-border-gray-200 migrate-bg-white"
+    class="migrate-relative migrate-rounded-lg migrate-border migrate-bg-white"
   >
     <header>
       <ol

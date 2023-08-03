@@ -3,7 +3,7 @@ import { VAlert } from "@halo-dev/components";
 import type { MigrateAttachment } from "@/types";
 import { apiClient } from "@/utils/api-client";
 import groupBy from "lodash.groupby";
-import { onMounted, onUpdated, reactive, ref, watch } from "vue";
+import { onMounted, reactive, ref, watch } from "vue";
 
 const props = defineProps<{
   activatedPluginNames: string[];

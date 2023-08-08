@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Dialog, VPageHeader } from "@halo-dev/components";
+import { Dialog, VModal, VPageHeader } from "@halo-dev/components";
 import Steps, { type Step } from "@/components/Steps.vue";
 import type { MigrateData, Provider } from "@/types";
 import MigrateProvider from "@/components/MigrateProvider.vue";
@@ -182,6 +182,11 @@ const stepItems = computed(() => {
   }
   if (migrateData.value.attachments != undefined) {
     items.splice(2, 0, attachmentPolicyStepItem);
+  } else {
+    const index = items.findIndex((item) => item.key === "attachmentPolicy");
+    if (index !== -1) {
+      items.splice(index, 1);
+    }
   }
   return items;
 });
@@ -213,7 +218,9 @@ const stepItems = computed(() => {
         </div>
       </template>
       <template #attachmentPolicy>
-        <div class="migrate-mx-auto migrate-mt-4 migrate-w-1/2">
+        <div
+          class="migrate-mx-auto migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col migrate-justify-center"
+        >
           <AttachmentPolicy
             v-if="migrateData"
             :activatedPluginNames="activatedPluginNames"

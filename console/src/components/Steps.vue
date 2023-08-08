@@ -23,18 +23,20 @@ const props = withDefaults(
 const activeIndex = ref<number>(0);
 
 const itemClass = (index: number) => {
-  if (index === activeIndex.value) {
-    return ["migrate-text-blue-600"];
-  } else if (index < activeIndex.value) {
-    return ["migrate-text-sky-300"];
-  } else {
+  if (index > activeIndex.value) {
     return ["migrate-text-gray-400"];
+  } else {
+    return ["migrate-text-black"];
   }
 };
 
-const activeClass = (index: number) => {
+const borderClass = (index: number) => {
   if (index === activeIndex.value) {
-    return ["migrate-border-blue-600", "dark:migrate-border-blue-500"];
+    return ["migrate-bg-blue-600", "migrate-text-white"];
+  } else if (index < activeIndex.value) {
+    return ["migrate-bg-[#e6f4ff]", "migrate-text-blue-600"];
+  } else {
+    return ["migrate-bg-black/10", "migrate-text-black/80"];
   }
 };
 
@@ -52,7 +54,7 @@ const handleNext = (item: Step) => {
   >
     <header>
       <ol
-        class="migrate-flex migrate-w-full migrate-items-center migrate-space-x-2 migrate-p-3 migrate-text-center migrate-text-sm migrate-font-medium migrate-text-gray-500 migrate-shadow-sm dark:migrate-text-gray-400 sm:migrate-space-x-4 sm:migrate-p-4 sm:migrate-text-base"
+        class="migrate-flex migrate-w-full migrate-items-center migrate-space-x-2 migrate-p-3 migrate-text-center migrate-text-sm migrate-font-medium migrate-shadow-sm sm:migrate-space-x-4 sm:migrate-p-4"
       >
         <li
           v-for="(item, index) in items"
@@ -61,10 +63,25 @@ const handleNext = (item: Step) => {
           :class="itemClass(index)"
         >
           <span
-            class="migrate-mr-2 migrate-flex migrate-h-5 migrate-w-5 migrate-shrink-0 migrate-items-center migrate-justify-center migrate-rounded-full migrate-border migrate-text-xs"
-            :class="activeClass(index)"
+            class="migrate-mr-2 migrate-flex migrate-h-7 migrate-w-7 migrate-shrink-0 migrate-items-center migrate-justify-center migrate-rounded-full migrate-text-xs"
+            :class="borderClass(index)"
           >
-            {{ index + 1 }}
+            <template v-if="index < activeIndex">
+              <svg
+                viewBox="64 64 896 896"
+                focusable="false"
+                data-icon="check"
+                width="1em"
+                height="1em"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="M912 190h-69.9c-9.8 0-19.1 4.5-25.1 12.2L404.7 724.5 207 474a32 32 0 00-25.1-12.2H112c-6.7 0-10.4 7.7-6.3 12.9l273.9 347c12.8 16.2 37.4 16.2 50.3 0l488.4-618.9c4.1-5.1.4-12.8-6.3-12.8z"
+                ></path>
+              </svg>
+            </template>
+            <template v-else>{{ index + 1 }}</template>
           </span>
 
           <span class="sm:migrate-ml-2 sm:migrate-inline-flex">

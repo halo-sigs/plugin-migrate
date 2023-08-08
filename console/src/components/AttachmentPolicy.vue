@@ -37,19 +37,17 @@ const attachmentPolicy = async () => {
       templateName: policy.spec.templateName,
     };
   });
-  if (attachmentTypes.value.length === 0) {
-    attachmentTypes.value = Object.keys(groupBy(props.attachments, "type")).map(
-      (type) => {
-        return {
-          type: type,
-          policyName:
-            type == "LOCAL"
-              ? localPolicyOptions.value[0]?.value
-              : policyOptions.value[0]?.value,
-        };
-      }
-    );
-  }
+  attachmentTypes.value = Object.keys(groupBy(props.attachments, "type")).map(
+    (type) => {
+      return {
+        type: type,
+        policyName:
+          type == "LOCAL"
+            ? localPolicyOptions.value[0]?.value
+            : policyOptions.value[0]?.value,
+      };
+    }
+  );
   localPolicyOptions.value = policyOptions.value.filter(
     (item) => item.templateName === "local"
   );
@@ -59,6 +57,13 @@ const attachmentPolicy = async () => {
 };
 
 const typeToPolicyMap = reactive(new Map<string, string>());
+
+watch(
+  () => props.attachments,
+  () => {
+    attachmentPolicy();
+  }
+);
 
 watch(
   () => attachmentTypes.value,

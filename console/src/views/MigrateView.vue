@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Dialog, VModal, VPageHeader } from "@halo-dev/components";
+import { Dialog, VPageHeader } from "@halo-dev/components";
 import Steps, { type Step } from "@/components/Steps.vue";
 import type { MigrateData, Provider } from "@/types";
 import MigrateProvider from "@/components/MigrateProvider.vue";
@@ -14,6 +14,7 @@ import {
 } from "@/composables/use-migrate-task";
 import * as fastq from "fastq";
 import { apiClient } from "@/utils/api-client";
+import { onBeforeRouteLeave } from "vue-router";
 
 // 新增的迁移数据来源，需要在此处进行注册
 const providerItems: Provider[] = [
@@ -100,8 +101,12 @@ async function asyncWorker(
   return arg.run();
 }
 
+const importLoading = ref(false);
 const handleImport = () => {
+  importLoading.value = true;
   window.onbeforeunload = function (e) {
+    e.preventDefault();
+    e.returnValue = "";
     const message = "数据正在导入中，请勿关闭或刷新此页面。";
     e = e || window.event;
     if (e) {
@@ -142,6 +147,7 @@ const handleImport = () => {
     taskQueue.push(task);
   });
   taskQueue.drained().then(() => {
+    importLoading.value = false;
     Dialog.success({
       title: "导入完成",
     });
@@ -154,16 +160,21 @@ const defaultStepItems: Step[] = [
     key: "provider",
     name: "选择渠道",
     nextDisabled: disabledProviderView,
+    nextDisabledMessage: "需要选择数据渠道",
   },
   {
     key: "importData",
     name: "导入数据",
     nextDisabled: disabledImportDataView,
+    nextDisabledMessage: "不存在需要导入的数据",
   },
   {
     key: "migrate",
     name: "待迁移数据",
     nextHandler: handleImport,
+    nextLoading: computed(() => {
+      return importLoading.value;
+    }),
   },
 ];
 
@@ -173,6 +184,7 @@ const attachmentPolicyStepItem: Step = {
   nextDisabled: computed(() => {
     return policyMap.value.size === 0;
   }),
+  nextDisabledMessage: "未设置附件存储策略",
 };
 
 const stepItems = computed(() => {
@@ -189,6 +201,18 @@ const stepItems = computed(() => {
     }
   }
   return items;
+});
+
+onBeforeRouteLeave((to, from, next) => {
+  if (importLoading.value) {
+    Dialog.warning({
+      title: "数据正在导入中",
+      description: "数据正在导入中，请勿关闭或刷新此页面。",
+    });
+    next(false);
+    return;
+  }
+  next();
 });
 </script>
 <template>
@@ -209,7 +233,7 @@ const stepItems = computed(() => {
       </template>
       <template #importData>
         <div
-          class="migrate-mx-20 migrate-flex migrate-h-full migrate-flex-col migrate-justify-center"
+          class="migrate-mx-20 migrate-flex migrate-h-full migrate-flex-col migrate-items-center migrate-justify-center"
         >
           <component
             :is="activeProvider?.importComponent"

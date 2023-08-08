@@ -26,7 +26,7 @@ watch(
 );
 </script>
 <template>
-  <div @click="handleOpenFile">
+  <div class="migrate-w-full" @click="handleOpenFile">
     <label
       class="migrate-text-blue migrate-border-blue migrate-flex migrate-cursor-pointer migrate-flex-col migrate-items-center migrate-rounded-lg migrate-border migrate-bg-white migrate-px-4 migrate-py-6 migrate-uppercase migrate-tracking-wide migrate-shadow-lg hover:migrate-bg-blue-400 hover:migrate-text-white"
     >

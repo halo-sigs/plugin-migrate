@@ -22,8 +22,28 @@ export function useRssDataParser(
       });
       try {
         if (typeof source === "string") {
-          // TODO 远程解析
-          return;
+          if (!source.startsWith("http")) {
+            reject("Failed to parse data. error -> invalid url");
+          }
+          fetch(
+            "/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMigrate/migrations/rss-parse",
+            {
+              method: "POST",
+              cache: "no-cache",
+              keepalive: true,
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: source,
+            }
+          )
+            .then((response) => {
+              return response.text();
+            })
+            .then((data) => {
+              const result = parser.parse(data, true);
+              resolve(parseData(result));
+            });
         } else {
           const reader = new FileReader();
           reader.onload = (event) => {

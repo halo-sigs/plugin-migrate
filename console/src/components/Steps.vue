@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VButton, VSpace } from "@halo-dev/components";
+import { VButton, VSpace, VTooltip } from "@halo-dev/components";
 import { ref, type ComputedRef } from "vue";
 
 export interface Step {
@@ -8,6 +8,8 @@ export interface Step {
   description?: string;
   nextHandler?: () => void | Promise<boolean>;
   nextDisabled?: ComputedRef;
+  nextDisabledMessage?: string;
+  nextLoading?: ComputedRef;
 }
 
 const props = withDefaults(
@@ -46,6 +48,12 @@ const handleNext = (item: Step) => {
   } else if (activeIndex.value != props.items.length - 1) {
     activeIndex.value++;
   }
+};
+
+const tooltipShown = ref<boolean>(false);
+
+const handleMouseenter = () => {
+  console.log("mouseenter");
 };
 </script>
 <template>
@@ -109,7 +117,7 @@ const handleNext = (item: Step) => {
 
     <main class="migrate-flex migrate-min-h-[50vh] migrate-items-stretch">
       <div
-        class="migrate-flex-1"
+        class="migrate-relative migrate-flex-1"
         v-for="(item, index) in items"
         :key="index"
         v-show="index === activeIndex"
@@ -123,15 +131,31 @@ const handleNext = (item: Step) => {
         <VButton @click="activeIndex--" v-show="activeIndex != 0">
           上一步
         </VButton>
-        <VButton
-          :disabled="items[activeIndex].nextDisabled?.value"
-          @click="handleNext(items[activeIndex])"
-          v-show="activeIndex != items.length - 1"
+        <div
+          @mouseenter="tooltipShown = true"
+          @mouseleave="tooltipShown = false"
         >
-          下一步
-        </VButton>
+          <VButton
+            ref="nextButton"
+            :disabled="items[activeIndex].nextDisabled?.value"
+            @click="handleNext(items[activeIndex])"
+            v-show="activeIndex != items.length - 1"
+            v-tooltip.top="{
+              content: items[activeIndex].nextDisabledMessage,
+              disabled:
+                !items[activeIndex].nextDisabled?.value &&
+                !!items[activeIndex].nextDisabledMessage,
+              shown: tooltipShown,
+              triggers: [],
+            }"
+          >
+            下一步
+          </VButton>
+        </div>
+
         <VButton
           v-show="activeIndex == items.length - 1"
+          :loading="items[activeIndex].nextLoading?.value"
           @click="handleNext(items[activeIndex])"
         >
           {{ submitText }}

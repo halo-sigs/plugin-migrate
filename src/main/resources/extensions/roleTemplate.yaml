@@ -11,6 +11,6 @@ metadata:
       ["plugin:PluginMigrate:migrate"]
 rules:
   - apiGroups: [ "plugin.halo.run" ]
-    resources: [ "plugins/import" ]
+    resources: [ "plugins/rss-parse" ]
     resourceNames: [ "PluginMigrate" ]
     verbs: [ "create" ]

@@ -9,10 +9,8 @@ const props = defineProps<{
     <div
       class="migrate-flex migrate-items-center migrate-justify-between migrate-space-x-4"
     >
-      <span>{{ name }}</span>
-      <div
-        class="migrate-inline-flex migrate-items-center migrate-text-base migrate-font-semibold migrate-text-gray-900"
-      >
+      <span class="migrate-font-semibold">{{ name }}</span>
+      <div class="migrate-text-sm migrate-text-gray-600">
         共 {{ dataList.length }} 条
       </div>
     </div>

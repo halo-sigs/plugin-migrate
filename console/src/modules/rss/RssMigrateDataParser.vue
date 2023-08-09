@@ -47,8 +47,8 @@ const handleUrlSubmit = () => {
 };
 </script>
 <template>
-  <div class="migrate-w-1/2">
-    <div class="migrate-absolute migrate-top-3">
+  <div class="sm:migrate-w-1/2">
+    <div class="migrate-mb-2">
       <VAlert title="提示" type="info" :closable="false">
         <template #description>
           RSS

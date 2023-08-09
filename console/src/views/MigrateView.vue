@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Dialog, VPageHeader } from "@halo-dev/components";
+import { Dialog, VCard, VPageHeader } from "@halo-dev/components";
 import Steps, { type Step } from "@/components/Steps.vue";
 import type { MigrateData, Provider } from "@/types";
 import MigrateProvider from "@/components/MigrateProvider.vue";
@@ -199,9 +199,7 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
       </template>
       <template #importData>
-        <div
-          class="migrate-mx-20 migrate-flex migrate-h-full migrate-flex-col migrate-items-center migrate-justify-center"
-        >
+        <div class="migrate-flex migrate-h-full migrate-flex-col">
           <component
             :is="activeProvider?.importComponent"
             v-model:data="migrateData"
@@ -209,9 +207,7 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
       </template>
       <template #attachmentPolicy>
-        <div
-          class="migrate-mx-auto migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col migrate-justify-center"
-        >
+        <div class="migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col">
           <AttachmentPolicy
             v-if="migrateData"
             :activatedPluginNames="activatedPluginNames"
@@ -222,9 +218,7 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
       </template>
       <template #migrate>
-        <div
-          class="migrate-mx-auto migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col migrate-justify-center"
-        >
+        <div class="migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col">
           <MigratePreview
             v-if="migrateData"
             :provider="activeProvider"

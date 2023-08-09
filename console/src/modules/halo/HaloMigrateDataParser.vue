@@ -26,7 +26,7 @@ const handleFileChange = (files: FileList) => {
 };
 </script>
 <template>
-  <div class="migrate-w-2/3">
+  <div class="sm:migrate-w-1/2">
     <FileSelector
       :options="{ accept: '.json' }"
       @fileChange="handleFileChange"

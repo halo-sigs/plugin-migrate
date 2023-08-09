@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { VButton, VSpace, VTooltip } from "@halo-dev/components";
+import { VButton, VCard, VSpace, VTooltip } from "@halo-dev/components";
 import { ref, type ComputedRef } from "vue";
 
 export interface Step {
@@ -34,7 +34,7 @@ const itemClass = (index: number) => {
 
 const borderClass = (index: number) => {
   if (index === activeIndex.value) {
-    return ["migrate-bg-blue-600", "migrate-text-white"];
+    return ["migrate-bg-blue-500", "migrate-text-white"];
   } else if (index < activeIndex.value) {
     return ["migrate-bg-[#e6f4ff]", "migrate-text-blue-600"];
   } else {
@@ -57,12 +57,10 @@ const handleMouseenter = () => {
 };
 </script>
 <template>
-  <div
-    class="migrate-relative migrate-rounded-lg migrate-border migrate-bg-white"
-  >
-    <header>
+  <VCard>
+    <template #header>
       <ol
-        class="migrate-flex migrate-w-full migrate-items-center migrate-space-x-2 migrate-p-3 migrate-text-center migrate-text-sm migrate-font-medium migrate-shadow-sm sm:migrate-space-x-4 sm:migrate-p-4"
+        class="migrate-flex migrate-w-full migrate-items-center migrate-space-x-2 migrate-p-3 migrate-text-center migrate-text-sm migrate-font-medium sm:migrate-space-x-4 sm:migrate-p-4"
       >
         <li
           v-for="(item, index) in items"
@@ -113,8 +111,7 @@ const handleMouseenter = () => {
           </svg>
         </li>
       </ol>
-    </header>
-
+    </template>
     <main class="migrate-flex migrate-min-h-[50vh] migrate-items-stretch">
       <div
         class="migrate-relative migrate-flex-1"
@@ -125,8 +122,7 @@ const handleMouseenter = () => {
         <slot :name="item.key" :key="item.key"></slot>
       </div>
     </main>
-
-    <footer class="migrate-mb-2 migrate-ml-2">
+    <template #footer>
       <VSpace>
         <VButton @click="activeIndex--" v-show="activeIndex != 0">
           上一步
@@ -161,6 +157,6 @@ const handleMouseenter = () => {
           {{ submitText }}
         </VButton>
       </VSpace>
-    </footer>
-  </div>
+    </template>
+  </VCard>
 </template>

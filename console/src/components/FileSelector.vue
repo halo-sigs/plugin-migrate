@@ -28,7 +28,7 @@ watch(
 <template>
   <div class="migrate-w-full" @click="handleOpenFile">
     <label
-      class="migrate-text-blue migrate-border-blue migrate-flex migrate-cursor-pointer migrate-flex-col migrate-items-center migrate-rounded-lg migrate-border migrate-bg-white migrate-px-4 migrate-py-6 migrate-uppercase migrate-tracking-wide migrate-shadow-lg hover:migrate-bg-blue-400 hover:migrate-text-white"
+      class="migrate-text-blue migrate-border-blue migrate-flex migrate-cursor-pointer migrate-flex-col migrate-items-center migrate-rounded-lg migrate-border migrate-bg-white migrate-px-4 migrate-py-6 migrate-uppercase migrate-tracking-wide hover:migrate-bg-blue-400 hover:migrate-text-white"
     >
       <svg
         class="migrate-h-8 migrate-w-8"
@@ -40,9 +40,9 @@ watch(
           d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z"
         />
       </svg>
-      <span class="migrate-mt-2 migrate-text-base migrate-leading-normal"
-        >选择文件</span
-      >
+      <span class="migrate-mt-2 migrate-text-base migrate-leading-normal">
+        选择文件
+      </span>
     </label>
   </div>
 </template>

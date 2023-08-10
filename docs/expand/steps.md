@@ -7,7 +7,7 @@
 
 ## 扩展方式
 
-1. 在 `console/src/view/MigrateView.vue` 文件中，找到 **stepItems** 属性，为其新增 `Step` 字段，以 设置附件存储策略 为例如下所示：
+1. 在 `console/src/view/MigrateView.vue` 文件中，找到 **stepItems** 属性，为其新增 [Step](#step) 字段，以 设置附件存储策略 为例如下所示：
 
 ```ts
   {
@@ -34,3 +34,16 @@
 ```
 
 在其中编写页面模板及代码逻辑即可。
+
+## Step
+
+```ts
+interface Step {
+  key: string;
+  name: string;
+  description?: string;
+  next?: StepButtonItem;
+  prev?: StepButtonItem;
+  visible?: ComputedRef;
+}
+```

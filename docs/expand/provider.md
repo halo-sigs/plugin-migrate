@@ -12,7 +12,7 @@
 
 1. 前往 `console/src/modules` 中新建一个名为 **halo** 的文件夹。
 2. 在新建的文件夹中，创建一个 `vue` 文件，用于展示导入数据的界面以及处理、转换导入的数据，如 `HaloMigrateDataParser.vue` 文件。
-3. 编写 `HaloMigrateDataParser.vue` 文件，此 vue 模板接收一个 `MigrateData` 类型的数据，用户最终解析完成导入数据后，需要更新此数据以进行下一步操作。后续操作将基于 **MigrateData** 进行。例如
+3. 编写 `HaloMigrateDataParser.vue` 文件，此 vue 模板接收一个 [MigrateData](#migratedata) 类型的数据，用户最终解析完成导入数据后，需要更新此数据以进行下一步操作。后续操作将基于 **MigrateData** 进行。例如
 
 ```ts
 defineProps<{
@@ -31,7 +31,7 @@ const handleDataChange = (data: MigrateData) => {
 };
 ```
 
-4. 在 **console/src/modules** 目录下的 **index.ts** 文件中，为 `providerItems` 新增一个 `Provider` 对象，例如
+4. 在 **console/src/modules** 目录下的 **index.ts** 文件中，为 `providerItems` 新增一个 [Provider](#provider) 对象，例如
 
 ```json
   {
@@ -45,4 +45,42 @@ const handleDataChange = (data: MigrateData) => {
       attachmentFolderPath: "migrate-from-1.x",                // 附件迁移文件夹
     },
   },
+```
+
+## MigrateData
+
+```ts
+interface MigrateData {
+  tags?: MigrateTag[];
+
+  categories?: MigrateCategory[];
+
+  posts?: MigratePost[];
+
+  pages?: MigrateSinglePage[];
+
+  comments?: (MigrateComment | MigrateReply)[];
+
+  menuItems?: MigrateMenu[];
+
+  moments?: MigrateMoment[];
+
+  photos?: MigratePhoto[];
+
+  links?: MigrateLink[];
+
+  attachments?: MigrateAttachment[];
+}
+```
+
+## Provider
+
+```ts
+interface Provider {
+  name: string;
+  icon: string;
+  description: string;
+  importComponent?: string | Component;
+  options?: MigrationOption;
+}
 ```

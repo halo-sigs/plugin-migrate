@@ -27,7 +27,7 @@ const handleSelectProvider = (provider: Provider) => {
       @click="handleSelectProvider(provider)"
       class="migrate-flex migrate-cursor-pointer migrate-items-center migrate-justify-center migrate-rounded-lg migrate-p-4 migrate-ring-1 migrate-ring-gray-200 hover:migrate-bg-gray-100"
       :class="{
-        '!migrate-bg-gray-50 !migrate-ring-indigo-400':
+        '!migrate-bg-gray-100 !migrate-ring-indigo-400':
           currentProvider?.name == provider.name,
       }"
     >

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MigrateData } from "@/types";
 import FileSelector from "@/components/FileSelector.vue";
-import { useRssDataParser } from "./use-rss-data-parser";
+import { useRssDataParser } from "./use-atom-data-parser";
 import { ref } from "vue";
 import { Toast, VAlert, VButton } from "@halo-dev/components";
 defineProps<{
@@ -42,7 +42,6 @@ const handleUrlSubmit = () => {
       })
       .catch((error: any) => {
         Toast.error(error);
-        console.error(error);
       });
   }
 };
@@ -52,8 +51,8 @@ const handleUrlSubmit = () => {
     <div class="migrate-mb-2">
       <VAlert title="提示" type="info" :closable="false">
         <template #description>
-          RSS 文件中至少需要具有文章标题以及包含文章内容的 content:encoded 或者
-          description 字段，否则导入的文章内容可能不正确。
+          Atom Feed 文件中至少需要具有文章标题以及包含文章内容的 content
+          字段，否则文章将无法正确导入。
         </template>
       </VAlert>
     </div>
@@ -67,7 +66,7 @@ const handleUrlSubmit = () => {
         <FormKit
           v-model="rssUrl"
           type="url"
-          placeholder="请输入 RSS 订阅链接"
+          placeholder="请输入 Atom 订阅链接"
           validation="url"
         >
           <template #suffix>

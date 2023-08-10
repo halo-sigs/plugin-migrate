@@ -33,4 +33,12 @@ export const providerItems: Provider[] = [
       () => import("./rss/RssMigrateDataParser.vue")
     ),
   },
+  {
+    name: "Atom Feed",
+    icon: "data:image/svg+xml, %3Csvg%20fill=%22%231572B6%22%20viewBox=%220%200%2024%2024%22%20xmlns=%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d=%22m19.199%2024c0-10.533-8.666-19.2-19.199-19.2v-4.8c13.165%200%2024%2010.835%2024%2024zm-15.908-6.585c1.814%200%203.293%201.479%203.293%203.295%200%201.813-1.485%203.29-3.301%203.29-1.813%200-3.283-1.474-3.283-3.29s1.475-3.294%203.291-3.295zm12.618%206.585h-4.665c0-6.169-5.075-11.245-11.244-11.245v-4.665c8.727%200%2015.909%207.184%2015.909%2015.91z%22%2F%3E%3C%2Fsvg%3E",
+    description: "基于 Atom Feed 订阅文件的数据迁移",
+    importComponent: defineAsyncComponent(
+      () => import("./atom/AtomMigrateDataParser.vue")
+    ),
+  },
 ];

@@ -8,6 +8,54 @@ hero:
   actions:
     - theme: brand
       text: 快速开始
-      link: /markdown-examples
+      link: /provider/halo
+    - theme: alt
+      text: 在 Github 上查看
+      link: https://github.com/halo-sigs/plugin-migrate
 ---
 
+<script setup>
+import { VPTeamMembers } from 'vitepress/theme'
+
+const members = [
+  {
+    avatar: 'https://www.github.com/ruibaby.png',
+    name: 'Ryan Wang',
+    title: 'Creator',
+    org: 'Halo-dev',
+    orgLink: 'https://github.com/halo-dev',
+    links: [
+      { icon: 'github', link: 'https://github.com/ruibaby' },
+    ]
+  },
+  {
+    avatar: 'https://www.github.com/lilgg.png',
+    name: 'Takagi',
+    title: 'Developer',
+    org: 'Halo-dev',
+    orgLink: 'https://github.com/halo-dev',
+    links: [
+      { icon: 'github', link: 'https://github.com/lilgg' },
+    ]
+  },
+  {
+    avatar: 'https://www.github.com/guqing.png',
+    name: 'guqing',
+    title: 'Developer',
+    org: 'Halo-dev',
+    orgLink: 'https://github.com/halo-dev',
+    links: [
+      { icon: 'github', link: 'https://github.com/guqing' },
+    ]
+  },
+]
+</script>
+
+<VPTeamMembers size="small" :members="members" />
+
+<style>
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #bd34fe, #41d1ff);
+}
+</style>

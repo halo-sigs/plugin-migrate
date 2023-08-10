@@ -1,14 +1,13 @@
 import type { MigrateData, MigratePost } from "@/types";
 import { XMLParser } from "fast-xml-parser";
 
-interface useRssDataParserReturn {
+interface useAtomDataParserReturn {
   parse: () => Promise<MigrateData>;
 }
+const isArrayPath = ["feed.entry"];
 
-const isArrayPath = ["rss.channel.item"];
 const parser = new XMLParser({
-  ignoreAttributes: false,
-  attributeNamePrefix: "_",
+  ignoreAttributes: true,
   textNodeName: "value",
   isArray: (name, jpath, isLeafNode, isAttribute) => {
     if (isArrayPath.includes(jpath)) return true;
@@ -18,7 +17,7 @@ const parser = new XMLParser({
 
 export function useRssDataParser(
   source: File | string
-): useRssDataParserReturn {
+): useAtomDataParserReturn {
   const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
       try {
@@ -40,13 +39,13 @@ export function useRssDataParser(
           )
             .then((response) => {
               if (!response.ok) {
-                reject("解析 rss 链接失败");
+                reject("解析 Atom Feed 链接失败");
                 return;
               }
               return response.text();
             })
             .then((data) => {
-              parseData(data)
+              return parseData(data)
                 .then((data) => {
                   resolve(data);
                 })
@@ -81,55 +80,59 @@ export function useRssDataParser(
     return new Promise<MigrateData>((resolve, reject) => {
       try {
         const result = parser.parse(data, true);
-        const channel = result.rss.channel as Channel;
-        if (!channel) {
-          reject("目标文件不是标准的 RSS 文件");
+        const feed = result.feed as Feed;
+        if (!feed) {
+          reject("目标文件不是标准的 Atom Feed 文件");
         }
         resolve({
-          posts: parsePosts(channel.item),
+          posts: parsePosts(feed.entry || []),
         });
       } catch (error) {
         console.log(error);
-        reject("RSS 文件解析失败");
+        reject("Atom 文件解析失败");
       }
     });
   };
 
-  const parsePosts = (items: Item[]) => {
-    return items.map((post) => {
-      return {
-        postRequest: {
-          post: {
-            spec: {
-              title: post.title,
-              slug: post.title,
-              deleted: false,
-              publish: true,
-              publishTime: new Date(post.pubDate).toISOString(),
-              pinned: false,
-              allowComment: true,
-              visible: "PUBLIC",
-              priority: 0,
-              excerpt: {
-                autoGenerate: false,
-                raw: post.description.slice(0, 200),
+  const parsePosts = (items: Entry[]) => {
+    return items
+      .filter((item) => item.title && item.content)
+      .map((post) => {
+        return {
+          postRequest: {
+            post: {
+              spec: {
+                title: post.title,
+                slug: post.id || post.title,
+                deleted: false,
+                publish: true,
+                publishTime: new Date(
+                  post.published || post.updated
+                ).toISOString(),
+                pinned: false,
+                allowComment: true,
+                visible: "PUBLIC",
+                priority: 0,
+                excerpt: {
+                  autoGenerate: false,
+                  raw: post.summary,
+                },
+                htmlMetas: [],
               },
-              htmlMetas: [],
+              apiVersion: "content.halo.run/v1alpha1",
+              kind: "Post",
+              metadata: {
+                name: post.title,
+              },
             },
-            apiVersion: "content.halo.run/v1alpha1",
-            kind: "Post",
-            metadata: {
-              name: post.title,
+            content: {
+              raw: post.content,
+              content: post.content,
+              rawType: "HTML",
             },
           },
-          content: {
-            raw: post["content:encoded"] || post.description,
-            content: post["content:encoded"] || post.description,
-            rawType: "HTML",
-          },
-        },
-      } as MigratePost;
-    });
+        } as MigratePost;
+      });
   };
 
   return {
@@ -137,20 +140,35 @@ export function useRssDataParser(
   };
 }
 
-interface Item {
-  title: string;
-  link: string;
-  description?: string;
-  guid?: string;
-  pubDate: string;
-  "content:encoded"?: string;
+interface Contributor {
+  name: string;
 }
 
-interface Channel {
+interface Author {
+  name: string;
+  uri?: string;
+  email?: string;
+}
+
+interface Entry {
   title: string;
-  link: string;
-  description?: string;
-  pubDate?: string;
-  language?: string;
-  item: Item[];
+  link?: string;
+  id?: string;
+  updated?: string;
+  published?: string;
+  summary: string;
+  author?: Author;
+  contributor?: Contributor | Contributor[];
+  content: string;
+}
+
+interface Feed {
+  title: string;
+  subtitle?: string;
+  updated?: string;
+  id?: string;
+  link?: string;
+  rights?: string;
+  generator?: string;
+  entry?: Entry[];
 }

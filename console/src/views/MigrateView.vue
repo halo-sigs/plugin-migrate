@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { Dialog, VCard, VPageHeader } from "@halo-dev/components";
+import { Dialog, VPageHeader } from "@halo-dev/components";
 import Steps, { type Step } from "@/components/Steps.vue";
 import type { MigrateData, Provider } from "@/types";
 import MigrateProvider from "@/components/MigrateProvider.vue";
-import { computed, defineAsyncComponent, onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import MigratePreview from "@/components/MigratePreview.vue";
 import type { PluginList, User } from "@halo-dev/api-client/index";
 import axios, { type AxiosResponse } from "axios";
@@ -120,55 +120,64 @@ const handleImport = () => {
     });
     window.onbeforeunload = null;
   });
+  taskQueue.error((error) => {
+    importLoading.value = false;
+    Dialog.error({
+      title: "导入失败",
+      description: error.message,
+    });
+    window.onbeforeunload = null;
+  });
 };
 
-const defaultStepItems: Step[] = [
+const stepItems: Step[] = [
   {
     key: "provider",
     name: "选择渠道",
-    nextDisabled: disabledProviderView,
-    nextDisabledMessage: "需要选择数据渠道",
+    next: {
+      disabled: disabledProviderView,
+      disabledMessage: "需要选择数据渠道",
+    },
   },
   {
     key: "importData",
     name: "导入数据",
-    nextDisabled: disabledImportDataView,
-    nextDisabledMessage: "不存在需要导入的数据",
+    next: {
+      disabled: disabledImportDataView,
+      disabledMessage: "不存在需要导入的数据",
+    },
+  },
+  {
+    key: "attachmentPolicy",
+    name: "设置附件存储策略",
+    next: {
+      disabled: computed(() => {
+        return policyMap.value.size === 0;
+      }),
+      disabledMessage: "未设置附件存储策略",
+    },
+    visible: computed(() => {
+      return migrateData.value?.attachments != undefined;
+    }),
   },
   {
     key: "migrate",
     name: "待迁移数据",
-    nextHandler: handleImport,
-    nextLoading: computed(() => {
-      return importLoading.value;
-    }),
+    next: {
+      text: "执行导入",
+      handler: handleImport,
+      loading: computed(() => {
+        return importLoading.value;
+      }),
+    },
+    prev: {
+      disabled: computed(() => {
+        return importLoading.value;
+      }),
+      disabledMessage: "数据正在导入中。",
+    },
   },
 ];
-
-const attachmentPolicyStepItem: Step = {
-  key: "attachmentPolicy",
-  name: "设置附件存储策略",
-  nextDisabled: computed(() => {
-    return policyMap.value.size === 0;
-  }),
-  nextDisabledMessage: "未设置附件存储策略",
-};
-
-const stepItems = computed(() => {
-  const items = [...defaultStepItems];
-  if (migrateData.value == undefined) {
-    return items;
-  }
-  if (migrateData.value.attachments != undefined) {
-    items.splice(2, 0, attachmentPolicyStepItem);
-  } else {
-    const index = items.findIndex((item) => item.key === "attachmentPolicy");
-    if (index !== -1) {
-      items.splice(index, 1);
-    }
-  }
-  return items;
-});
 
 onBeforeRouteLeave((to, from, next) => {
   if (importLoading.value) {

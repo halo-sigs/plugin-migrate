@@ -49,3 +49,24 @@ tar --strip-components 1 -zxvf /path/to/upload.tgz
 ```
 
 ## 修改 Halo 配置
+
+在 Halo 配置文件中增加如下配置，通过该配置，用户在 **{halo-work-dir}/attachments/migrate-from-wp/** */ 上传文件后，可以通过 **{HALO_EXTERNAL_URL}/wp-content/uploads/{文件名}** 访问到该文件，与 WordPress 中的附件链接规则一致。
+
+```yaml
+halo:
+  attachment:
+    resource-mappings:
+      - pathPattern: /wp-content/uploads/**
+        locations:
+          - migrate-from-wp
+```
+
+同时，修改 Halo 的 **HALO_EXTERNAL_URL** 配置，与原本的 WordPress 域名保持一致，例如 https://blog.halo.run。
+
+## 迁移
+
+1. 点击左侧菜单的迁移进入迁移页面。
+2. 在选择渠道步骤中，选择 **WordPress**，点击下一步。
+3. 在导入数据步骤中，点击 **选择文件** 按钮，选择在 WordPress 导出的 WXR 数据文件（XML 格式），之后点击下一步。
+4. 如果存在需要迁移的附件，则会出现 **设置附件存储策略** 步骤，选择本地至本地即可，完成之后点击下一步。
+5. 在待迁移数据步骤中，可以再次审查待迁移的数据，审查结束后点击 **执行导入** 后，耐心等待即可，数据迁移完成后会有弹窗进行提示。

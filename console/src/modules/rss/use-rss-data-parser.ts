@@ -38,6 +38,10 @@ export function useRssDataParser(
             }
           )
             .then((response) => {
+              if (!response.ok) {
+                reject("解析 rss 链接失败");
+                return;
+              }
               return response.text();
             })
             .then((data) => {
@@ -70,44 +74,40 @@ export function useRssDataParser(
   };
 
   const parsePosts = (items: Item[]) => {
-    return items
-      .filter((post) => {
-        return post["content:encoded"] != undefined;
-      })
-      .map((post) => {
-        return {
-          postRequest: {
-            post: {
-              spec: {
-                title: post.title,
-                slug: post.title,
-                deleted: false,
-                publish: true,
-                publishTime: new Date(post.pubDate).toISOString(),
-                pinned: false,
-                allowComment: true,
-                visible: "PUBLIC",
-                priority: 0,
-                excerpt: {
-                  autoGenerate: false,
-                  raw: post.description,
-                },
-                htmlMetas: [],
+    return items.map((post) => {
+      return {
+        postRequest: {
+          post: {
+            spec: {
+              title: post.title,
+              slug: post.title,
+              deleted: false,
+              publish: true,
+              publishTime: new Date(post.pubDate).toISOString(),
+              pinned: false,
+              allowComment: true,
+              visible: "PUBLIC",
+              priority: 0,
+              excerpt: {
+                autoGenerate: false,
+                raw: post.description.slice(0, 200),
               },
-              apiVersion: "content.halo.run/v1alpha1",
-              kind: "Post",
-              metadata: {
-                name: post.title,
-              },
+              htmlMetas: [],
             },
-            content: {
-              raw: post["content:encoded"],
-              content: post["content:encoded"],
-              rawType: "HTML",
+            apiVersion: "content.halo.run/v1alpha1",
+            kind: "Post",
+            metadata: {
+              name: post.title,
             },
           },
-        } as MigratePost;
-      });
+          content: {
+            raw: post["content:encoded"] || post.description,
+            content: post["content:encoded"] || post.description,
+            rawType: "HTML",
+          },
+        },
+      } as MigratePost;
+    });
   };
 
   return {

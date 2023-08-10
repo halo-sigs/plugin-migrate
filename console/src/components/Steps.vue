@@ -1,28 +1,37 @@
 <script setup lang="ts">
-import { VButton, VCard, VSpace, VTooltip } from "@halo-dev/components";
-import { ref, type ComputedRef } from "vue";
+import { VCard, VSpace } from "@halo-dev/components";
+import { ref, type ComputedRef, computed } from "vue";
+import type { StepButtonItem } from "./StepButton.vue";
+import StepButton from "./StepButton.vue";
 
 export interface Step {
   key: string;
   name: string;
   description?: string;
-  nextHandler?: () => void | Promise<boolean>;
-  nextDisabled?: ComputedRef;
-  nextDisabledMessage?: string;
-  nextLoading?: ComputedRef;
+  next?: StepButtonItem;
+  prev?: StepButtonItem;
+  visible?: ComputedRef;
 }
 
-const props = withDefaults(
-  defineProps<{
-    items: Step[];
-    submitText?: string;
-  }>(),
-  {
-    submitText: "完成",
-  }
-);
+const props = defineProps<{
+  items: Step[];
+}>();
 
 const activeIndex = ref<number>(0);
+const visibleItems = computed(() => {
+  return (
+    props.items?.filter((item) => {
+      if (item.visible) {
+        return item.visible.value;
+      }
+      return true;
+    }) || []
+  );
+});
+
+const visibleItemsLength = computed(() => {
+  return visibleItems.value?.length || 0;
+});
 
 const itemClass = (index: number) => {
   if (index > activeIndex.value) {
@@ -42,28 +51,26 @@ const borderClass = (index: number) => {
   }
 };
 
-const handleNext = (item: Step) => {
-  if (item.nextHandler) {
-    item.nextHandler();
-  } else if (activeIndex.value != props.items.length - 1) {
-    activeIndex.value++;
+const handlePrev = () => {
+  if (activeIndex.value != 0) {
+    activeIndex.value--;
   }
 };
 
-const tooltipShown = ref<boolean>(false);
-
-const handleMouseenter = () => {
-  console.log("mouseenter");
+const handleNext = () => {
+  if (activeIndex.value != visibleItemsLength.value - 1) {
+    activeIndex.value++;
+  }
 };
 </script>
 <template>
-  <VCard>
+  <VCard v-if="visibleItemsLength > 0">
     <template #header>
       <ol
         class="migrate-flex migrate-w-full migrate-items-center migrate-space-x-2 migrate-p-3 migrate-text-center migrate-text-sm migrate-font-medium sm:migrate-space-x-4 sm:migrate-p-4"
       >
         <li
-          v-for="(item, index) in items"
+          v-for="(item, index) in visibleItems"
           :key="index"
           class="migrate-flex migrate-items-center"
           :class="itemClass(index)"
@@ -94,7 +101,7 @@ const handleMouseenter = () => {
             {{ item.name }}
           </span>
           <svg
-            v-if="index != items.length - 1"
+            v-if="index != visibleItemsLength - 1"
             class="migrate-ml-2 migrate-h-3 migrate-w-3 sm:migrate-ml-4"
             aria-hidden="true"
             xmlns="http://www.w3.org/2000/svg"
@@ -115,7 +122,7 @@ const handleMouseenter = () => {
     <main class="migrate-flex migrate-min-h-[50vh] migrate-items-stretch">
       <div
         class="migrate-relative migrate-flex-1"
-        v-for="(item, index) in items"
+        v-for="(item, index) in visibleItems"
         :key="index"
         v-show="index === activeIndex"
       >
@@ -124,38 +131,16 @@ const handleMouseenter = () => {
     </main>
     <template #footer>
       <VSpace>
-        <VButton @click="activeIndex--" v-show="activeIndex != 0">
-          上一步
-        </VButton>
-        <div
-          @mouseenter="tooltipShown = true"
-          @mouseleave="tooltipShown = false"
+        <StepButton
+          :data="visibleItems[activeIndex].prev"
+          @click="handlePrev"
+          v-show="activeIndex != 0"
         >
-          <VButton
-            ref="nextButton"
-            :disabled="items[activeIndex].nextDisabled?.value"
-            @click="handleNext(items[activeIndex])"
-            v-show="activeIndex != items.length - 1"
-            v-tooltip.top="{
-              content: items[activeIndex].nextDisabledMessage,
-              disabled:
-                !items[activeIndex].nextDisabled?.value &&
-                !!items[activeIndex].nextDisabledMessage,
-              shown: tooltipShown,
-              triggers: [],
-            }"
-          >
-            下一步
-          </VButton>
-        </div>
-
-        <VButton
-          v-show="activeIndex == items.length - 1"
-          :loading="items[activeIndex].nextLoading?.value"
-          @click="handleNext(items[activeIndex])"
-        >
-          {{ submitText }}
-        </VButton>
+          {{ visibleItems[activeIndex].prev?.text || "上一步" }}
+        </StepButton>
+        <StepButton :data="visibleItems[activeIndex].next" @click="handleNext">
+          {{ visibleItems[activeIndex].next?.text || "下一步" }}
+        </StepButton>
       </VSpace>
     </template>
   </VCard>

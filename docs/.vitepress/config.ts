@@ -12,7 +12,10 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: "首页", link: "/" },
-      { text: "Release", link: "https://github.com/halo-sigs/plugin-migrate/releases" },
+      {
+        text: "Release",
+        link: "https://github.com/halo-sigs/plugin-migrate/releases",
+      },
     ],
 
     sidebar: [

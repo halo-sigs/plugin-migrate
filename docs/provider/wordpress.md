@@ -50,7 +50,7 @@ tar --strip-components 1 -zxvf /path/to/upload.tgz
 
 ## 修改 Halo 配置
 
-在 Halo 配置文件中增加如下配置，通过该配置，用户在 **{halo-work-dir}/attachments/migrate-from-wp/** */ 上传文件后，可以通过 **{HALO_EXTERNAL_URL}/wp-content/uploads/{文件名}** 访问到该文件，与 WordPress 中的附件链接规则一致。
+在 Halo 配置文件中增加如下配置，通过该配置，用户在 **{halo-work-dir}/attachments/migrate-from-wp/** \*/ 上传文件后，可以通过 **{HALO_EXTERNAL_URL}/wp-content/uploads/{文件名}** 访问到该文件，与 WordPress 中的附件链接规则一致。
 
 ```yaml
 halo:

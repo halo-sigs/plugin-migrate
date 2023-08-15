@@ -3,6 +3,7 @@ import type {
   MigrateCategory,
   MigrateComment,
   MigrateData,
+  MigrateMenu,
   MigrateReply,
 } from "@/types";
 import type { Ref } from "@halo-dev/api-client/index";
@@ -352,7 +353,9 @@ export function useWordPressDataParser(
     return categories.map((category) => {
       const children = categories
         .filter((item) => {
-          return category["wp:cat_name"] === item["wp:category_parent"];
+          return (
+            category["wp:category_nicename"] === item["wp:category_parent"]
+          );
         })
         .map((item) => {
           return item["wp:term_id"] + "";
@@ -374,76 +377,99 @@ export function useWordPressDataParser(
     });
   };
 
-  const parseMenuItems = (terms: Term[], navMenuItems: Item[]) => {
-    return terms
-      .map((term) => {
-        const navMenuItem = navMenuItems.find((item) => {
-          const category = item.category?.filter((category) => {
-            return category._domain === "nav_menu";
-          })[0];
-          if (!category) {
-            return false;
+  const parseMenuItems = (
+    terms: Term[],
+    navMenuItems: Item[]
+  ): MigrateMenu[] | [] => {
+    return (
+      terms
+        .filter((term) => {
+          return term["wp:term_taxonomy"] === "nav_menu";
+        })
+        .reduce((acc: Term[], term) => {
+          const exists = acc.some(
+            (existingTerm) => existingTerm["wp:term_id"] === term["wp:term_id"]
+          );
+          if (!exists) {
+            acc.push(term);
           }
-          return category._nicename === term["wp:term_name"];
-        });
-        if (!navMenuItem) {
-          return;
-        }
-        const children: string[] = [];
-        const metas = navMenuItem?.["wp:postmeta"] || [];
-        const targetRef: Ref = {
-          name: "",
-        };
-        let href = "";
-        metas.forEach((meta) => {
-          switch (meta["wp:meta_key"]) {
-            case "_menu_item_object":
-              targetRef.group = "content.halo.run";
-              targetRef.name = navMenuItem?.["wp:post_id"] + "";
-              targetRef.version = "v1alpha1";
-              if (meta["wp:meta_value"] == "page") {
-                targetRef.kind = "SinglePage";
-              } else if (meta["wp:meta_value"] == "post") {
-                targetRef.kind = "Post";
-              } else if (meta["wp:meta_value"] == "category") {
-                targetRef.kind = "Category";
+          return acc;
+        }, [])
+        .flatMap((term) => {
+          return navMenuItems
+            .map((item) => {
+              const category = item.category?.find((category) => {
+                return (
+                  category._domain === "nav_menu" &&
+                  category._nicename === term["wp:term_name"]
+                );
+              });
+
+              if (!category) {
+                return;
               }
-              break;
-            case "_menu_item_object_id":
-              href = meta["wp:meta_value"];
-              break;
-            case "_menu_item_url":
-              href = meta["wp:meta_value"] || href;
-              break;
-          }
-          if (meta["wp:meta_key"] === "_menu_item_menu_item_parent") {
-            let childrenNames = menuChildrenMap.get(meta["wp:meta_value"]);
-            if (!childrenNames) {
-              childrenNames = new Array<string>();
-            }
-            childrenNames.push(navMenuItem?.["wp:post_id"] + "");
-            menuChildrenMap.set(meta["wp:meta_value"], childrenNames);
-          }
-        });
-        return {
-          menu: {
-            kind: "MenuItem",
-            apiVersion: "v1alpha1",
-            metadata: {
-              name: navMenuItem?.["wp:post_id"] + "",
-            },
-            spec: {
-              displayName: navMenuItem?.title + "",
-              priority: Number(navMenuItem?.["wp:menu_order"]),
-              children: children,
-              href: !targetRef.kind ? href : undefined,
-            },
-          },
-          groupId: term["wp:term_id"] + "",
-          groupName: term["wp:term_name"],
-        };
-      })
-      .filter((item) => !!item);
+
+              const children: string[] = [];
+              const metas = item?.["wp:postmeta"] || [];
+              const targetRef: Ref = {
+                name: "",
+              };
+              let href = "";
+              metas.forEach((meta) => {
+                switch (meta["wp:meta_key"]) {
+                  case "_menu_item_object":
+                    targetRef.group = "content.halo.run";
+                    targetRef.name = item?.["wp:post_id"] + "";
+                    targetRef.version = "v1alpha1";
+                    if (meta["wp:meta_value"] == "page") {
+                      targetRef.kind = "SinglePage";
+                    } else if (meta["wp:meta_value"] == "post") {
+                      targetRef.kind = "Post";
+                    } else if (meta["wp:meta_value"] == "category") {
+                      targetRef.kind = "Category";
+                    }
+                    break;
+                  case "_menu_item_object_id":
+                    href = meta["wp:meta_value"];
+                    break;
+                  case "_menu_item_url":
+                    href = meta["wp:meta_value"] || href;
+                    break;
+                }
+                if (meta["wp:meta_key"] === "_menu_item_menu_item_parent") {
+                  let childrenNames = menuChildrenMap.get(
+                    meta["wp:meta_value"]
+                  );
+                  if (!childrenNames) {
+                    childrenNames = new Array<string>();
+                  }
+                  childrenNames.push(item?.["wp:post_id"] + "");
+                  menuChildrenMap.set(meta["wp:meta_value"], childrenNames);
+                }
+              });
+              return {
+                menu: {
+                  kind: "MenuItem",
+                  apiVersion: "v1alpha1",
+                  metadata: {
+                    name: item?.["wp:post_id"] + "",
+                  },
+                  spec: {
+                    displayName: item?.title + "",
+                    priority: Number(item?.["wp:menu_order"]),
+                    children: children,
+                    href: !targetRef.kind ? href : undefined,
+                  },
+                },
+                groupId: term["wp:term_id"] + "",
+                groupName: term["wp:term_name"],
+              } as MigrateMenu;
+            })
+            .filter((item) => {
+              return item != undefined;
+            }) as MigrateMenu[];
+        }) || []
+    );
   };
 
   const ATTACHMENT_PATH_PREFIX = "wp-content/uploads/";
@@ -458,7 +484,6 @@ export function useWordPressDataParser(
         }
         // TODO 解析元数据
         if (meta["wp:meta_key"] === "_wp_attachment_metadata") {
-          console.log(meta["wp:meta_value"]);
           metadata = extractImageMetadata(meta["wp:meta_value"]);
         }
       });

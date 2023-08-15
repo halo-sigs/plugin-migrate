@@ -20,6 +20,7 @@
     "fastq": "^1.15.0",
     "lodash.groupby": "^4.6.0",
     "performant-array-to-tree": "^1.11.0",
+    "transliteration": "^2.3.5",
     "vue": "^3.3.4",
     "vue-router": "^4.2.4"
   },

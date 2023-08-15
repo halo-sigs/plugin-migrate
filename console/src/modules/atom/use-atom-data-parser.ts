@@ -1,5 +1,7 @@
 import type { MigrateData, MigratePost } from "@/types";
 import { XMLParser } from "fast-xml-parser";
+import { randomUUID } from "@/utils/id";
+import { slugify } from "transliteration";
 
 interface useAtomDataParserReturn {
   parse: () => Promise<MigrateData>;
@@ -88,7 +90,7 @@ export function useRssDataParser(
           posts: parsePosts(feed.entry || []),
         });
       } catch (error) {
-        console.log(error);
+        console.error(error);
         reject("Atom 文件解析失败");
       }
     });
@@ -103,11 +105,11 @@ export function useRssDataParser(
             post: {
               spec: {
                 title: post.title,
-                slug: post.id || post.title,
+                slug: slugify(post.title, { trim: true }),
                 deleted: false,
                 publish: true,
                 publishTime: new Date(
-                  post.published || post.updated
+                  post.published || post.updated || new Date().toISOString()
                 ).toISOString(),
                 pinned: false,
                 allowComment: true,
@@ -115,14 +117,14 @@ export function useRssDataParser(
                 priority: 0,
                 excerpt: {
                   autoGenerate: false,
-                  raw: post.summary,
+                  raw: post.summary || "",
                 },
                 htmlMetas: [],
               },
               apiVersion: "content.halo.run/v1alpha1",
               kind: "Post",
               metadata: {
-                name: post.title,
+                name: randomUUID(),
               },
             },
             content: {

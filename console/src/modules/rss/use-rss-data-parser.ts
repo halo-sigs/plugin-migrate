@@ -1,5 +1,7 @@
 import type { MigrateData, MigratePost } from "@/types";
 import { XMLParser } from "fast-xml-parser";
+import { randomUUID } from "@/utils/id";
+import { slugify } from "transliteration";
 
 interface useRssDataParserReturn {
   parse: () => Promise<MigrateData>;
@@ -89,7 +91,7 @@ export function useRssDataParser(
           posts: parsePosts(channel.item),
         });
       } catch (error) {
-        console.log(error);
+        console.error(error);
         reject("RSS 文件解析失败");
       }
     });
@@ -102,7 +104,9 @@ export function useRssDataParser(
           post: {
             spec: {
               title: post.title,
-              slug: post.title,
+              slug: slugify(post.title, {
+                trim: true,
+              }),
               deleted: false,
               publish: true,
               publishTime: new Date(post.pubDate).toISOString(),
@@ -112,14 +116,14 @@ export function useRssDataParser(
               priority: 0,
               excerpt: {
                 autoGenerate: false,
-                raw: post.description.slice(0, 200),
+                raw: post.description?.slice(0, 200) || "",
               },
               htmlMetas: [],
             },
             apiVersion: "content.halo.run/v1alpha1",
             kind: "Post",
             metadata: {
-              name: post.title,
+              name: randomUUID(),
             },
           },
           content: {

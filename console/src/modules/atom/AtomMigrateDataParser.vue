@@ -29,8 +29,10 @@ const handleFileChange = (files: FileList) => {
 };
 
 const rssUrl = ref("");
+const loading = ref(false);
 const handleUrlSubmit = () => {
   if (rssUrl.value) {
+    loading.value = true;
     useRssDataParser(rssUrl.value)
       .parse()
       .then((data) => {
@@ -42,6 +44,9 @@ const handleUrlSubmit = () => {
       })
       .catch((error: any) => {
         Toast.error(error);
+      })
+      .finally(() => {
+        loading.value = false;
       });
   }
 };
@@ -74,6 +79,7 @@ const handleUrlSubmit = () => {
               type="primary"
               size="sm"
               class="migrate-mr-1"
+              :loading="loading"
               @click="handleUrlSubmit"
             >
               解析

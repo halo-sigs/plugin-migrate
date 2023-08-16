@@ -110,7 +110,6 @@ const handleImport = () => {
       policyMap.value
     ),
   ];
-  debugger
   tasks.forEach((task) => {
     taskQueue.push(task).catch((error) => {
       console.error(error);

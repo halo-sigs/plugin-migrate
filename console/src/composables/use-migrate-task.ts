@@ -469,7 +469,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
 
   const createPhotoTasks = () => {
     const photos = data.photos || [];
-    const groupedPhotos = groupBy(photos, "spec.group");
+    const groupedPhotos = groupBy(photos, "spec.groupName");
     const photoGroupTasks: PhotoGroupTask[] = [];
     Object.keys(groupedPhotos).forEach((key) => {
       photoGroupTasks.push(new PhotoGroupTask(key));
@@ -484,7 +484,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
 
   const createLinkTasks = () => {
     const links = data.links || [];
-    const groupedLinks = groupBy(links, "spec.group");
+    const groupedLinks = groupBy(links, "spec.groupName");
     const linkGroupTasks: LinkGroupTask[] = [];
     Object.keys(groupedLinks).forEach((key) => {
       linkGroupTasks.push(new LinkGroupTask(key));

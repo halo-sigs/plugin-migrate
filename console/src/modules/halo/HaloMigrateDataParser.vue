@@ -18,6 +18,7 @@ const handleFileChange = (files: FileList) => {
   useHaloDataParser(file)
     .parse()
     .then((data) => {
+      debugger
       emit("update:data", data);
     })
     .catch((error: any) => {

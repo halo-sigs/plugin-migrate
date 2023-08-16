@@ -55,7 +55,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
   };
 
   const parseTags = (tags: any[]): MigrateTag[] => {
-    return tags.map((tag: Tag) => {
+    return tags?.map((tag: Tag) => {
       return {
         metadata: {
           name: tag.id + "",
@@ -74,7 +74,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const parseCategories = (categories: any[]): MigrateCategory[] => {
     return categories
-      .reduce<Category[]>((acc, val, _, array) => {
+      ?.reduce<Category[]>((acc, val, _, array) => {
         const children: string[] = [];
         array.forEach((el) => {
           if (children.includes(el.parentId + "") || el.parentId === val.id) {
@@ -104,20 +104,22 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const parsePosts = (data: any): MigratePost[] => {
     const { posts, contents, post_tags, post_categories, post_metas } = data;
-    return posts.map((post: Post) => {
-      const content = contents.find(
+    return posts?.map((post: Post) => {
+      const content = contents?.find(
         (content: Content) => content.id === post.id
       );
       const tagIds = post_tags
-        .filter((postTag: PostTag) => postTag.postId === post.id)
+        ?.filter((postTag: PostTag) => postTag.postId === post.id)
         .map((postTag: PostTag) => postTag.tagId + "");
 
       const categoryIds = post_categories
-        .filter((postCategory: PostCategory) => postCategory.postId === post.id)
+        ?.filter(
+          (postCategory: PostCategory) => postCategory.postId === post.id
+        )
         .map((postCategory: PostCategory) => postCategory.categoryId + "");
 
       const metas = (post_metas as Meta[])
-        .filter((meta: Meta) => meta.postId === post.id)
+        ?.filter((meta: Meta) => meta.postId === post.id)
         .reduce<Record<string, string>>((acc, val) => {
           acc[val.key] = val.value;
           return acc;
@@ -169,14 +171,14 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const parseSinglePages = (data: any): MigrateSinglePage[] => {
     const { sheets, contents, sheet_metas } = data;
-    return sheets.map((sheet: Sheet) => {
-      const content = contents.find(
+    return sheets?.map((sheet: Sheet) => {
+      const content = contents?.find(
         (content: Content) => content.id === sheet.id
       );
 
       const metas = (sheet_metas as Meta[])
-        .filter((meta: Meta) => meta.postId === sheet.id)
-        .reduce<Record<string, string>>((acc, val) => {
+        ?.filter((meta: Meta) => meta.postId === sheet.id)
+        ?.reduce<Record<string, string>>((acc, val) => {
           acc[val.key] = val.value;
           return acc;
         }, {});
@@ -226,47 +228,53 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
   const parseComments = (data: any): (MigrateComment | MigrateReply)[] => {
     const { post_comments, sheet_comments, journal_comments } = data;
     // 文章评论
-    const postComments = createCommentOrReply(
-      arrayToTree(post_comments, {
-        dataField: null,
-        rootParentIds: {
-          0: true,
-        },
-      }) as Comment[],
-      {
-        kind: "Post",
-        group: "content.halo.run",
-        version: "v1alpha1",
-      }
-    );
+    const postComments = !post_comments
+      ? []
+      : createCommentOrReply(
+          arrayToTree(post_comments, {
+            dataField: null,
+            rootParentIds: {
+              0: true,
+            },
+          }) as Comment[],
+          {
+            kind: "Post",
+            group: "content.halo.run",
+            version: "v1alpha1",
+          }
+        );
     // 页面评论
-    const sheetComments = createCommentOrReply(
-      arrayToTree(sheet_comments, {
-        dataField: null,
-        rootParentIds: {
-          0: true,
-        },
-      }) as Comment[],
-      {
-        kind: "SinglePage",
-        group: "content.halo.run",
-        version: "v1alpha1",
-      }
-    );
+    const sheetComments = !sheet_comments
+      ? []
+      : createCommentOrReply(
+          arrayToTree(sheet_comments, {
+            dataField: null,
+            rootParentIds: {
+              0: true,
+            },
+          }) as Comment[],
+          {
+            kind: "SinglePage",
+            group: "content.halo.run",
+            version: "v1alpha1",
+          }
+        );
     // 日志（瞬间）评论
-    const journalComments = createCommentOrReply(
-      arrayToTree(journal_comments, {
-        dataField: null,
-        rootParentIds: {
-          0: true,
-        },
-      }) as Comment[],
-      {
-        kind: "Moment",
-        group: "moment.halo.run",
-        version: "v1alpha1",
-      }
-    );
+    const journalComments = !sheet_comments
+      ? []
+      : createCommentOrReply(
+          arrayToTree(journal_comments, {
+            dataField: null,
+            rootParentIds: {
+              0: true,
+            },
+          }) as Comment[],
+          {
+            kind: "Moment",
+            group: "moment.halo.run",
+            version: "v1alpha1",
+          }
+        );
 
     return [...postComments, ...sheetComments, ...journalComments];
   };
@@ -380,7 +388,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const parseMenus = (menus: Menu[]): MigrateMenu[] => {
     return menus
-      .reduce<Menu[]>((acc, val, _, array) => {
+      ?.reduce<Menu[]>((acc, val, _, array) => {
         const children: string[] = [];
         array.forEach((el) => {
           if (children.includes(el.parentId + "") || el.parentId === val.id) {
@@ -410,7 +418,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
   };
 
   const parseMoments = (journals: Journal[]): MigrateMoment[] => {
-    return journals.map((journal) => {
+    return journals?.map((journal) => {
       return {
         spec: {
           content: {
@@ -431,7 +439,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
   };
 
   const parsePhotos = (photos: Photo[]): MigratePhoto[] => {
-    return photos.map((photo) => {
+    return photos?.map((photo) => {
       return {
         metadata: {
           name: photo.id + "",
@@ -450,7 +458,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
   };
 
   const parseLinks = (links: Link[]): MigrateLink[] => {
-    return links.map((link) => {
+    return links?.map((link) => {
       return {
         metadata: {
           name: link.id + "",

@@ -98,8 +98,8 @@ export function useRssDataParser(
 
   const parsePosts = (items: Entry[]) => {
     return items
-      .filter((item) => item.title && item.content)
-      .map((post) => {
+      ?.filter((item) => item.title && item.content)
+      ?.map((post) => {
         return {
           postRequest: {
             post: {

@@ -528,6 +528,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
               case "BAIDUBOS":
               case "TENCENTCOS":
               case "QINIUOSS":
+              case "UPOSS":
                 return new S3OSSAttachmentTask(
                   item,
                   typeToPolicyMap.get(item.type) || "default-policy",

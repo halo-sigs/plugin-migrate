@@ -98,7 +98,7 @@ export function useRssDataParser(
   };
 
   const parsePosts = (items: Item[]) => {
-    return items.map((post) => {
+    return items?.map((post) => {
       return {
         postRequest: {
           post: {

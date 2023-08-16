@@ -111,7 +111,9 @@ const handleImport = () => {
     ),
   ];
   tasks.forEach((task) => {
-    taskQueue.push(task);
+    taskQueue.push(task).catch((error) => {
+      console.error(error);
+    });
   });
   taskQueue.drained().then(() => {
     importLoading.value = false;

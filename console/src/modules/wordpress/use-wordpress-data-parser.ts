@@ -86,7 +86,7 @@ export function useWordPressDataParser(
     const attachments: Item[] = [];
     const navMenuItems: Item[] = [];
     const others: Item[] = [];
-    items.forEach((item) => {
+    items?.forEach((item) => {
       switch (item["wp:post_type"]) {
         case "post":
           posts.push(item);
@@ -114,7 +114,7 @@ export function useWordPressDataParser(
     categories: Category[],
     attachments: Item[]
   ) => {
-    return posts.map((post: Item) => {
+    return posts?.map((post: Item) => {
       const publish =
         post["wp:status"] === "publish" ||
         post["wp:postmeta"]?.find(
@@ -137,13 +137,13 @@ export function useWordPressDataParser(
         });
 
       const tagIds = tags
-        .filter((tag: Tag) => {
+        ?.filter((tag: Tag) => {
           return postTagSlugs?.includes(tag["wp:tag_slug"]);
         })
         .map((tag: Tag) => tag["wp:term_id"] + "");
 
       const categoryIds = categories
-        .filter((category: Category) => {
+        ?.filter((category: Category) => {
           return postCategorySlugs?.includes(category["wp:category_nicename"]);
         })
         .map((category: Category) => category["wp:term_id"] + "");
@@ -199,7 +199,7 @@ export function useWordPressDataParser(
   };
 
   const parsePages = (pages: Item[]) => {
-    return pages.map((page: Item) => {
+    return pages?.map((page: Item) => {
       const publish =
         page["wp:status"] === "publish" ||
         page["wp:postmeta"]?.find(
@@ -242,7 +242,7 @@ export function useWordPressDataParser(
 
   const parseComments = (items: Item[]): (MigrateComment | MigrateReply)[] => {
     const comments: (MigrateComment | MigrateReply)[] = [];
-    items.forEach((item) => {
+    items?.forEach((item) => {
       const refType = item["wp:post_type"] == "post" ? "Post" : "SinglePage";
       item["wp:comment"]?.forEach((comment) => {
         if (comment["wp:comment_parent"] === 0) {
@@ -334,7 +334,7 @@ export function useWordPressDataParser(
   };
 
   const parseTags = (tags: Tag[]) => {
-    return tags.map((tag) => {
+    return tags?.map((tag) => {
       return {
         metadata: {
           name: tag["wp:term_id"] + "",
@@ -350,7 +350,7 @@ export function useWordPressDataParser(
   };
 
   const parseCategories = (categories: Category[]) => {
-    return categories.map((category) => {
+    return categories?.map((category) => {
       const children = categories
         .filter((item) => {
           return (
@@ -383,7 +383,7 @@ export function useWordPressDataParser(
   ): MigrateMenu[] | [] => {
     return (
       terms
-        .filter((term) => {
+        ?.filter((term) => {
           return term["wp:term_taxonomy"] === "nav_menu";
         })
         .reduce((acc: Term[], term) => {
@@ -397,7 +397,7 @@ export function useWordPressDataParser(
         }, [])
         .flatMap((term) => {
           return navMenuItems
-            .map((item) => {
+            ?.map((item) => {
               const category = item.category?.find((category) => {
                 return (
                   category._domain === "nav_menu" &&
@@ -475,7 +475,7 @@ export function useWordPressDataParser(
   const ATTACHMENT_PATH_PREFIX = "wp-content/uploads/";
 
   const parseAttachments = (attachments: Item[]) => {
-    return attachments.map((attachment) => {
+    return attachments?.map((attachment) => {
       let path = "";
       let metadata: AttachmentMetadata = {} as AttachmentMetadata;
       attachment["wp:postmeta"]?.forEach((meta) => {

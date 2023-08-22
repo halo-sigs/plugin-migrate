@@ -21,7 +21,7 @@ import type {
   Reply,
   Tag,
   User,
-} from "@halo-dev/api-client/index";
+} from "@halo-dev/api-client";
 import type { AxiosResponse } from "axios";
 import axios from "axios";
 import groupBy from "lodash.groupby";

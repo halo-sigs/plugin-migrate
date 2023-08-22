@@ -6,7 +6,7 @@ import type {
   MigrateMenu,
   MigrateReply,
 } from "@/types";
-import type { Ref } from "@halo-dev/api-client/index";
+import type { Ref } from "@halo-dev/api-client";
 import { XMLParser } from "fast-xml-parser";
 
 interface useWordPressDataParserReturn {

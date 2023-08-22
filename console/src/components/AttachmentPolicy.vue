@@ -3,7 +3,9 @@ import { VAlert } from "@halo-dev/components";
 import type { MigrateAttachment } from "@/types";
 import { apiClient } from "@/utils/api-client";
 import groupBy from "lodash.groupby";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
+import { useQuery } from "@tanstack/vue-query";
+import type { Policy } from "@halo-dev/api-client";
 
 const props = defineProps<{
   activatedPluginNames: string[];
@@ -23,47 +25,47 @@ const localPolicyOptions = ref<
   { label: string; value: string; templateName: string }[]
 >([]);
 
-onMounted(() => {
-  attachmentPolicy();
+useQuery({
+  queryKey: ["attachment-policy", props.attachments],
+  queryFn: async () => {
+    if (!props.attachments) {
+      return;
+    }
+
+    const { data } =
+      await apiClient.extension.storage.policy.liststorageHaloRunV1alpha1Policy();
+    return data.items;
+  },
+  onSuccess(data: Policy[]) {
+    policyOptions.value = data.map((policy) => {
+      return {
+        label: policy.spec.displayName,
+        value: policy.metadata.name,
+        templateName: policy.spec.templateName,
+      };
+    });
+    attachmentTypes.value = Object.keys(groupBy(props.attachments, "type")).map(
+      (type) => {
+        return {
+          type: type,
+          policyName:
+            type == "LOCAL"
+              ? localPolicyOptions.value[0]?.value
+              : policyOptions.value[0]?.value,
+        };
+      }
+    );
+    localPolicyOptions.value = policyOptions.value.filter(
+      (item) => item.templateName === "local"
+    );
+    if (!props.activatedPluginNames.includes("PluginS3ObjectStorage")) {
+      policyOptions.value = localPolicyOptions.value;
+    }
+  },
+  enabled: computed(() => !!props.attachments),
 });
 
-const attachmentPolicy = async () => {
-  const { data } =
-    await apiClient.extension.storage.policy.liststorageHaloRunV1alpha1Policy();
-  policyOptions.value = data.items.map((policy) => {
-    return {
-      label: policy.spec.displayName,
-      value: policy.metadata.name,
-      templateName: policy.spec.templateName,
-    };
-  });
-  attachmentTypes.value = Object.keys(groupBy(props.attachments, "type")).map(
-    (type) => {
-      return {
-        type: type,
-        policyName:
-          type == "LOCAL"
-            ? localPolicyOptions.value[0]?.value
-            : policyOptions.value[0]?.value,
-      };
-    }
-  );
-  localPolicyOptions.value = policyOptions.value.filter(
-    (item) => item.templateName === "local"
-  );
-  if (!props.activatedPluginNames.includes("PluginS3ObjectStorage")) {
-    policyOptions.value = localPolicyOptions.value;
-  }
-};
-
 const typeToPolicyMap = reactive(new Map<string, string>());
-
-watch(
-  () => props.attachments,
-  () => {
-    attachmentPolicy();
-  }
-);
 
 watch(
   () => attachmentTypes.value,
@@ -74,9 +76,7 @@ watch(
         isToast =
           policyOptions.value.filter(
             (item) => item.value === policyName && item.templateName === "local"
-          ).length > 0
-            ? true
-            : false;
+          ).length > 0;
       }
       if (isToast) {
         break;

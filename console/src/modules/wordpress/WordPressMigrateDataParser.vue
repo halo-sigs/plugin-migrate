@@ -28,7 +28,7 @@ const handleFileChange = (files: FileList) => {
 <template>
   <div class="sm:migrate-w-1/2">
     <FileSelector
-      :options="{ accept: '.xml' }"
+      :options="{ accept: '.xml', multiple: false }"
       @fileChange="handleFileChange"
     ></FileSelector>
   </div>

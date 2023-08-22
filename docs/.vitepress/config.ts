@@ -24,15 +24,15 @@ export default defineConfig({
         items: [
           { text: "Halo 1.x", link: "/provider/halo" },
           { text: "WordPress", link: "/provider/wordpress" },
-          { text: "Rss", link: "/provider/rss" },
+          { text: "RSS", link: "/provider/rss" },
           { text: "Atom", link: "/provider/atom" },
         ],
       },
       {
         text: "扩展",
         items: [
-          { text: "扩展 Provider", link: "/expand/provider" },
-          { text: "扩展迁移步骤", link: "/expand/steps" },
+          { text: "扩展 Provider", link: "/extend/provider" },
+          { text: "扩展迁移步骤", link: "/extend/steps" },
         ],
       },
     ],

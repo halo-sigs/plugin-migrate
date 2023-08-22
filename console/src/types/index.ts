@@ -7,7 +7,7 @@ import type {
   PostRequest,
   SinglePageRequest,
   Tag,
-} from "@halo-dev/api-client/index";
+} from "@halo-dev/api-client";
 import type { Component } from "vue";
 
 export interface MigrationOption {

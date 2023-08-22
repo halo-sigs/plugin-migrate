@@ -18,7 +18,6 @@ const handleFileChange = (files: FileList) => {
   useHaloDataParser(file)
     .parse()
     .then((data) => {
-      debugger
       emit("update:data", data);
     })
     .catch((error: any) => {
@@ -29,7 +28,7 @@ const handleFileChange = (files: FileList) => {
 <template>
   <div class="sm:migrate-w-1/2">
     <FileSelector
-      :options="{ accept: '.json' }"
+      :options="{ accept: '.json', multiple: false }"
       @fileChange="handleFileChange"
     ></FileSelector>
   </div>

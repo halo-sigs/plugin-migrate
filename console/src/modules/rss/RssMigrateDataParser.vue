@@ -64,7 +64,7 @@ const handleUrlSubmit = () => {
     </div>
     <div>
       <FileSelector
-        :options="{ accept: '.xml' }"
+        :options="{ accept: '.xml', multiple: false }"
         @fileChange="handleFileChange"
       ></FileSelector>
       <span class="migrate-my-6 migrate-block"> 或 </span>

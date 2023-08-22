@@ -5,7 +5,7 @@ import type { MigrateData, Provider } from "@/types";
 import MigrateProvider from "@/components/MigrateProvider.vue";
 import { computed, onMounted, ref } from "vue";
 import MigratePreview from "@/components/MigratePreview.vue";
-import type { PluginList, User } from "@halo-dev/api-client/index";
+import type { PluginList, User } from "@halo-dev/api-client";
 import axios, { type AxiosResponse } from "axios";
 import AttachmentPolicy from "@/components/AttachmentPolicy.vue";
 import {

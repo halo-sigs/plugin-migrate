@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from "vue";
+import { ref, watch } from "vue";
 import { type UseFileDialogOptions, useFileDialog } from "@vueuse/core";
 const { files, open, reset } = useFileDialog();
 const props = defineProps<{
@@ -9,6 +9,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: "fileChange", files: FileList): void;
 }>();
+
+const selectedFileName = ref<string>();
 
 const handleOpenFile = () => {
   reset();
@@ -21,6 +23,9 @@ watch(
     if (!files.value) {
       return;
     }
+    for (let i = 0; i < files.value.length; i++) {
+      selectedFileName.value = files.value[i].name + " ";
+    }
     emit("fileChange", files.value);
   }
 );
@@ -28,7 +33,7 @@ watch(
 <template>
   <div class="migrate-w-full" @click="handleOpenFile">
     <label
-      class="migrate-text-blue migrate-border-blue migrate-flex migrate-cursor-pointer migrate-flex-col migrate-items-center migrate-rounded-lg migrate-border migrate-bg-white migrate-px-4 migrate-py-6 migrate-uppercase migrate-tracking-wide hover:migrate-bg-blue-400 hover:migrate-text-white"
+      class="migrate-text-blue migrate-border-blue migrate-flex migrate-cursor-pointer migrate-flex-col migrate-items-center migrate-rounded-lg migrate-border migrate-bg-white migrate-px-4 migrate-py-6 migrate-tracking-wide hover:migrate-bg-blue-400 hover:migrate-text-white"
     >
       <svg
         class="migrate-h-8 migrate-w-8"
@@ -43,6 +48,12 @@ watch(
       <span class="migrate-mt-2 migrate-text-base migrate-leading-normal">
         选择文件
       </span>
+      <p
+        v-if="selectedFileName"
+        class="text-xs text-gray-500 dark:text-gray-400"
+      >
+        已选择文件: {{ selectedFileName }}
+      </p>
     </label>
   </div>
 </template>

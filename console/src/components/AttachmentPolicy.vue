@@ -26,7 +26,7 @@ const localPolicyOptions = ref<
 >([]);
 
 useQuery({
-  queryKey: ["attachment-policy", props.attachments],
+  queryKey: ["attachment-policy"],
   queryFn: async () => {
     if (!props.attachments) {
       return;
@@ -104,7 +104,11 @@ watch(
       >
         <template #description>
           当前未安装/启用 S3
-          插件，所有附件只能导入到本地，原云存储文件将无法远程管理
+          插件，所有附件只能导入到本地，原云存储文件将无法远程管理。可前往
+          <a href="https://halo.run/store/apps/app-Qxhpp" target="_blank">
+            https://halo.run/store/apps/app-Qxhpp
+          </a>
+          进行安装。
         </template>
       </VAlert>
       <VAlert v-else-if="isSelectLocal" title="警告" type="warning">

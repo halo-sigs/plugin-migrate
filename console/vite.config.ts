@@ -46,5 +46,8 @@ export default ({ mode }: { mode: string }) => {
         },
       },
     },
+    define: {
+      "process.env": {},
+    },
   });
 };

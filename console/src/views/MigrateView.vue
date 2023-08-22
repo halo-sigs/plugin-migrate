@@ -45,6 +45,7 @@ const migrateData = ref<MigrateData>();
 const activeProvider = ref<Provider>();
 const handleSelectProvider = (provider: Provider) => {
   activeProvider.value = provider;
+  migrateData.value = undefined;
 };
 const disabledProviderView = computed(() => {
   return !activeProvider.value;

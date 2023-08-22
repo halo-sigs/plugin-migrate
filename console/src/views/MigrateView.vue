@@ -1,111 +1,21 @@
-<script lang="ts" setup>
-import {
-  VButton,
-  VPageHeader,
-  VSpace,
-  VEmpty,
-  VCard,
-  VEntityField,
-  VEntity,
-  Toast,
-  Dialog,
-  VLoading,
-  VModal,
-  VAlert,
-} from "@halo-dev/components";
-import { useFileDialog } from "@vueuse/core";
-import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
-import MdiFileCodeOutline from "~icons/mdi/file-code-outline";
-import type {
-  Post,
-  Tag,
-  Category,
-  Content,
-  PostTag,
-  PostCategory,
-  Comment,
-  Sheet,
-  Menu,
-  Meta,
-  Journal,
-  Photo,
-  Link,
-  Attachment,
-} from "../types/models";
-import type { User, PluginList } from "@halo-dev/api-client";
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { useMigrateFromHalo } from "@/composables/use-migrate-from-halo";
-import type { MigrateRequestTask } from "@/composables/use-migrate-from-halo";
-import { onBeforeRouteLeave } from "vue-router";
+<script setup lang="ts">
+import { Dialog, VPageHeader } from "@halo-dev/components";
+import Steps, { type Step } from "@/components/Steps.vue";
+import type { MigrateData, Provider } from "@/types";
+import MigrateProvider from "@/components/MigrateProvider.vue";
+import { computed, onMounted, ref } from "vue";
+import MigratePreview from "@/components/MigratePreview.vue";
+import type { PluginList, User } from "@halo-dev/api-client";
 import axios, { type AxiosResponse } from "axios";
+import AttachmentPolicy from "@/components/AttachmentPolicy.vue";
+import {
+  useMigrateTask,
+  type MigrateRequestTask,
+} from "@/composables/use-migrate-task";
 import * as fastq from "fastq";
-import type { queueAsPromised } from "fastq";
-import groupBy from "lodash.groupby";
 import { apiClient } from "@/utils/api-client";
-
-const { files, open, reset } = useFileDialog({
-  multiple: false,
-  accept: "application/json",
-});
-
-const tags = ref<Tag[]>([] as Tag[]);
-const categories = ref<Category[]>([] as Category[]);
-const posts = ref<Post[]>([] as Post[]);
-const contents = ref<Content[]>([] as Content[]);
-const postTags = ref<PostTag[]>([] as PostTag[]);
-const postCategories = ref<PostCategory[]>([] as PostCategory[]);
-const postComments = ref<Comment[]>([] as Comment[]);
-const postMetas = ref<Meta[]>([] as Meta[]);
-const sheets = ref<Sheet[]>([] as Sheet[]);
-const sheetComments = ref<Comment[]>([] as Comment[]);
-const sheetMetas = ref<Meta[]>([] as Meta[]);
-const menus = ref<Menu[]>([] as Menu[]);
-const journals = ref<Journal[]>([] as Journal[]);
-const journalComments = ref<Comment[]>([] as Comment[]);
-const photos = ref<Photo[]>([] as Photo[]);
-const links = ref<Link[]>([] as Link[]);
-
-const attachments = ref<Attachment[]>([] as Attachment[]);
-const loading = ref(false);
-const fetching = ref(false);
-
-const {
-  createTagTasks,
-  createCategoryTasks,
-  createPostTasks,
-  createSinglePageTasks,
-  createPostCommentTasks,
-  createSinglePageCommentTasks,
-  createMenuTasks,
-  createMomentTasks,
-  createMomentCommentTasks,
-  createPhotoTasks,
-  createLinkTasks,
-  createAttachmentTasks,
-} = useMigrateFromHalo(
-  tags,
-  categories,
-  posts,
-  contents,
-  postTags,
-  postCategories,
-  postComments,
-  postMetas,
-  sheets,
-  sheetComments,
-  sheetMetas,
-  menus,
-  journals,
-  journalComments,
-  photos,
-  links,
-  attachments
-);
-
-const handleOpenFileDialog = () => {
-  reset();
-  open();
-};
+import { onBeforeRouteLeave } from "vue-router";
+import { providerItems } from "@/modules/index";
 
 const activatedPluginNames = ref<string[]>([]);
 const currentUser = ref<User>();
@@ -131,147 +41,40 @@ onMounted(async () => {
   currentUser.value = userDetailResponse.data.user;
 });
 
-watch(
-  () => files.value,
-  () => {
-    if (files.value?.length) {
-      const file = files.value[0];
-
-      fetching.value = true;
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      axios
-        .post(
-          "/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMigrate/migrations/import",
-          formData
-        )
-        .then((response) => {
-          const data = response.data;
-
-          const { version } = data;
-
-          if (!(version.startsWith("1.5") || version.startsWith("1.6"))) {
-            Toast.warning("暂不支持该版本的迁移，仅支持 Halo 1.5 / 1.6 版本");
-            reset();
-          }
-
-          tags.value = data.tags;
-          categories.value = data.categories;
-          posts.value = data.posts;
-          contents.value = data.contents;
-          postTags.value = data.post_tags;
-          postCategories.value = data.post_categories;
-          postComments.value = data.post_comments;
-          postMetas.value = data.post_metas;
-          sheets.value = data.sheets;
-          sheetComments.value = data.sheet_comments;
-          sheetMetas.value = data.sheet_metas;
-          menus.value = data.menus;
-          journals.value = data.journals;
-          journalComments.value = data.journal_comments;
-          photos.value = data.photos;
-          links.value = data.links;
-          attachments.value = data.attachments;
-
-          attachementPolicy();
-          fetching.value = false;
-        })
-        .catch((e) => {
-          console.error("Failed to fetch data", e);
-          fetching.value = false;
-        });
-    }
-  }
-);
-
-const attachmentStorageVisible = ref(false);
-const isReady = ref(false);
-const attachmentTypes = ref<{ type: string; policyName: string }[]>([]);
-const isSelectLocal = ref(false);
-const policyOptions = ref<
-  { label: string; value: string; templateName: string }[]
->([]);
-const localPolicyOptions = ref<
-  { label: string; value: string; templateName: string }[]
->([]);
-
-watch(
-  () => attachmentTypes.value,
-  () => {
-    let isToast = false;
-    for (let { type, policyName } of attachmentTypes.value) {
-      if (type !== "LOCAL") {
-        isToast =
-          policyOptions.value.filter(
-            (item) => item.value === policyName && item.templateName === "local"
-          ).length > 0
-            ? true
-            : false;
-      }
-      if (isToast) {
-        break;
-      }
-    }
-    isSelectLocal.value = isToast;
-  },
-  {
-    deep: true,
-  }
-);
-
-const attachementPolicy = async () => {
-  const { data } =
-    await apiClient.extension.storage.policy.liststorageHaloRunV1alpha1Policy();
-  policyOptions.value = data.items.map((policy) => {
-    return {
-      label: policy.spec.displayName,
-      value: policy.metadata.name,
-      templateName: policy.spec.templateName,
-    };
-  });
-
-  localPolicyOptions.value = policyOptions.value.filter(
-    (item) => item.templateName === "local"
-  );
-
-  if (attachmentTypes.value.length === 0) {
-    attachmentTypes.value = Object.keys(groupBy(attachments.value, "type")).map(
-      (type) => {
-        return {
-          type: type,
-          policyName:
-            type == "LOCAL"
-              ? localPolicyOptions.value[0]?.value
-              : policyOptions.value[0]?.value,
-        };
-      }
-    );
-  }
-
-  if (!activatedPluginNames.value.includes("PluginS3ObjectStorage")) {
-    policyOptions.value = localPolicyOptions.value;
-  }
-  attachmentStorageVisible.value = true;
+const migrateData = ref<MigrateData>();
+const activeProvider = ref<Provider>();
+const handleSelectProvider = (provider: Provider) => {
+  activeProvider.value = provider;
+  migrateData.value = undefined;
+};
+const disabledProviderView = computed(() => {
+  return !activeProvider.value;
+});
+const disabledImportDataView = computed(() => {
+  return !migrateData.value || !activeProvider.value;
+});
+const policyMap = ref<Map<string, string>>(new Map());
+const handlePolicyChange = (typeToPolicyMap: Map<string, string>) => {
+  policyMap.value = typeToPolicyMap;
 };
 
-const typeToPolicyMap = reactive(new Map<string, string>());
+const taskQueue: fastq.queueAsPromised<MigrateRequestTask<any>> = fastq.promise(
+  asyncWorker,
+  9
+);
 
-const submitAttachment = () => {
-  attachmentTypes.value.forEach((item) => {
-    typeToPolicyMap.set(item.type, item.policyName);
-  });
-  if (Array.from(typeToPolicyMap.values()).includes("")) {
-    Toast.warning("请选择存储策略或前往附件新建本地策略。");
-    return;
-  }
-  attachmentStorageVisible.value = false;
-  isReady.value = true;
-};
+async function asyncWorker(
+  arg: MigrateRequestTask<any>
+): Promise<AxiosResponse<any, any>> {
+  return arg.run();
+}
 
-const handleImport = async () => {
+const importLoading = ref(false);
+const handleImport = () => {
+  importLoading.value = true;
   window.onbeforeunload = function (e) {
+    e.preventDefault();
+    e.returnValue = "";
     const message = "数据正在导入中，请勿关闭或刷新此页面。";
     e = e || window.event;
     if (e) {
@@ -279,96 +82,114 @@ const handleImport = async () => {
     }
     return message;
   };
-
-  loading.value = true;
-
-  const taskQueue: queueAsPromised<MigrateRequestTask<any>> = fastq.promise(
-    asyncWorker,
-    9
-  );
-
-  createTagTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  createCategoryTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  createPostTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  createSinglePageTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  createPostCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  createSinglePageCommentTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  createMenuTasks().forEach((item) => {
-    taskQueue.push(item);
-  });
-
-  if (activatedPluginNames.value.includes("PluginMoments")) {
-    createMomentTasks().forEach((item) => {
-      taskQueue.push(item);
+  const {
+    createTagTasks,
+    createCategoryTasks,
+    createPostTasks,
+    createSinglePageTasks,
+    createCommentAndReplyTasks,
+    createMenuTasks,
+    createMomentTasks,
+    createPhotoTasks,
+    createLinkTasks,
+    createAttachmentTasks,
+  } = useMigrateTask(migrateData.value as MigrateData);
+  // 调用 tasks
+  const tasks = [
+    ...createTagTasks(),
+    ...createCategoryTasks(),
+    ...createPostTasks(),
+    ...createSinglePageTasks(),
+    ...createCommentAndReplyTasks(),
+    ...createMenuTasks(),
+    ...createMomentTasks(),
+    ...createPhotoTasks(),
+    ...createLinkTasks(),
+    ...createAttachmentTasks(
+      activeProvider.value?.options?.attachmentFolderPath as string,
+      currentUser.value as User,
+      policyMap.value
+    ),
+  ];
+  tasks.forEach((task) => {
+    taskQueue.push(task).catch((error) => {
+      console.error(error);
     });
-
-    createMomentCommentTasks().forEach((item) => {
-      taskQueue.push(item);
-    });
-  }
-
-  if (activatedPluginNames.value.includes("PluginPhotos")) {
-    createPhotoTasks().forEach((item) => {
-      taskQueue.push(item);
-    });
-  }
-
-  if (activatedPluginNames.value.includes("PluginLinks")) {
-    createLinkTasks().forEach((item) => {
-      taskQueue.push(item);
-    });
-  }
-
-  if (currentUser.value != undefined) {
-    createAttachmentTasks(typeToPolicyMap, currentUser.value).forEach(
-      (item) => {
-        taskQueue.push(item);
-      }
-    );
-  }
-
-  async function asyncWorker(
-    arg: MigrateRequestTask<any>
-  ): Promise<AxiosResponse<any, any>> {
-    return arg.run();
-  }
-
+  });
   taskQueue.drained().then(() => {
-    loading.value = false;
-
+    importLoading.value = false;
     Dialog.success({
       title: "导入完成",
     });
-
+    window.onbeforeunload = null;
+  });
+  taskQueue.error((error) => {
+    importLoading.value = false;
+    Dialog.error({
+      title: "导入失败",
+      description: error.message,
+    });
     window.onbeforeunload = null;
   });
 };
 
+const stepItems: Step[] = [
+  {
+    key: "provider",
+    name: "选择渠道",
+    next: {
+      disabled: disabledProviderView,
+      disabledMessage: "需要选择数据渠道",
+    },
+  },
+  {
+    key: "importData",
+    name: "导入数据",
+    next: {
+      disabled: disabledImportDataView,
+      disabledMessage: "不存在需要导入的数据",
+    },
+  },
+  {
+    key: "attachmentPolicy",
+    name: "设置附件存储策略",
+    next: {
+      disabled: computed(() => {
+        return policyMap.value.size === 0;
+      }),
+      disabledMessage: "未设置附件存储策略",
+    },
+    visible: computed(() => {
+      return migrateData.value?.attachments != undefined;
+    }),
+  },
+  {
+    key: "migrate",
+    name: "待迁移数据",
+    next: {
+      text: "执行导入",
+      handler: handleImport,
+      loading: computed(() => {
+        return importLoading.value;
+      }),
+    },
+    prev: {
+      disabled: computed(() => {
+        return importLoading.value;
+      }),
+      disabledMessage: "数据正在导入中。",
+    },
+  },
+];
+
 onBeforeRouteLeave((to, from, next) => {
-  if (loading.value) {
+  if (importLoading.value) {
     Dialog.warning({
-      title: "提示",
+      title: "数据正在导入中",
       description: "数据正在导入中，请勿关闭或刷新此页面。",
     });
     next(false);
+    return;
   }
   next();
 });
@@ -378,392 +199,45 @@ onBeforeRouteLeave((to, from, next) => {
     <template #icon>
       <MdiCogTransferOutline class="mr-2 self-center" />
     </template>
-
-    <template #actions>
-      <VSpace>
-        <VButton @click="handleOpenFileDialog()" type="secondary">
-          <template #icon>
-            <MdiFileCodeOutline class="h-full w-full" />
-          </template>
-          选择文件
-        </VButton>
-      </VSpace>
-    </template>
   </VPageHeader>
-  <VLoading v-if="fetching" />
-  <div v-else class="p-4">
-    <VEmpty
-      v-if="!files?.length"
-      message="请选择 Halo 1.5 / 1.6 中导出的 JSON 数据文件"
-      title="当前没有选择数据文件"
-    >
-      <template #actions>
-        <VSpace>
-          <VButton @click="handleOpenFileDialog()">选择文件</VButton>
-        </VSpace>
+  <div class="migrate-m-6 migrate-flex migrate-flex-1 migrate-flex-col">
+    <Steps :items="stepItems" submitText="执行导入">
+      <template #provider>
+        <div>
+          <MigrateProvider
+            :providers="providerItems"
+            @selectProvider="handleSelectProvider"
+          ></MigrateProvider>
+        </div>
       </template>
-    </VEmpty>
-    <Transition v-else appear name="fade">
-      <div class="migrate-flex migrate-flex-1 migrate-flex-col">
-        <div
-          class="migrate-grid migrate-grid-cols-1 migrate-gap-3 sm:migrate-grid-cols-4"
-        >
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`标签（${tags.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(tag, index) in tags" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField
-                        :title="tag.name"
-                        :description="tag.slug"
-                      ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`分类（${categories.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(category, index) in categories" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField
-                        :title="category.name"
-                        :description="category.slug"
-                      ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`文章（${posts.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(post, index) in posts" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField
-                        :title="post.title"
-                        :description="post.slug"
-                      ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`文章评论（${postComments.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(postComment, index) in postComments" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField :title="postComment.author"></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`自定义页面（${sheets.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(sheet, index) in sheets" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField
-                        :title="sheet.title"
-                        :description="sheet.slug"
-                      ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`自定义页面评论（${sheetComments.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(sheetComment, index) in sheetComments" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField :title="sheetComment.author"></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <div class="migrate-h-96">
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`菜单（${menus.length}）`"
-            >
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(menu, index) in menus" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField
-                        :title="menu.name"
-                        :description="menu.team"
-                      ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
-
-          <template v-if="activatedPluginNames.includes('PluginMoments')">
-            <div class="migrate-h-96">
-              <VCard
-                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-                class="h-full"
-                :title="`日志（${journals.length}）`"
-              >
-                <ul
-                  class="box-border h-full w-full divide-y divide-gray-100"
-                  role="list"
-                >
-                  <li v-for="(journal, index) in journals" :key="index">
-                    <VEntity>
-                      <template #start>
-                        <VEntityField
-                          :title="journal.sourceContent"
-                        ></VEntityField>
-                      </template>
-                    </VEntity>
-                  </li>
-                </ul>
-              </VCard>
-            </div>
-
-            <div class="migrate-h-96">
-              <VCard
-                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-                class="h-full"
-                :title="`日志评论（${journalComments.length}）`"
-              >
-                <ul
-                  class="box-border h-full w-full divide-y divide-gray-100"
-                  role="list"
-                >
-                  <li
-                    v-for="(journalComment, index) in journalComments"
-                    :key="index"
-                  >
-                    <VEntity>
-                      <template #start>
-                        <VEntityField
-                          :title="journalComment.author"
-                        ></VEntityField>
-                      </template>
-                    </VEntity>
-                  </li>
-                </ul>
-              </VCard>
-            </div>
-          </template>
-
-          <template v-if="activatedPluginNames.includes('PluginPhotos')">
-            <div class="migrate-h-96">
-              <VCard
-                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-                class="h-full"
-                :title="`图库（${photos.length}）`"
-              >
-                <ul
-                  class="box-border h-full w-full divide-y divide-gray-100"
-                  role="list"
-                >
-                  <li v-for="(photo, index) in photos" :key="index">
-                    <VEntity>
-                      <template #start>
-                        <VEntityField :title="photo.name"></VEntityField>
-                      </template>
-                    </VEntity>
-                  </li>
-                </ul>
-              </VCard>
-            </div>
-          </template>
-
-          <template v-if="activatedPluginNames.includes('PluginLinks')">
-            <div class="migrate-h-96">
-              <VCard
-                :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-                class="h-full"
-                :title="`友情链接（${links.length}）`"
-              >
-                <ul
-                  class="box-border h-full w-full divide-y divide-gray-100"
-                  role="list"
-                >
-                  <li v-for="(link, index) in links" :key="index">
-                    <VEntity>
-                      <template #start>
-                        <VEntityField :title="link.name"></VEntityField>
-                      </template>
-                    </VEntity>
-                  </li>
-                </ul>
-              </VCard>
-            </div>
-          </template>
-
-          <div class="migrate-h-96">
-            <VModal
-              :visible="attachmentStorageVisible"
-              :width="500"
-              title="设置附件迁移存储策略"
-              @close="attachmentStorageVisible = false"
-            >
-              <div class="migrate-mb-5">
-                <VAlert
-                  v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
-                  title="警告"
-                  type="warning"
-                >
-                  <template #description>
-                    当前未安装/启用 S3
-                    插件，所有附件只能导入到本地，原云存储文件将无法远程管理
-                  </template>
-                </VAlert>
-                <VAlert v-else-if="isSelectLocal" title="警告" type="warning">
-                  <template #description>
-                    部分云存储附件选择了本地存储策略，原云存储文件将不能进行远程管理
-                  </template>
-                </VAlert>
-              </div>
-
-              <ul>
-                <li
-                  v-for="(type, index) in attachmentTypes"
-                  :key="index"
-                  class="migrate-mb-4"
-                >
-                  <FormKit
-                    v-model="type.policyName"
-                    type="select"
-                    :label="'将 ' + type.type + ' 迁移至哪个存储策略下？'"
-                    :options="
-                      type.type === 'LOCAL' ? localPolicyOptions : policyOptions
-                    "
-                  />
-                </li>
-              </ul>
-              <template #footer>
-                <VSpace>
-                  <VButton @click="submitAttachment"> 确定 </VButton>
-                  <VButton
-                    @click="
-                      () =>
-                        (attachmentStorageVisible = false) && (isReady = false)
-                    "
-                  >
-                    取消
-                  </VButton>
-                </VSpace>
-              </template>
-            </VModal>
-            <VCard
-              :body-class="['h-full', '!p-0', 'overflow-y-auto']"
-              class="h-full"
-              :title="`附件（${attachments.length}）`"
-            >
-              <template #actions>
-                <VButton
-                  class="migrate-mr-2"
-                  type="secondary"
-                  size="sm"
-                  @click="attachementPolicy"
-                >
-                  迁移存储策略
-                </VButton>
-              </template>
-              <ul
-                class="box-border h-full w-full divide-y divide-gray-100"
-                role="list"
-              >
-                <li v-for="(attachment, index) in attachments" :key="index">
-                  <VEntity>
-                    <template #start>
-                      <VEntityField
-                        :title="attachment.name"
-                        :description="attachment.path"
-                      ></VEntityField>
-                    </template>
-                  </VEntity>
-                </li>
-              </ul>
-            </VCard>
-          </div>
+      <template #importData>
+        <div class="migrate-flex migrate-h-full migrate-flex-col">
+          <component
+            :is="activeProvider?.importComponent"
+            v-model:data="migrateData"
+          />
         </div>
-        <div class="migrate-mt-8 migrate-self-center">
-          <VButton
-            :disabled="!isReady"
-            :loading="loading"
-            type="secondary"
-            @click="handleImport"
+      </template>
+      <template #attachmentPolicy>
+        <div class="migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col">
+          <AttachmentPolicy
+            v-if="migrateData"
+            :activatedPluginNames="activatedPluginNames"
+            :attachments="migrateData.attachments"
+            @policyChange="handlePolicyChange"
           >
-            执行导入
-          </VButton>
+          </AttachmentPolicy>
         </div>
-      </div>
-    </Transition>
+      </template>
+      <template #migrate>
+        <div class="migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col">
+          <MigratePreview
+            v-if="migrateData"
+            :provider="activeProvider"
+            :data="migrateData"
+          ></MigratePreview>
+        </div>
+      </template>
+    </Steps>
   </div>
 </template>

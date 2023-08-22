@@ -18,6 +18,7 @@ export default ({ mode }: { mode: string }) => {
       },
     },
     build: {
+      minify: isProduction,
       outDir,
       emptyOutDir: true,
       lib: {
@@ -44,6 +45,9 @@ export default ({ mode }: { mode: string }) => {
           },
         },
       },
+    },
+    define: {
+      "process.env": {},
     },
   });
 };

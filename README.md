@@ -1,6 +1,21 @@
 # plugin-migrate
 
-支持从 Halo 1.5/1.6 迁移数据
+支持多种平台的数据迁移，目前已支持：
+
+1. Halo 1.5 / 1.6
+2. WordPress
+3. RSS / Atom 订阅链接
+
+## 使用方式
+
+1. 下载，目前提供以下两个下载方式：
+    - GitHub Releases：访问 [Releases](https://github.com/halo-sigs/plugin-migrate/releases) 下载 Assets 中的 JAR 文件。
+    - Halo 应用市场：<https://halo.run/store/apps/app-TlUBt>
+2. 安装，插件安装和更新方式可参考：<https://docs.halo.run/user-guide/plugins>
+3. 启动插件之后，即可在 Console 的左侧菜单栏看到**迁移**的菜单。
+
+> **Warning**
+> 详细的迁移文档请查阅 <https://halo-plugin-migrate.pages.dev>
 
 ## 开发环境
 
@@ -46,12 +61,3 @@ halo:
     fixedPluginPath:
       - "/path/to/plugin-migrate"
 ```
-
-## 使用方式
-
-1. 在 [Releases](https://github.com/halo-sigs/plugin-migrate/releases) 下载最新的 JAR 文件。
-2. 在 Halo 后台的插件管理上传 JAR 文件进行安装。
-3. 启动插件之后，即可在 Console 的左侧菜单栏看到迁移的菜单。
-
-> **Warning**
-> 详细的迁移文档请查阅 <https://docs.halo.run/getting-started/migrate-from-1.x>

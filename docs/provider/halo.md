@@ -20,7 +20,7 @@
   - 阿里云 OSS：<https://halo.run/store/apps/app-wCJCD>
 - 在迁移过程中不会保留旧版本的用户数据，迁移完成之后，关于文章等数据的关联都将改为 Halo 2.0 的新用户。
 - 为了防止直接升级 2.0 导致 1.x 的数据受到破坏，我们已经将工作目录由 `~/.halo` 变更为 `~/.halo2`。
-- 目前 Halo 2.0 仅提供 Docker 部署方式，没有提供可执行 JAR 包，但可以自编译，请参考 [构建](../developer-guide/core/build.md) 文档
+- 目前 Halo 2.0 仅提供 Docker 部署方式，没有提供可执行 JAR 包，但可以自编译，请参考 [构建](https://docs.halo.run/developer-guide/core/build) 文档
 - 可以考虑先在本地运行一个 Halo 2.0，模拟一下导入，检查导入后是否满足要求。
 
 如果遇到了迁移过程中的问题，也可以向我们提交 Issue: <https://github.com/halo-dev/halo/issues/new/choose>，以上暂不支持的功能我们也会陆续完善。

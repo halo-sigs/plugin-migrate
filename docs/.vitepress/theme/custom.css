@@ -1,0 +1,13 @@
+p > img {
+  border-radius: 0.4rem;
+  box-shadow: 2px 2px 0.4rem 2px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.medium-zoom-overlay {
+  z-index: 20;
+}
+
+.medium-zoom-image {
+  z-index: 21;
+}

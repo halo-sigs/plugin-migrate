@@ -33,7 +33,7 @@
 
 在 Halo 1.5.x / 1.6.x 后台的小工具中提供了数据导出的功能，将最新的数据进行备份，然后下载即可。这个数据文件包含了数据库所有的数据，后续我们在 2.0 的导入插件中就是通过这个文件进行数据导入。
 
-![halo-data-export.png](../img/halo-provider-data-export.png)
+![halo-data-export.png](../img/halo-provider-data-export.png){data-zoomable}
 
 ## 移动附件
 
@@ -63,7 +63,8 @@
 
 1. 点击左侧菜单的迁移进入迁移页面。
 2. 在选择渠道步骤中，选择 **Halo**，点击下一步。
-   ![halo-provider-migrate-plugin](../img/halo-provider-migrate-plugin.png)
+
+   ![halo-provider-migrate-plugin](../img/halo-provider-migrate-plugin.png){data-zoomable}
 
 3. 在导入数据步骤中，点击 **选择文件** 按钮，选择在 Halo 1.5.x / 1.6.x 导出的数据文件（JSON 格式），之后点击下一步。
 4. 如果存在需要迁移的附件，则会出现 **设置附件存储策略** 步骤，此时选择之前创建的存储策略即可。完成之后点击下一步。

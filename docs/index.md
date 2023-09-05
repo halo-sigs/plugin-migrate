@@ -1,61 +1,60 @@
----
-# https://vitepress.dev/reference/default-theme-home-page
-layout: home
+# plugin-migrate
 
-hero:
-  name: "迁移插件使用文档"
-  tagline: "Halo 官方迁移插件，支持从 Halo 1.x, WordPress, RSS 等多种导入数据至 Halo 中。"
-  actions:
-    - theme: brand
-      text: 快速开始
-      link: /provider/halo
-    - theme: alt
-      text: 在 Github 上查看
-      link: https://github.com/halo-sigs/plugin-migrate
----
+支持多种平台的数据迁移，目前已支持：
 
-<script setup>
-import { VPTeamMembers } from 'vitepress/theme'
+1. Halo 1.5 / 1.6
+2. WordPress
+3. RSS / Atom 订阅链接
 
-const members = [
-  {
-    avatar: 'https://www.github.com/ruibaby.png',
-    name: 'Ryan Wang',
-    title: 'Creator',
-    org: 'Halo-dev',
-    orgLink: 'https://github.com/halo-dev',
-    links: [
-      { icon: 'github', link: 'https://github.com/ruibaby' },
-    ]
-  },
-  {
-    avatar: 'https://www.github.com/lilgg.png',
-    name: 'Takagi',
-    title: 'Developer',
-    org: 'Halo-dev',
-    orgLink: 'https://github.com/halo-dev',
-    links: [
-      { icon: 'github', link: 'https://github.com/lilgg' },
-    ]
-  },
-  {
-    avatar: 'https://www.github.com/guqing.png',
-    name: 'guqing',
-    title: 'Developer',
-    org: 'Halo-dev',
-    orgLink: 'https://github.com/halo-dev',
-    links: [
-      { icon: 'github', link: 'https://github.com/guqing' },
-    ]
-  },
-]
-</script>
+## 使用方式
 
-<VPTeamMembers size="small" :members="members" />
+1. 下载，目前提供以下两个下载方式：
+    - GitHub Releases：访问 [Releases](https://github.com/halo-sigs/plugin-migrate/releases) 下载 Assets 中的 JAR 文件。
+    - Halo 应用市场：<https://halo.run/store/apps/app-TlUBt>
+2. 安装，插件安装和更新方式可参考：<https://docs.halo.run/user-guide/plugins>
+3. 启动插件之后，即可在 Console 的左侧菜单栏看到**迁移**的菜单。
 
-<style>
-:root {
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(120deg, #bd34fe, #41d1ff);
-}
-</style>
+## 开发环境
+
+```bash
+git clone git@github.com:halo-sigs/plugin-migrate.git
+
+# 或者当你 fork 之后
+
+git clone git@github.com:{your_github_id}/plugin-migrate.git
+```
+
+```bash
+cd path/to/plugin-migrate
+```
+
+```bash
+# macOS / Linux
+./gradlew pnpmInstall
+
+# Windows
+./gradlew.bat pnpmInstall
+```
+
+```bash
+# macOS / Linux
+./gradlew build
+
+# Windows
+./gradlew.bat build
+```
+
+修改 Halo 配置文件：
+
+```yaml
+halo:
+  plugin:
+    runtime-mode: development
+    classes-directories:
+      - "build/classes"
+      - "build/resources"
+    lib-directories:
+      - "libs"
+    fixedPluginPath:
+      - "/path/to/plugin-migrate"
+```

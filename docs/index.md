@@ -14,9 +14,6 @@
 2. 安装，插件安装和更新方式可参考：<https://docs.halo.run/user-guide/plugins>
 3. 启动插件之后，即可在 Console 的左侧菜单栏看到**迁移**的菜单。
 
-> **Warning**
-> 详细的迁移文档请查阅 <https://halo-plugin-migrate.pages.dev>
-
 ## 开发环境
 
 ```bash

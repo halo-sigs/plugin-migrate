@@ -5,18 +5,23 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.codec.multipart.FilePart;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ServerWebInputException;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
-import run.halo.app.infra.utils.JsonUtils;
 import run.halo.app.plugin.ApiVersion;
-import java.io.IOException;
-import java.io.InputStream;
 
-import static run.halo.migrate.DataBufferUtils.toInputStream;
 
 /**
  * @author guqing
@@ -26,30 +31,32 @@ import static run.halo.migrate.DataBufferUtils.toInputStream;
 @RestController
 @RequestMapping("/migrations")
 public class MigrationController {
-    
-    @ApiResponse(responseCode = "200", description = "Import successfully.", content = {
+    @ApiResponse(responseCode = "200", description = "rss parse", content = {
         @Content(mediaType = "application/json", schema = @Schema(implementation = JsonNode.class))
     })
-    @Operation(operationId = "ImportMigrationData", description = "Import migration data file.")
-    @PostMapping(value = "import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    Mono<ResponseEntity<JsonNode>> importData(
-        @RequestPart("file") Mono<FilePart> file) {
-        return file.map(filePart -> {
-            if (!filePart.filename().endsWith(".json")) {
-                throw new ServerWebInputException("File must be json format.");
-            }
-            return filePart;
-        }).map(filePart -> {
-            try {
-                InputStream inputStream = toInputStream(filePart.content());
-                return JsonUtils.DEFAULT_JSON_MAPPER.readValue(inputStream,
-                    JsonNode.class
-                );
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).map(migrationData -> ResponseEntity.ok()
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(migrationData));
+    @Operation(operationId = "ParseRss", description = "parse rss url")
+    @PostMapping(value = "rss-parse", consumes = MediaType.APPLICATION_JSON_VALUE)
+    Mono<String> rssParse(@RequestBody String url) {
+        if (StringUtils.isBlank(url)) {
+            return Mono.empty();
+        }
+        try {
+            UriComponents uriComponents = UriComponentsBuilder.fromUriString(
+                url).build();
+            WebClient webClient = WebClient.create();
+            return webClient.get()
+                .uri(uriComponents.toUri())
+                .retrieve()
+                .bodyToFlux(DataBuffer.class)
+                .reduce(DataBuffer::write)
+                .map(buffer -> {
+                    byte[] bytes = new byte[buffer.readableByteCount()];
+                    buffer.read(bytes);
+                    DataBufferUtils.release(buffer);
+                    return new String(bytes, StandardCharsets.UTF_8);
+                });
+        } catch (Exception e) {
+            return Mono.empty();
+        }
     }
 }

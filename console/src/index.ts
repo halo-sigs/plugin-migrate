@@ -20,6 +20,7 @@ export default definePlugin({
             meta: {
               title: "迁移",
               searchable: true,
+              permissions: ["plugin:PluginMigrate:migrate"],
               menu: {
                 name: "迁移",
                 group: "tool",

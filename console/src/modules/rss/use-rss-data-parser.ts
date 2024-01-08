@@ -9,7 +9,7 @@ interface useRssDataParserReturn {
 
 const isArrayPath = ["rss.channel.item"];
 const parser = new XMLParser({
-  ignoreAttributes: false,
+  ignoreAttributes: true,
   attributeNamePrefix: "_",
   textNodeName: "value",
   isArray: (name, jpath, isLeafNode, isAttribute) => {

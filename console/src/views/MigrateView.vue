@@ -160,7 +160,8 @@ const stepItems: Step[] = [
       disabledMessage: "未设置附件存储策略",
     },
     visible: computed(() => {
-      return migrateData.value?.attachments != undefined;
+      const attachments = migrateData.value?.attachments;
+      return attachments && attachments.length > 0;
     }),
   },
   {

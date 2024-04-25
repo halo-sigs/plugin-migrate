@@ -204,7 +204,7 @@ class MomentTask implements MigrateRequestTask<MigrateMoment> {
 
   run() {
     return axios.post(
-      `/apis/api.plugin.halo.run/v1alpha1/plugins/PluginMoments/moments`,
+      `/apis/console.api.moment.halo.run/v1alpha1/moments`,
       this.item
     );
   }

@@ -1,7 +1,7 @@
 plugins {
     id "com.github.node-gradle.node" version "5.0.0"
     id "io.freefair.lombok" version "8.0.0-rc2"
-    id "run.halo.plugin.devtools" version "0.0.5"
+    id "run.halo.plugin.devtools" version "0.0.7"
     id 'java'
 }
 
@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    implementation platform('run.halo.tools.platform:plugin:2.5.0-SNAPSHOT')
+    implementation platform('run.halo.tools.platform:plugin:2.12.0-SNAPSHOT')
     compileOnly 'run.halo.app:api'
 
     testImplementation 'run.halo.app:api'
@@ -35,4 +35,8 @@ task buildFrontend(type: PnpmTask) {
 
 build {
     tasks.getByName('compileJava').dependsOn('buildFrontend')
+}
+
+halo {
+    version = '2.12'
 }

@@ -29,6 +29,7 @@ export default defineConfig({
           { text: "WordPress", link: "/provider/wordpress" },
           { text: "RSS", link: "/provider/rss" },
           { text: "Atom", link: "/provider/atom" },
+          { text: "HUGO", link: "/provider/hugo" },
         ],
       },
       {

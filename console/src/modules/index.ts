@@ -3,6 +3,7 @@ import { defineAsyncComponent } from "vue";
 import wordpress from "@/assets/wordpress.svg";
 import rss from "@/assets/rss.svg";
 import atom from "@/assets/atom.svg";
+import hugo from "@/assets/hugo.png";
 
 // 新增的迁移数据来源，需要在此处进行注册
 export const providerItems: Provider[] = [
@@ -42,6 +43,14 @@ export const providerItems: Provider[] = [
     description: "基于 Atom Feed 订阅文件的数据迁移",
     importComponent: defineAsyncComponent(
       () => import("./atom/AtomMigrateDataParser.vue")
+    ),
+  },
+  {
+    name: "Hugo",
+    icon: hugo,
+    description: "从 HUGO 静态博客生成器迁移",
+    importComponent: defineAsyncComponent(
+      () => import("./hugo/HugoMigrateDataParser.vue")
     ),
   },
 ];

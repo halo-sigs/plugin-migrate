@@ -42,7 +42,13 @@ class HugoDocument {
   }
 
   public date(): string | undefined {
-    return this.matter.date;
+    const dateStr = this.matter.date;
+    if (dateStr) {
+      const date = new Date(dateStr);
+      return !isNaN(date.getTime()) ? date.toISOString() : undefined;
+    } else {
+      return undefined;
+    }
   }
 
   public categories(): string[] {
@@ -202,7 +208,6 @@ export class HugoDataParser {
           .map((t) => tags.get(t)?.metadata.name)
           .filter((t): t is string => t !== undefined);
 
-        const md = markdownit();
         return {
           postRequest: {
             post: {

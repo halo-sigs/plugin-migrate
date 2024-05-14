@@ -10,6 +10,7 @@ import YAML from "yaml";
 import * as toml from "toml";
 import { slugify } from "transliteration";
 import markdownit from "markdown-it";
+import MarkdownItIdPlugin from "@/modules/hugo/markdown-it-id";
 
 type HugoMatter = {
   title?: string;
@@ -65,8 +66,6 @@ export class HugoDataParser {
   private pageSectionNames: Set<string>;
   /** e.g. `content/` */
   private baseFileName: string | null = null;
-
-  private mdit = markdownit();
 
   /**
    *
@@ -178,7 +177,7 @@ export class HugoDataParser {
             },
             content: {
               raw: doc.body,
-              content: this.mdit.render(doc.body),
+              content: markdownit().use(MarkdownItIdPlugin).render(doc.body),
               rawType: "markdown",
             },
           },
@@ -235,7 +234,7 @@ export class HugoDataParser {
             },
             content: {
               raw: doc.body,
-              content: this.mdit.render(doc.body),
+              content: markdownit().use(MarkdownItIdPlugin).render(doc.body),
               rawType: "markdown",
             },
           },

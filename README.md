@@ -5,6 +5,7 @@
 1. Halo 1.5 / 1.6
 2. WordPress
 3. RSS / Atom 订阅链接
+4. HUGO
 
 ## 使用方式
 

@@ -1,21 +1,22 @@
 <script setup lang="ts">
-import { Dialog, VPageHeader } from "@halo-dev/components";
-import Steps, { type Step } from "@/components/Steps.vue";
-import type { MigrateData, Provider } from "@/types";
-import MigrateProvider from "@/components/MigrateProvider.vue";
-import { computed, onMounted, ref } from "vue";
-import MigratePreview from "@/components/MigratePreview.vue";
-import type { PluginList, User } from "@halo-dev/api-client";
-import axios, { type AxiosResponse } from "axios";
 import AttachmentPolicy from "@/components/AttachmentPolicy.vue";
+import MigratePreview from "@/components/MigratePreview.vue";
+import MigrateProvider from "@/components/MigrateProvider.vue";
+import Steps, { type Step } from "@/components/Steps.vue";
 import {
   useMigrateTask,
   type MigrateRequestTask,
 } from "@/composables/use-migrate-task";
-import * as fastq from "fastq";
-import { apiClient } from "@/utils/api-client";
-import { onBeforeRouteLeave } from "vue-router";
 import { providerItems } from "@/modules/index";
+import type { MigrateData, Provider } from "@/types";
+import { apiClient } from "@/utils/api-client";
+import type { PluginList, User } from "@halo-dev/api-client";
+import { Dialog, VPageHeader } from "@halo-dev/components";
+import axios, { type AxiosResponse } from "axios";
+import * as fastq from "fastq";
+import { computed, onMounted, ref } from "vue";
+import { onBeforeRouteLeave } from "vue-router";
+import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone';
 
 const activatedPluginNames = ref<string[]>([]);
 const currentUser = ref<User>();
@@ -198,10 +199,10 @@ onBeforeRouteLeave((to, from, next) => {
 <template>
   <VPageHeader title="迁移">
     <template #icon>
-      <MdiCogTransferOutline class="mr-2 self-center" />
+      <SolarTransferHorizontalBoldDuotone class="mr-2 self-center" />
     </template>
   </VPageHeader>
-  <div class="migrate-m-6 migrate-flex migrate-flex-1 migrate-flex-col">
+  <div class="migrate-m-4 migrate-flex migrate-flex-1 migrate-flex-col">
     <Steps :items="stepItems" submitText="执行导入">
       <template #provider>
         <div>

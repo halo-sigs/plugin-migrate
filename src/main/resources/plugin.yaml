@@ -3,17 +3,19 @@ kind: Plugin
 metadata:
   name: PluginMigrate
   annotations:
-    "store.halo.run/app-id": "app-TlUBt"  
+    "store.halo.run/app-id": "app-TlUBt"
 spec:
   enabled: true
   requires: ">=2.12.0"
   author:
-    name: Halo OSS Team
+    name: Halo
     website: https://github.com/halo-dev
-  logo: logo.png
-  homepage: https://github.com/halo-sigs/plugin-migrate
+  logo: logo.svg
+  homepage: https://www.halo.run/store/apps/app-TlUBt
+  repo: https://github.com/halo-sigs/plugin-migrate
+  issues: https://github.com/halo-sigs/plugin-migrate/issues
   displayName: "站点迁移"
-  description: "支持从 Halo 1.5/1.6 迁移数据"
+  description: "支持 Halo 及 WordPress 等多种平台的数据迁移插件"
   license:
     - name: "GPL-3.0"
       url: "https://github.com/halo-sigs/plugin-migrate/blob/main/LICENSE"

@@ -1,12 +1,10 @@
 import { definePlugin } from "@halo-dev/console-shared";
-import MigrateView from "./views/MigrateView.vue";
 import { markRaw } from "vue";
-import MdiCogTransferOutline from "~icons/mdi/cog-transfer-outline";
+import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone';
 import "./styles/tailwind.css";
+import MigrateView from "./views/MigrateView.vue";
 
 export default definePlugin({
-  name: "PluginMigrate",
-  components: [],
   routes: [
     {
       parentName: "Root",
@@ -24,7 +22,7 @@ export default definePlugin({
               menu: {
                 name: "迁移",
                 group: "tool",
-                icon: markRaw(MdiCogTransferOutline),
+                icon: markRaw(SolarTransferHorizontalBoldDuotone),
                 priority: 0,
               },
             },

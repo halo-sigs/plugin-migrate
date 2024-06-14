@@ -29,13 +29,22 @@ node {
     nodeProjectDir = file("${project.projectDir}/console")
 }
 
-task buildFrontend(type: PnpmTask) {
+tasks.register('buildFrontend', PnpmTask) {
     args = ['build']
+    dependsOn('installDepsForUI')
+}
+
+tasks.register('installDepsForUI', PnpmTask) {
+    args = ['install']
 }
 
 build {
-    tasks.getByName('compileJava').dependsOn('buildFrontend')
+    // build frontend before build
+    tasks.named('compileJava').configure {
+        dependsOn('buildFrontend')
+    }
 }
+
 
 halo {
     version = '2.12'

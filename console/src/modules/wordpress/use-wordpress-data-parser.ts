@@ -160,6 +160,9 @@ export function useWordPressDataParser(
           });
           return attachment?.["wp:attachment_url"];
         })[0];
+
+      const excerpt = post["excerpt:encoded"];
+
       return {
         postRequest: {
           post: {
@@ -174,8 +177,8 @@ export function useWordPressDataParser(
               visible: "PUBLIC",
               priority: 0,
               excerpt: {
-                autoGenerate: false,
-                raw: post["excerpt:encoded"],
+                autoGenerate: !excerpt,
+                raw: excerpt,
               },
               categories: categoryIds,
               tags: tagIds,

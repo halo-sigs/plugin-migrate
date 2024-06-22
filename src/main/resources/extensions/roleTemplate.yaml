@@ -9,8 +9,10 @@ metadata:
     rbac.authorization.halo.run/display-name: "Migration"
     rbac.authorization.halo.run/ui-permissions: |
       ["plugin:PluginMigrate:migrate"]
+  # This role template file will be removed in future versions
+  deletionTimestamp: 2024-02-18T08:27:41.257531Z
 rules:
-  - apiGroups: [ "plugin.halo.run" ]
-    resources: [ "plugins/rss-parse" ]
-    resourceNames: [ "PluginMigrate" ]
-    verbs: [ "create" ]
+  - apiGroups: ["plugin.halo.run"]
+    resources: ["plugins/rss-parse"]
+    resourceNames: ["PluginMigrate"]
+    verbs: ["create"]

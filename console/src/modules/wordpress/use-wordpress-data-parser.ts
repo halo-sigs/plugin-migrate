@@ -165,7 +165,7 @@ export function useWordPressDataParser(
           post: {
             spec: {
               title: post.title,
-              slug: post["wp:post_name"] + "",
+              slug: post["wp:post_name"] || post.title,
               deleted: post["wp:status"] === "trash",
               publish: publish,
               publishTime: new Date(post["wp:post_date"]).toISOString(),

@@ -25,27 +25,36 @@ export function useWordPressDataParser(
         const xmlData = event.target?.result as string;
         const isArrayPath = [
           "rss.channel.item",
+          "rss.channel.wp:category",
           "rss.channel.item.category",
           "rss.channel.item.wp:postmeta",
           "rss.channel.item.wp:comment",
         ];
+
         const parser = new XMLParser({
           ignoreAttributes: false,
           attributeNamePrefix: "_",
           textNodeName: "value",
-          isArray: (name, jpath, isLeafNode, isAttribute) => {
-            if (isArrayPath.includes(jpath)) return true;
-            return false;
+          isArray: (_, jPath) => {
+            return isArrayPath.includes(jPath);
           },
         });
+
         try {
           const result = parser.parse(xmlData, true);
           const channel = result.rss.channel as Channel;
+
+          const {
+            ["wp:tag"]: rawTags,
+            ["wp:category"]: rawCategories,
+            ["wp:term"]: rawTerms,
+          } = channel || {};
+
           // 校验 wxr 版本 result.rss.channel["wp:wxr_version"]
           // 解析 item 数据，获取文章、页面、附件
           const { posts, pages, attachments, navMenuItems } =
             itemClassification(channel.item);
-          const menuItems = parseMenuItems(channel["wp:term"], navMenuItems);
+          const menuItems = parseMenuItems(rawTerms, navMenuItems);
           menuItems.map((item) => {
             if (menuChildrenMap.has(item.menu.metadata.name)) {
               item.menu.spec.children = menuChildrenMap.get(
@@ -53,17 +62,13 @@ export function useWordPressDataParser(
               ) as string[];
             }
           });
+
           resolve({
-            posts: parsePosts(
-              posts,
-              channel["wp:tag"],
-              channel["wp:category"],
-              attachments
-            ),
+            posts: parsePosts(posts, rawTags, rawCategories, attachments),
             pages: parsePages(pages),
             comments: parseComments(channel.item),
-            tags: parseTags(channel["wp:tag"]),
-            categories: parseCategories(channel["wp:category"]),
+            tags: parseTags(rawTags),
+            categories: parseCategories(rawCategories),
             // 菜单
             menuItems: menuItems,
             // 附件

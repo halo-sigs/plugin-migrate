@@ -6,6 +6,7 @@
 2. WordPress
 3. RSS / Atom 订阅链接
 4. HUGO
+5. Ghost
 
 ## 使用方式
 

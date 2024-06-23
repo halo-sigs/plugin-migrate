@@ -5,8 +5,8 @@
     "docs:preview": "vitepress preview"
   },
   "dependencies": {
-    "medium-zoom": "^1.0.8",
-    "vitepress": "1.0.0-rc.10",
-    "vue": "^3.3.4"
+    "medium-zoom": "^1.1.0",
+    "vitepress": "1.2.3",
+    "vue": "^3.4.30"
   }
 }

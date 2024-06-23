@@ -16,7 +16,7 @@ import axios, { type AxiosResponse } from "axios";
 import * as fastq from "fastq";
 import { computed, onMounted, ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
-import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone';
+import SolarTransferHorizontalBoldDuotone from "~icons/solar/transfer-horizontal-bold-duotone";
 
 const activatedPluginNames = ref<string[]>([]);
 const currentUser = ref<User>();
@@ -29,7 +29,7 @@ onMounted(async () => {
         size: 0,
         page: 0,
       },
-    }
+    },
   );
   activatedPluginNames.value =
     data.items
@@ -61,11 +61,11 @@ const handlePolicyChange = (typeToPolicyMap: Map<string, string>) => {
 
 const taskQueue: fastq.queueAsPromised<MigrateRequestTask<any>> = fastq.promise(
   asyncWorker,
-  9
+  9,
 );
 
 async function asyncWorker(
-  arg: MigrateRequestTask<any>
+  arg: MigrateRequestTask<any>,
 ): Promise<AxiosResponse<any, any>> {
   return arg.run();
 }
@@ -109,7 +109,7 @@ const handleImport = () => {
     ...createAttachmentTasks(
       activeProvider.value?.options?.attachmentFolderPath as string,
       currentUser.value as User,
-      policyMap.value
+      policyMap.value,
     ),
   ];
   tasks.forEach((task) => {

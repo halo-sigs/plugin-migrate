@@ -19,23 +19,23 @@ const handleSelectProvider = (provider: Provider) => {
 </script>
 <template>
   <ul
-    class="grid migrate-grid-cols-1 migrate-gap-8 sm:migrate-grid-cols-2 md:migrate-grid-cols-3"
+    class="grid migrate-grid-cols-1 migrate-gap-4 md:migrate-grid-cols-2 xl:migrate-grid-cols-4"
   >
     <li
       v-for="provider in providers"
       :key="provider.name"
       @click="handleSelectProvider(provider)"
-      class="migrate-flex migrate-cursor-pointer migrate-items-center migrate-justify-center migrate-rounded-lg migrate-p-4 migrate-ring-1 migrate-ring-gray-200 hover:migrate-bg-gray-100"
+      class="migrate-flex migrate-cursor-pointer migrate-items-center migrate-rounded-lg migrate-p-4 migrate-ring-1 migrate-ring-gray-200 hover:migrate-bg-gray-100"
       :class="{
         '!migrate-bg-gray-100 !migrate-ring-indigo-400':
           currentProvider?.name == provider.name,
       }"
     >
-      <div class="migrate-mr-4 migrate-h-10 migrate-w-10">
+      <div class="migrate-mr-4 migrate-size-12">
         <img
           :src="provider.icon"
           :alt="provider.name"
-          class="migrate-h-full migrate-w-full"
+          class="migrate-size-full"
         />
       </div>
       <div class="migrate-flex migrate-flex-col" :title="provider.description">

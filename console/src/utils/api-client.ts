@@ -41,7 +41,7 @@ axiosInstance.interceptors.response.use(
       console.log(error);
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 const apiClient = setupApiClient(axiosInstance);
@@ -58,12 +58,12 @@ function setupApiClient(axios: AxiosInstance) {
       singlePage: new ContentHaloRunV1alpha1SinglePageApi(
         undefined,
         baseURL,
-        axios
+        axios,
       ),
       category: new ContentHaloRunV1alpha1CategoryApi(
         undefined,
         baseURL,
-        axios
+        axios,
       ),
       tag: new ContentHaloRunV1alpha1TagApi(undefined, baseURL, axios),
       comment: new ContentHaloRunV1alpha1CommentApi(undefined, baseURL, axios),
@@ -73,13 +73,13 @@ function setupApiClient(axios: AxiosInstance) {
         attachment: new StorageHaloRunV1alpha1AttachmentApi(
           undefined,
           baseURL,
-          axios
+          axios,
         ),
         policy: new StorageHaloRunV1alpha1PolicyApi(undefined, baseURL, axios),
         policyTemplate: new StorageHaloRunV1alpha1PolicyTemplateApi(
           undefined,
           baseURL,
-          axios
+          axios,
         ),
       },
       counter: new MetricsHaloRunV1alpha1CounterApi(undefined, baseURL, axios),
@@ -90,7 +90,7 @@ function setupApiClient(axios: AxiosInstance) {
     singlePage: new ApiConsoleHaloRunV1alpha1SinglePageApi(
       undefined,
       baseURL,
-      axios
+      axios,
     ),
     comment: new ApiConsoleHaloRunV1alpha1CommentApi(undefined, baseURL, axios),
     reply: new ApiConsoleHaloRunV1alpha1ReplyApi(undefined, baseURL, axios),

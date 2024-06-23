@@ -23,8 +23,10 @@ type HugoMatter = {
 };
 
 class HugoDocument {
-  constructor(public matter: HugoMatter, public body: string) {
-  }
+  constructor(
+    public matter: HugoMatter,
+    public body: string,
+  ) {}
 
   public title(): string | undefined {
     return this.matter.title;
@@ -122,13 +124,13 @@ export class HugoDataParser {
 
   private filterMarkdownEntries(entries: Entry[]): Entry[] {
     return entries.filter(
-      (entry) => !entry.directory && entry.filename.endsWith(".md")
+      (entry) => !entry.directory && entry.filename.endsWith(".md"),
     );
   }
 
   private buildMigrateData(
     posts: HugoDocument[],
-    pages: HugoDocument[]
+    pages: HugoDocument[],
   ): MigrateData {
     const contents = posts.concat(pages);
     const categories = this.buildCategories(contents);
@@ -189,7 +191,7 @@ export class HugoDataParser {
   private buildPosts(
     posts: HugoDocument[],
     tags: Map<string, MigrateTag>,
-    categories: Map<string, MigrateCategory>
+    categories: Map<string, MigrateCategory>,
   ): MigratePost[] {
     return posts
       .map((doc): MigratePost | null => {
@@ -244,7 +246,7 @@ export class HugoDataParser {
   }
 
   private buildCategories(
-    hugoDocs: HugoDocument[]
+    hugoDocs: HugoDocument[],
   ): Map<string, MigrateCategory> {
     const categories = new Map<string, MigrateCategory>();
     for (const doc of hugoDocs) {
@@ -418,7 +420,7 @@ export class HugoDataParser {
     const e = entries.find(
       (entry) =>
         entry.directory &&
-        (entry.filename == "content/" || entry.filename == "post/")
+        (entry.filename == "content/" || entry.filename == "post/"),
     );
     if (e && e.filename == "content/") {
       this.baseFileName = e.filename;

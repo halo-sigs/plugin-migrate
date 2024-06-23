@@ -106,7 +106,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     const { posts, contents, post_tags, post_categories, post_metas } = data;
     return posts?.map((post: Post) => {
       const content = contents?.find(
-        (content: Content) => content.id === post.id
+        (content: Content) => content.id === post.id,
       );
       const tagIds = post_tags
         ?.filter((postTag: PostTag) => postTag.postId === post.id)
@@ -114,7 +114,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
       const categoryIds = post_categories
         ?.filter(
-          (postCategory: PostCategory) => postCategory.postId === post.id
+          (postCategory: PostCategory) => postCategory.postId === post.id,
         )
         .map((postCategory: PostCategory) => postCategory.categoryId + "");
 
@@ -173,7 +173,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     const { sheets, contents, sheet_metas } = data;
     return sheets?.map((sheet: Sheet) => {
       const content = contents?.find(
-        (content: Content) => content.id === sheet.id
+        (content: Content) => content.id === sheet.id,
       );
 
       const metas = (sheet_metas as Meta[])
@@ -241,7 +241,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             kind: "Post",
             group: "content.halo.run",
             version: "v1alpha1",
-          }
+          },
         );
     // 页面评论
     const sheetComments = !sheet_comments
@@ -257,7 +257,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             kind: "SinglePage",
             group: "content.halo.run",
             version: "v1alpha1",
-          }
+          },
         );
     // 日志（瞬间）评论
     const journalComments = !sheet_comments
@@ -273,7 +273,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             kind: "Moment",
             group: "moment.halo.run",
             version: "v1alpha1",
-          }
+          },
         );
 
     return [...postComments, ...sheetComments, ...journalComments];
@@ -281,7 +281,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const createCommentOrReply = (
     commentsTree: Comment[],
-    subjectRef: { kind: string; group: string; version: string }
+    subjectRef: { kind: string; group: string; version: string },
   ): (MigrateComment | MigrateReply)[] => {
     const commentRequests: (MigrateComment | MigrateReply)[] = [];
     createCommentOrReply(commentsTree, undefined);
@@ -293,7 +293,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
           commentRequests.push(createComment(comment, subjectRef));
         } else {
           commentRequests.push(
-            createReply(comment, commentName, subjectRef.kind as any)
+            createReply(comment, commentName, subjectRef.kind as any),
           );
         }
 
@@ -308,7 +308,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const createComment = (
     comment: Comment,
-    subjectRef: { kind: string; group: string; version: string }
+    subjectRef: { kind: string; group: string; version: string },
   ): MigrateComment => {
     return {
       refType: subjectRef.kind as "Post" | "SinglePage" | "Moment",
@@ -350,7 +350,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
   const createReply = (
     comment: Comment,
     commentName: number | undefined,
-    refType: "Post" | "SinglePage" | "Moment"
+    refType: "Post" | "SinglePage" | "Moment",
   ): MigrateReply => {
     return {
       refType: refType,

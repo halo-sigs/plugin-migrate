@@ -19,7 +19,7 @@ const parser = new XMLParser({
 });
 
 export function useRssDataParser(
-  source: File | string
+  source: File | string,
 ): useRssDataParserReturn {
   const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
@@ -38,7 +38,7 @@ export function useRssDataParser(
                 "Content-Type": "application/json",
               },
               body: source,
-            }
+            },
           )
             .then((response) => {
               if (!response.ok) {

@@ -27,7 +27,7 @@ watch(
       selectedFileName.value = files.value[i].name + " ";
     }
     emit("fileChange", files.value);
-  }
+  },
 );
 </script>
 <template>

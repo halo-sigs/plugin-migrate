@@ -13,7 +13,7 @@ export const providerItems: Provider[] = [
     icon: "https://halo.run/logo",
     description: "Halo 1.5 / 1.6 数据迁移",
     importComponent: defineAsyncComponent(
-      () => import("./halo/HaloMigrateDataParser.vue")
+      () => import("./halo/HaloMigrateDataParser.vue"),
     ),
     options: {
       attachmentFolderPath: "migrate-from-1.x",
@@ -24,7 +24,7 @@ export const providerItems: Provider[] = [
     icon: wordpress,
     description: "WordPress WXR 数据迁移",
     importComponent: defineAsyncComponent(
-      () => import("./wordpress/WordPressMigrateDataParser.vue")
+      () => import("./wordpress/WordPressMigrateDataParser.vue"),
     ),
     options: {
       attachmentFolderPath: "migrate-from-wp",
@@ -35,7 +35,7 @@ export const providerItems: Provider[] = [
     icon: rss,
     description: "基于 RSS 订阅文件的数据迁移",
     importComponent: defineAsyncComponent(
-      () => import("./rss/RssMigrateDataParser.vue")
+      () => import("./rss/RssMigrateDataParser.vue"),
     ),
   },
   {
@@ -43,7 +43,7 @@ export const providerItems: Provider[] = [
     icon: atom,
     description: "基于 Atom Feed 订阅文件的数据迁移",
     importComponent: defineAsyncComponent(
-      () => import("./atom/AtomMigrateDataParser.vue")
+      () => import("./atom/AtomMigrateDataParser.vue"),
     ),
   },
   {
@@ -51,7 +51,7 @@ export const providerItems: Provider[] = [
     icon: hugo,
     description: "从 HUGO 静态博客生成器迁移",
     importComponent: defineAsyncComponent(
-      () => import("./hugo/HugoMigrateDataParser.vue")
+      () => import("./hugo/HugoMigrateDataParser.vue"),
     ),
   },
   {

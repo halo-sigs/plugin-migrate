@@ -14,7 +14,7 @@ interface useWordPressDataParserReturn {
 }
 
 export function useWordPressDataParser(
-  file: File
+  file: File,
 ): useWordPressDataParserReturn {
   const menuChildrenMap = new Map<string, string[]>();
 
@@ -58,7 +58,7 @@ export function useWordPressDataParser(
           menuItems.map((item) => {
             if (menuChildrenMap.has(item.menu.metadata.name)) {
               item.menu.spec.children = menuChildrenMap.get(
-                item.menu.metadata.name
+                item.menu.metadata.name,
               ) as string[];
             }
           });
@@ -117,13 +117,13 @@ export function useWordPressDataParser(
     posts: Item[],
     tags: Tag[],
     categories: Category[],
-    attachments: Item[]
+    attachments: Item[],
   ) => {
     return posts?.map((post: Item) => {
       const publish =
         post["wp:status"] === "publish" ||
         post["wp:postmeta"]?.find(
-          (meta) => meta["wp:meta_key"] === "_wp_trash_meta_status"
+          (meta) => meta["wp:meta_key"] === "_wp_trash_meta_status",
         )?.["wp:meta_value"] === "publish";
       const postCategorySlugs = post.category
         ?.filter((category) => {
@@ -211,7 +211,7 @@ export function useWordPressDataParser(
       const publish =
         page["wp:status"] === "publish" ||
         page["wp:postmeta"]?.find(
-          (meta) => meta["wp:meta_key"] === "_wp_trash_meta_status"
+          (meta) => meta["wp:meta_key"] === "_wp_trash_meta_status",
         )?.["wp:meta_value"] === "publish";
       return {
         singlePageRequest: {
@@ -266,7 +266,7 @@ export function useWordPressDataParser(
   const createComment = (
     comment: Comment,
     item: Item,
-    refType: "Post" | "SinglePage"
+    refType: "Post" | "SinglePage",
   ): MigrateComment => {
     return {
       refType: refType,
@@ -307,7 +307,7 @@ export function useWordPressDataParser(
 
   const createReply = (
     reply: Comment,
-    refType: "Post" | "SinglePage"
+    refType: "Post" | "SinglePage",
   ): MigrateReply => {
     return {
       refType: refType,
@@ -387,7 +387,7 @@ export function useWordPressDataParser(
 
   const parseMenuItems = (
     terms: Term[],
-    navMenuItems: Item[]
+    navMenuItems: Item[],
   ): MigrateMenu[] | [] => {
     return (
       terms
@@ -396,7 +396,7 @@ export function useWordPressDataParser(
         })
         .reduce((acc: Term[], term) => {
           const exists = acc.some(
-            (existingTerm) => existingTerm["wp:term_id"] === term["wp:term_id"]
+            (existingTerm) => existingTerm["wp:term_id"] === term["wp:term_id"],
           );
           if (!exists) {
             acc.push(term);
@@ -446,7 +446,7 @@ export function useWordPressDataParser(
                 }
                 if (meta["wp:meta_key"] === "_menu_item_menu_item_parent") {
                   let childrenNames = menuChildrenMap.get(
-                    meta["wp:meta_value"]
+                    meta["wp:meta_value"],
                   );
                   if (!childrenNames) {
                     childrenNames = new Array<string>();

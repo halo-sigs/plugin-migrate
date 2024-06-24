@@ -18,7 +18,7 @@ const parser = new XMLParser({
 });
 
 export function useRssDataParser(
-  source: File | string
+  source: File | string,
 ): useAtomDataParserReturn {
   const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
@@ -37,7 +37,7 @@ export function useRssDataParser(
                 "Content-Type": "application/json",
               },
               body: source,
-            }
+            },
           )
             .then((response) => {
               if (!response.ok) {
@@ -109,7 +109,7 @@ export function useRssDataParser(
                 deleted: false,
                 publish: true,
                 publishTime: new Date(
-                  post.published || post.updated || new Date().toISOString()
+                  post.published || post.updated || new Date().toISOString(),
                 ).toISOString(),
                 pinned: false,
                 allowComment: true,

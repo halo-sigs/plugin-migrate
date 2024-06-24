@@ -53,10 +53,10 @@ useQuery({
               ? localPolicyOptions.value[0]?.value
               : policyOptions.value[0]?.value,
         };
-      }
+      },
     );
     localPolicyOptions.value = policyOptions.value.filter(
-      (item) => item.templateName === "local"
+      (item) => item.templateName === "local",
     );
     if (!props.activatedPluginNames.includes("PluginS3ObjectStorage")) {
       policyOptions.value = localPolicyOptions.value;
@@ -75,7 +75,8 @@ watch(
       if (type !== "LOCAL") {
         isToast =
           policyOptions.value.filter(
-            (item) => item.value === policyName && item.templateName === "local"
+            (item) =>
+              item.value === policyName && item.templateName === "local",
           ).length > 0;
       }
       if (isToast) {
@@ -90,7 +91,7 @@ watch(
   },
   {
     deep: true,
-  }
+  },
 );
 </script>
 <template>

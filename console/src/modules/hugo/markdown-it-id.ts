@@ -22,7 +22,7 @@ export default function MarkdownItIdPlugin(md: mdit) {
     idx: number,
     options: mdit.Options,
     _: unknown,
-    self: mdit.Renderer
+    self: mdit.Renderer,
   ) => self.renderToken(tokens, idx, options);
   const defaultHeadingOpenRenderer = md.renderer.rules.heading_open || proxy;
 
@@ -58,7 +58,7 @@ export default function MarkdownItIdPlugin(md: mdit) {
     idx: number,
     options: mdit.Options,
     env: unknown,
-    self: mdit.Renderer
+    self: mdit.Renderer,
   ): string => {
     const nextToken = idx + 1 >= tokens.length ? undefined : tokens[idx + 1];
     if (!nextToken || nextToken.type !== "inline" || !nextToken.children) {

@@ -50,7 +50,7 @@ const posts: Ref<HaloEntry[]> = computed(
         name: post.postRequest.post.spec.title,
         slug: post.postRequest.post.spec.slug,
       };
-    }) ?? []
+    }) ?? [],
 );
 const pages: Ref<HaloEntry[]> = computed(
   () =>
@@ -59,7 +59,7 @@ const pages: Ref<HaloEntry[]> = computed(
         name: page.singlePageRequest.page.spec.title,
         slug: page.singlePageRequest.page.spec.slug,
       };
-    }) ?? []
+    }) ?? [],
 );
 const categories: Ref<Category[]> = computed(
   () =>
@@ -68,7 +68,7 @@ const categories: Ref<Category[]> = computed(
         name: migrateCategory.spec.displayName,
         slug: migrateCategory.spec.slug,
       };
-    }) ?? []
+    }) ?? [],
 );
 const tags: Ref<Tag[]> = computed(
   () =>
@@ -77,7 +77,7 @@ const tags: Ref<Tag[]> = computed(
         name: migrateTag.spec.displayName,
         slug: migrateTag.spec.slug,
       };
-    }) ?? []
+    }) ?? [],
 );
 
 async function handleFileChange(files: FileList) {
@@ -123,7 +123,7 @@ async function onConfirmConfiguration() {
   try {
     const data: MigrateData = await new HugoDataParser(
       postSections,
-      pageSections
+      pageSections,
     ).parse(selectedFile);
     migrateData.value = data;
 
@@ -184,7 +184,9 @@ function setErrorState(e: unknown) {
         <ul>
           <li>- 不支持本地附件文件（包括图片）迁移。</li>
           <li>- 不支持模板文件 <code>_index.md</code>。</li>
-          <li>- 仅支持下列 matter: title, slug, draft, categories, tags, date。</li>
+          <li>
+            - 仅支持下列 matter: title, slug, draft, categories, tags, date。
+          </li>
           <li>- 仅处理内容，不解析 HUGO 配置文件。</li>
         </ul>
       </template>
@@ -237,7 +239,7 @@ function setErrorState(e: unknown) {
           page: '单页',
           ignore: '忽略',
         }"
-        @input="(t:SectionType)=>sections[section] = t"
+        @input="(t: SectionType) => (sections[section] = t)"
       />
 
       <VButton type="primary" @click="onConfirmConfiguration">确认</VButton>
@@ -247,7 +249,9 @@ function setErrorState(e: unknown) {
     <!-- parsed data -->
     <div v-if="state == State.Parsed">
       <VButton @click="resetToInitState">重新选择文件</VButton>
-      <h3 class="my-2">已解析数据，确认无误后请点击页面底部的「下一步」按钮。</h3>
+      <h3 class="my-2">
+        已解析数据，确认无误后请点击页面底部的「下一步」按钮。
+      </h3>
       <VCard
         v-show="pages.length > 0"
         :title="`独立页面 (${pages.length})`"

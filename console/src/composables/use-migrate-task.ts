@@ -48,7 +48,7 @@ interface useMigrateTaskReturn {
   createAttachmentTasks: (
     relativePathFolder: string,
     user: User,
-    typeToPolicyMap: Map<string, string>
+    typeToPolicyMap: Map<string, string>,
   ) => MigrateRequestTask<MigrateAttachment>[];
 }
 
@@ -205,7 +205,7 @@ class MomentTask implements MigrateRequestTask<MigrateMoment> {
   run() {
     return axios.post(
       `/apis/console.api.moment.halo.run/v1alpha1/moments`,
-      this.item
+      this.item,
     );
   }
 }
@@ -289,7 +289,7 @@ class NoSupportAttachmentTask implements AttachmentTask {
 
   run() {
     return Promise.reject(
-      new Error("尚未支持 【" + this.item.type + "】 类型的附件迁移")
+      new Error("尚未支持 【" + this.item.type + "】 类型的附件迁移"),
     );
   }
 }
@@ -303,7 +303,7 @@ abstract class AbstractAttachmentTask implements AttachmentTask {
     item: MigrateAttachment,
     policyName: string,
     ownerName: string,
-    relativePathFolder: string
+    relativePathFolder: string,
   ) {
     this.item = item;
     this.policyName = policyName;
@@ -317,7 +317,7 @@ abstract class AbstractAttachmentTask implements AttachmentTask {
     return apiClient.extension.storage.attachment.createstorageHaloRunV1alpha1Attachment(
       {
         attachment: this.buildModel(),
-      }
+      },
     );
   }
 }
@@ -403,8 +403,8 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
         postCounterTasks.push(
           new CounterTask(
             post.counter,
-            `posts.content.halo.run/${post.postRequest.post.metadata.name}`
-          )
+            `posts.content.halo.run/${post.postRequest.post.metadata.name}`,
+          ),
         );
       }
     });
@@ -421,8 +421,8 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
         pageCounterTasks.push(
           new CounterTask(
             page.counter,
-            `singlepages.content.halo.run/${page.singlePageRequest.page.metadata.name}`
-          )
+            `singlepages.content.halo.run/${page.singlePageRequest.page.metadata.name}`,
+          ),
         );
       }
     });
@@ -449,7 +449,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
     const menuTask: MenuTask[] = [];
     Object.keys(groupedMenus).forEach((key) => {
       const itemNames = groupedMenus[key].map(
-        (item) => item.menu.metadata.name
+        (item) => item.menu.metadata.name,
       );
       const menuName = groupedMenus[key][0].groupName || key;
       menuTask.push(new MenuTask(key, menuName, itemNames));
@@ -500,7 +500,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
   function createAttachmentTasks(
     relativePathFolder: string,
     user?: User,
-    typeToPolicyMap?: Map<string, string>
+    typeToPolicyMap?: Map<string, string>,
   ) {
     const attachments = data.attachments || [];
     if (!user || !typeToPolicyMap || typeToPolicyMap.size === 0) {
@@ -522,7 +522,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
                   item,
                   typeToPolicyMap.get(item.type) || "default-policy",
                   userName,
-                  relativePathFolder
+                  relativePathFolder,
                 );
               case "ALIOSS":
               case "BAIDUBOS":
@@ -533,7 +533,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
                   item,
                   typeToPolicyMap.get(item.type) || "default-policy",
                   userName,
-                  relativePathFolder
+                  relativePathFolder,
                 );
               default:
                 return new NoSupportAttachmentTask(item);

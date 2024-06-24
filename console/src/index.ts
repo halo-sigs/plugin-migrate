@@ -1,6 +1,6 @@
 import { definePlugin } from "@halo-dev/console-shared";
 import { markRaw } from "vue";
-import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone';
+import SolarTransferHorizontalBoldDuotone from "~icons/solar/transfer-horizontal-bold-duotone";
 import "./styles/tailwind.css";
 import MigrateView from "./views/MigrateView.vue";
 
@@ -18,7 +18,7 @@ export default definePlugin({
             meta: {
               title: "迁移",
               searchable: true,
-              permissions: ["plugin:PluginMigrate:migrate"],
+              permissions: ["*"],
               menu: {
                 name: "迁移",
                 group: "tool",

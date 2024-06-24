@@ -5,10 +5,10 @@ export default defineConfig({
   lang: "zh-CN",
   title: "Halo 迁移插件",
   description: "多平台迁移至 Halo 2.x 的迁移插件使用文档",
-  head: [["link", { rel: "icon", href: "/halo-favicon.webp" }]],
+  head: [["link", { rel: "icon", href: "/logo.svg" }]],
   lastUpdated: true,
   themeConfig: {
-    logo: "/halo-logo.png",
+    logo: "/logo.svg",
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: "首页", link: "/" },
@@ -30,6 +30,7 @@ export default defineConfig({
           { text: "RSS", link: "/provider/rss" },
           { text: "Atom", link: "/provider/atom" },
           { text: "HUGO", link: "/provider/hugo" },
+          { text: "Ghost", link: "/provider/ghost" },
         ],
       },
       {

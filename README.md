@@ -3,9 +3,10 @@
 支持多种平台的数据迁移，目前已支持：
 
 1. Halo 1.5 / 1.6
-2. WordPress
+2. [WordPress](https://wordpress.org/)
 3. RSS / Atom 订阅链接
-4. HUGO
+4. [Hugo](https://gohugo.io/)
+5. [Ghost](https://ghost.org/)
 
 ## 使用方式
 
@@ -13,7 +14,7 @@
     - GitHub Releases：访问 [Releases](https://github.com/halo-sigs/plugin-migrate/releases) 下载 Assets 中的 JAR 文件。
     - Halo 应用市场：<https://halo.run/store/apps/app-TlUBt>
 2. 安装，插件安装和更新方式可参考：<https://docs.halo.run/user-guide/plugins>
-3. 启动插件之后，即可在 Console 的左侧菜单栏看到**迁移**的菜单。
+3. 启动插件之后，即可在 Console 的左侧菜单栏看到 **迁移** 的菜单。
 
 > **Warning**
 > 详细的迁移文档请查阅 <https://halo-plugin-migrate.pages.dev>

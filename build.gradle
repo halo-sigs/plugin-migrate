@@ -47,5 +47,5 @@ build {
 
 
 halo {
-    version = '2.12'
+    version = '2.16'
 }

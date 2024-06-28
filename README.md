@@ -1,6 +1,10 @@
 # plugin-migrate
 
-支持多种平台的数据迁移，目前已支持：
+支持从其他平台迁移数据到 Halo 的插件。
+
+![Screenshot](./docs/img/screenshot.png)
+
+目前已支持以下平台：
 
 1. Halo 1.5 / 1.6
 2. [WordPress](https://wordpress.org/)
@@ -21,6 +25,17 @@
 
 ## 开发环境
 
+插件开发的详细文档请查阅：<https://docs.halo.run/developer-guide/plugin/introduction>
+
+所需环境：
+
+1. Java 17
+2. Node 18
+3. pnpm 8
+4. Docker (可选)
+
+克隆项目：
+
 ```bash
 git clone git@github.com:halo-sigs/plugin-migrate.git
 
@@ -33,6 +48,10 @@ git clone git@github.com:{your_github_id}/plugin-migrate.git
 cd path/to/plugin-migrate
 ```
 
+### 运行方式 1（推荐）
+
+> 此方式需要本地安装 Docker
+
 ```bash
 # macOS / Linux
 ./gradlew pnpmInstall
@@ -40,6 +59,22 @@ cd path/to/plugin-migrate
 # Windows
 ./gradlew.bat pnpmInstall
 ```
+
+```bash
+# macOS / Linux
+./gradlew haloServer
+
+# Windows
+./gradlew.bat haloServer
+```
+
+执行此命令后，会自动创建一个 Halo 的 Docker 容器并加载当前的插件，更多文档可查阅：<https://docs.halo.run/developer-guide/plugin/basics/devtools>
+
+### 运行方式 2
+
+> 此方式需要使用源码运行 Halo
+
+编译插件：
 
 ```bash
 # macOS / Linux
@@ -55,11 +90,8 @@ cd path/to/plugin-migrate
 halo:
   plugin:
     runtime-mode: development
-    classes-directories:
-      - "build/classes"
-      - "build/resources"
-    lib-directories:
-      - "libs"
     fixedPluginPath:
       - "/path/to/plugin-migrate"
 ```
+
+最后重启 Halo 项目即可。

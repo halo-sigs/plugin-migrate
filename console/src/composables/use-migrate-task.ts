@@ -13,18 +13,19 @@ import type {
   MigrateSinglePage,
   MigrateTag,
 } from "@/types";
-import { apiClient } from "@/utils/api-client";
-import type {
-  Attachment,
-  Category,
-  Comment,
-  Reply,
-  Tag,
-  User,
+import {
+  axiosInstance,
+  consoleApiClient,
+  coreApiClient,
+  type Attachment,
+  type Category,
+  type Comment,
+  type Reply,
+  type Tag,
+  type User,
 } from "@halo-dev/api-client";
 import type { AxiosResponse } from "axios";
-import axios from "axios";
-import groupBy from "lodash.groupby";
+import { groupBy } from "lodash-es";
 
 export interface MigrateRequestTask<T> {
   item: T;
@@ -59,7 +60,7 @@ class TagTask implements MigrateRequestTask<MigrateTag> {
   }
 
   run() {
-    return apiClient.extension.tag.createcontentHaloRunV1alpha1Tag({
+    return coreApiClient.content.tag.createTag({
       tag: this.item as Tag,
     });
   }
@@ -72,7 +73,7 @@ class CategoryTask implements MigrateRequestTask<MigrateCategory> {
   }
 
   run() {
-    return apiClient.extension.category.createcontentHaloRunV1alpha1Category({
+    return coreApiClient.content.category.createCategory({
       category: this.item as Category,
     });
   }
@@ -87,7 +88,7 @@ class CounterTask implements MigrateRequestTask<Counter> {
   }
 
   async run() {
-    return apiClient.extension.counter.createmetricsHaloRunV1alpha1Counter({
+    return coreApiClient.metrics.counter.createCounter({
       counter: {
         visit: this.item.visit || 0,
         upvote: this.item.upvote || 0,
@@ -111,7 +112,7 @@ class PostTask implements MigrateRequestTask<MigratePost> {
   }
 
   async run() {
-    return apiClient.post.draftPost({
+    return consoleApiClient.content.post.draftPost({
       postRequest: this.item.postRequest,
     });
   }
@@ -124,7 +125,7 @@ class SinglePageTask implements MigrateRequestTask<MigrateSinglePage> {
   }
 
   async run() {
-    return apiClient.singlePage.draftSinglePage({
+    return consoleApiClient.content.singlePage.draftSinglePage({
       singlePageRequest: this.item.singlePageRequest,
     });
   }
@@ -137,7 +138,7 @@ class CommentTask implements MigrateRequestTask<MigrateComment> {
   }
 
   async run() {
-    return apiClient.extension.comment.createcontentHaloRunV1alpha1Comment({
+    return coreApiClient.content.comment.createComment({
       comment: this.item as Comment,
     });
   }
@@ -150,7 +151,7 @@ class ReplyTask implements MigrateRequestTask<MigrateReply> {
   }
 
   async run() {
-    return apiClient.extension.reply.createcontentHaloRunV1alpha1Reply({
+    return coreApiClient.content.reply.createReply({
       reply: this.item as Reply,
     });
   }
@@ -167,7 +168,7 @@ class MenuTask implements MigrateRequestTask<string> {
   }
 
   run() {
-    return apiClient.extension.menu.createv1alpha1Menu({
+    return coreApiClient.menu.createMenu({
       menu: {
         kind: "Menu",
         apiVersion: "v1alpha1",
@@ -190,7 +191,7 @@ class MenuItemTask implements MigrateRequestTask<MigrateMenu> {
   }
 
   run() {
-    return apiClient.extension.menuItem.createv1alpha1MenuItem({
+    return coreApiClient.menuItem.createMenuItem({
       menuItem: this.item.menu,
     });
   }
@@ -203,7 +204,7 @@ class MomentTask implements MigrateRequestTask<MigrateMoment> {
   }
 
   run() {
-    return axios.post(
+    return axiosInstance.post(
       `/apis/console.api.moment.halo.run/v1alpha1/moments`,
       this.item,
     );
@@ -217,7 +218,7 @@ class PhotoGroupTask implements MigrateRequestTask<string> {
   }
 
   run() {
-    return axios.post(`/apis/core.halo.run/v1alpha1/photogroups`, {
+    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/photogroups`, {
       spec: {
         displayName: this.item ? this.item : "未分组",
         priority: 0,
@@ -238,7 +239,7 @@ class PhotoTask implements MigrateRequestTask<MigratePhoto> {
   }
 
   run() {
-    return axios.post(`/apis/core.halo.run/v1alpha1/photos`, this.item);
+    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/photos`, this.item);
   }
 }
 
@@ -249,7 +250,7 @@ class LinkGroupTask implements MigrateRequestTask<string> {
   }
 
   run() {
-    return axios.post(`/apis/core.halo.run/v1alpha1/linkgroups`, {
+    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/linkgroups`, {
       spec: {
         displayName: this.item ? this.item : "未分组",
         priority: 0,
@@ -271,7 +272,7 @@ class LinkTask implements MigrateRequestTask<MigrateLink> {
   }
 
   run() {
-    return axios.post(`/apis/core.halo.run/v1alpha1/links`, this.item);
+    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/links`, this.item);
   }
 }
 
@@ -314,11 +315,9 @@ abstract class AbstractAttachmentTask implements AttachmentTask {
   abstract buildModel(): Attachment;
 
   run() {
-    return apiClient.extension.storage.attachment.createstorageHaloRunV1alpha1Attachment(
-      {
-        attachment: this.buildModel(),
-      },
-    );
+    return coreApiClient.storage.attachment.createAttachment({
+      attachment: this.buildModel(),
+    });
   }
 }
 

@@ -9,10 +9,13 @@ import {
 } from "@/composables/use-migrate-task";
 import { providerItems } from "@/modules/index";
 import type { MigrateData, Provider } from "@/types";
-import { apiClient } from "@/utils/api-client";
-import type { PluginList, User } from "@halo-dev/api-client";
+import {
+  consoleApiClient,
+  type PluginList,
+  type User,
+} from "@halo-dev/api-client";
 import { Dialog, VPageHeader } from "@halo-dev/components";
-import axios, { type AxiosResponse } from "axios";
+import type { AxiosResponse } from "axios";
 import * as fastq from "fastq";
 import { computed, onMounted, ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";
@@ -21,16 +24,12 @@ import SolarTransferHorizontalBoldDuotone from "~icons/solar/transfer-horizontal
 const activatedPluginNames = ref<string[]>([]);
 const currentUser = ref<User>();
 onMounted(async () => {
-  const { data }: { data: PluginList } = await axios.get(
-    "/apis/api.console.halo.run/v1alpha1/plugins",
-    {
-      params: {
-        enabled: true,
-        size: 0,
-        page: 0,
-      },
-    },
-  );
+  const { data }: { data: PluginList } =
+    await consoleApiClient.plugin.plugin.listPlugins({
+      enabled: true,
+      size: 0,
+      page: 0,
+    });
   activatedPluginNames.value =
     data.items
       .filter((plugin) => plugin.status?.phase === "STARTED")
@@ -38,7 +37,7 @@ onMounted(async () => {
         return plugin.metadata.name;
       }) || [];
 
-  const userDetailResponse = await apiClient.user.getCurrentUserDetail();
+  const userDetailResponse = await consoleApiClient.user.getCurrentUserDetail();
   currentUser.value = userDetailResponse.data.user;
 });
 

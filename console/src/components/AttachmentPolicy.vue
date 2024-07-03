@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { VAlert } from "@halo-dev/components";
 import type { MigrateAttachment } from "@/types";
-import { apiClient } from "@/utils/api-client";
-import groupBy from "lodash.groupby";
-import { computed, reactive, ref, watch } from "vue";
+import { coreApiClient, type Policy } from "@halo-dev/api-client";
+import { VAlert } from "@halo-dev/components";
 import { useQuery } from "@tanstack/vue-query";
-import type { Policy } from "@halo-dev/api-client";
+import { groupBy } from "lodash-es";
+import { computed, reactive, ref, watch } from "vue";
 
 const props = defineProps<{
   activatedPluginNames: string[];
@@ -32,8 +31,7 @@ useQuery({
       return;
     }
 
-    const { data } =
-      await apiClient.extension.storage.policy.liststorageHaloRunV1alpha1Policy();
+    const { data } = await coreApiClient.storage.policy.listPolicy();
     return data.items;
   },
   onSuccess(data: Policy[]) {

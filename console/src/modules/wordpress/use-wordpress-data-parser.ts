@@ -26,6 +26,7 @@ export function useWordPressDataParser(
         const isArrayPath = [
           "rss.channel.item",
           "rss.channel.wp:category",
+          "rss.channel.wp:tag",
           "rss.channel.item.category",
           "rss.channel.item.wp:postmeta",
           "rss.channel.item.wp:comment",

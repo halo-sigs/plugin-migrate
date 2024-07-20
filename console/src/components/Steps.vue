@@ -1,67 +1,67 @@
 <script setup lang="ts">
-import { VCard, VSpace } from "@halo-dev/components";
-import { computed, ref, type ComputedRef } from "vue";
-import type { StepButtonItem } from "./StepButton.vue";
-import StepButton from "./StepButton.vue";
+import { VCard, VSpace } from '@halo-dev/components'
+import { computed, ref, type ComputedRef } from 'vue'
+import type { StepButtonItem } from './StepButton.vue'
+import StepButton from './StepButton.vue'
 
 export interface Step {
-  key: string;
-  name: string;
-  description?: string;
-  next?: StepButtonItem;
-  prev?: StepButtonItem;
-  visible?: ComputedRef;
+  key: string
+  name: string
+  description?: string
+  next?: StepButtonItem
+  prev?: StepButtonItem
+  visible?: ComputedRef
 }
 
 const props = defineProps<{
-  items: Step[];
-}>();
+  items: Step[]
+}>()
 
-const activeIndex = ref<number>(0);
+const activeIndex = ref<number>(0)
 const visibleItems = computed(() => {
   return (
     props.items?.filter((item) => {
       if (item.visible) {
-        return item.visible.value;
+        return item.visible.value
       }
-      return true;
+      return true
     }) || []
-  );
-});
+  )
+})
 
 const visibleItemsLength = computed(() => {
-  return visibleItems.value?.length || 0;
-});
+  return visibleItems.value?.length || 0
+})
 
 const itemClass = (index: number) => {
   if (index > activeIndex.value) {
-    return ["text-gray-400"];
+    return ['text-gray-400']
   } else {
-    return ["text-black"];
+    return ['text-black']
   }
-};
+}
 
 const borderClass = (index: number) => {
   if (index === activeIndex.value) {
-    return ["bg-blue-500", "text-white"];
+    return ['bg-blue-500', 'text-white']
   } else if (index < activeIndex.value) {
-    return ["bg-[#e6f4ff]", "text-blue-600"];
+    return ['bg-[#e6f4ff]', 'text-blue-600']
   } else {
-    return ["bg-black/10", "text-black/80"];
+    return ['bg-black/10', 'text-black/80']
   }
-};
+}
 
 const handlePrev = () => {
   if (activeIndex.value != 0) {
-    activeIndex.value--;
+    activeIndex.value--
   }
-};
+}
 
 const handleNext = () => {
   if (activeIndex.value != visibleItemsLength.value - 1) {
-    activeIndex.value++;
+    activeIndex.value++
   }
-};
+}
 </script>
 <template>
   <VCard v-if="visibleItemsLength > 0">
@@ -136,10 +136,10 @@ const handleNext = () => {
           @click="handlePrev"
           v-show="activeIndex != 0"
         >
-          {{ visibleItems[activeIndex].prev?.text || "上一步" }}
+          {{ visibleItems[activeIndex].prev?.text || '上一步' }}
         </StepButton>
         <StepButton :data="visibleItems[activeIndex].next" @click="handleNext">
-          {{ visibleItems[activeIndex].next?.text || "下一步" }}
+          {{ visibleItems[activeIndex].next?.text || '下一步' }}
         </StepButton>
       </VSpace>
     </template>

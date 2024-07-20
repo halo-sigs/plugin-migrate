@@ -1,55 +1,55 @@
 <script setup lang="ts">
-import FileSelector from "@/components/FileSelector.vue";
-import type { MigrateData } from "@/types";
-import { Toast, VAlert, VButton } from "@halo-dev/components";
-import { ref } from "vue";
-import { useRssDataParser } from "./use-atom-data-parser";
+import FileSelector from '@/components/FileSelector.vue'
+import type { MigrateData } from '@/types'
+import { Toast, VAlert, VButton } from '@halo-dev/components'
+import { ref } from 'vue'
+import { useRssDataParser } from './use-atom-data-parser'
 defineProps<{
-  data: MigrateData;
-}>();
+  data: MigrateData
+}>()
 
 const emit = defineEmits<{
-  (event: "update:data", value: MigrateData): void;
-}>();
+  (event: 'update:data', value: MigrateData): void
+}>()
 
 const handleFileChange = (files: FileList) => {
-  const file = files.item(0);
+  const file = files.item(0)
   if (!file) {
-    return;
+    return
   }
   useRssDataParser(file)
     .parse()
     .then((data) => {
-      emit("update:data", data);
+      emit('update:data', data)
     })
     .catch((error: any) => {
-      Toast.error(error);
-      console.error(error);
-    });
-};
+      Toast.error(error)
+      console.error(error)
+    })
+}
 
-const rssUrl = ref("");
-const loading = ref(false);
+const rssUrl = ref('')
+const loading = ref(false)
 const handleUrlSubmit = () => {
   if (rssUrl.value) {
-    loading.value = true;
+    loading.value = true
     useRssDataParser(rssUrl.value)
       .parse()
       .then((data) => {
-        Toast.success("解析成功, 共获取到 " + data.posts?.length + " 篇文章");
+        Toast.success('解析成功, 共获取到 ' + data.posts?.length + ' 篇文章')
         if (!data.posts?.length) {
-          return;
+          return
         }
-        emit("update:data", data);
+        emit('update:data', data)
       })
       .catch((error: any) => {
-        Toast.error(error);
+        Toast.error(error)
       })
       .finally(() => {
-        loading.value = false;
-      });
+        loading.value = false
+      })
   }
-};
+}
 </script>
 <template>
   <div class="sm:w-1/2">
@@ -68,12 +68,7 @@ const handleUrlSubmit = () => {
       ></FileSelector>
       <span class="my-6 block"> 或 </span>
       <div>
-        <FormKit
-          v-model="rssUrl"
-          type="url"
-          placeholder="请输入 Atom 订阅链接"
-          validation="url"
-        >
+        <FormKit v-model="rssUrl" type="url" placeholder="请输入 Atom 订阅链接" validation="url">
           <template #suffix>
             <VButton
               type="primary"

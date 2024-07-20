@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { MigrateData } from "@/types";
 import FileSelector from "@/components/FileSelector.vue";
-import { useRssDataParser } from "./use-rss-data-parser";
-import { ref } from "vue";
+import type { MigrateData } from "@/types";
 import { Toast, VAlert, VButton } from "@halo-dev/components";
+import { ref } from "vue";
+import { useRssDataParser } from "./use-rss-data-parser";
 defineProps<{
   data: MigrateData;
 }>();
@@ -53,8 +53,8 @@ const handleUrlSubmit = () => {
 };
 </script>
 <template>
-  <div class="sm:migrate-w-1/2">
-    <div class="migrate-mb-2">
+  <div class="sm:w-1/2">
+    <div class="mb-2">
       <VAlert title="提示" type="info" :closable="false">
         <template #description>
           RSS 文件中至少需要具有文章标题以及包含文章内容的 content:encoded 或者
@@ -67,7 +67,7 @@ const handleUrlSubmit = () => {
         :options="{ accept: '.xml', multiple: false }"
         @fileChange="handleFileChange"
       ></FileSelector>
-      <span class="migrate-my-6 migrate-block"> 或 </span>
+      <span class="my-6 block"> 或 </span>
       <div>
         <FormKit
           v-model="rssUrl"
@@ -79,7 +79,7 @@ const handleUrlSubmit = () => {
             <VButton
               type="primary"
               size="sm"
-              class="migrate-mx-1"
+              class="mx-1"
               :loading="loading"
               @click="handleUrlSubmit"
             >

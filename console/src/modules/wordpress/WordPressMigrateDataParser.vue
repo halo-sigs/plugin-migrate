@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { MigrateData } from "@/types";
 import FileSelector from "@/components/FileSelector.vue";
+import type { MigrateData } from "@/types";
 import { useWordPressDataParser } from "./use-wordpress-data-parser";
 defineProps<{
   data: MigrateData;
@@ -26,7 +26,7 @@ const handleFileChange = (files: FileList) => {
 };
 </script>
 <template>
-  <div class="sm:migrate-w-1/2">
+  <div class="sm:w-1/2">
     <FileSelector
       :options="{ accept: '.xml', multiple: false }"
       @fileChange="handleFileChange"

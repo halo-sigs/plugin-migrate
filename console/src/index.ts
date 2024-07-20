@@ -1,7 +1,6 @@
 import { definePlugin } from "@halo-dev/console-shared";
 import { markRaw } from "vue";
 import SolarTransferHorizontalBoldDuotone from "~icons/solar/transfer-horizontal-bold-duotone";
-import "./styles/tailwind.css";
 import MigrateView from "./views/MigrateView.vue";
 
 export default definePlugin({

@@ -36,11 +36,11 @@ function openDocument() {
 </script>
 
 <template>
-  <div class="migrate-space-y-4 sm:migrate-w-1/2">
+  <div class="space-y-4 sm:w-1/2">
     <VAlert title="注意事项" type="info" :closable="false" class="sheet">
       <template #description>
         <ul
-          class="migrate-ml-2 migrate-list-inside migrate-list-disc migrate-space-y-1"
+          class="ml-2 list-inside list-disc space-y-1"
         >
           <li>在开始迁移前，建议先阅读关于 Ghost 迁移的文档。</li>
           <li>

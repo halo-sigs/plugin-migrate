@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { VAlert, VButton, VCard, VLoading, VTag } from "@halo-dev/components";
 import FileSelector from "@/components/FileSelector.vue";
 import { HugoDataParser } from "@/modules/hugo/hugo-data-parser";
 import type { MigrateData } from "@/types";
+import { VAlert, VButton, VCard, VLoading, VTag } from "@halo-dev/components";
 import { computed, reactive, type Ref, ref } from "vue";
 
 const emit = defineEmits<{
@@ -177,7 +177,7 @@ function setErrorState(e: unknown) {
 </script>
 
 <template>
-  <div class="sm:migrate-w-2/3">
+  <div class="sm:w-2/3">
     <VAlert title="提示" type="info" :closable="false" class="sheet">
       <template #description>
         HUGO 是十分灵活强大的框架，本插件目前仅支持普通的文章与页面，并且：
@@ -207,7 +207,7 @@ function setErrorState(e: unknown) {
 
     <!-- upload  -->
     <div v-if="state == State.Init">
-      <span class="migrate-my-6 migrate-block">
+      <span class="my-6 block">
         请上传 HUGO <code>content</code> 目录的 zip 压缩包：
       </span>
       <FileSelector

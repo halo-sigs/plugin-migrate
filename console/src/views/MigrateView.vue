@@ -201,7 +201,7 @@ onBeforeRouteLeave((to, from, next) => {
       <SolarTransferHorizontalBoldDuotone class="mr-2 self-center" />
     </template>
   </VPageHeader>
-  <div class="migrate-m-4 migrate-flex migrate-flex-1 migrate-flex-col">
+  <div class="m-4 flex flex-1 flex-col">
     <Steps :items="stepItems" submitText="执行导入">
       <template #provider>
         <div>
@@ -212,7 +212,7 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
       </template>
       <template #importData>
-        <div class="migrate-flex migrate-h-full migrate-flex-col">
+        <div class="flex h-full flex-col">
           <component
             :is="activeProvider?.importComponent"
             v-model:data="migrateData"
@@ -220,7 +220,7 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
       </template>
       <template #attachmentPolicy>
-        <div class="migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col">
+        <div class="flex h-full w-1/2 flex-col">
           <AttachmentPolicy
             v-if="migrateData"
             :activatedPluginNames="activatedPluginNames"
@@ -231,7 +231,7 @@ onBeforeRouteLeave((to, from, next) => {
         </div>
       </template>
       <template #migrate>
-        <div class="migrate-flex migrate-h-full migrate-w-1/2 migrate-flex-col">
+        <div class="flex h-full w-1/2 flex-col">
           <MigratePreview
             v-if="migrateData"
             :provider="activeProvider"

@@ -94,7 +94,7 @@ watch(
 </script>
 <template>
   <div>
-    <div class="migrate-mb-5">
+    <div class="mb-5">
       <VAlert
         v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
         title="警告"
@@ -121,7 +121,7 @@ watch(
       <li
         v-for="(type, index) in attachmentTypes"
         :key="index"
-        class="migrate-mb-4"
+        class="mb-4"
       >
         <FormKit
           v-model="type.policyName"

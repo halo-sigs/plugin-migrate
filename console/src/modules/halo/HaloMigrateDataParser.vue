@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { MigrateData } from "@/types";
 import FileSelector from "@/components/FileSelector.vue";
+import type { MigrateData } from "@/types";
 import { useHaloDataParser } from "./use-halo-data-parser";
 defineProps<{
   data: MigrateData;
@@ -26,7 +26,7 @@ const handleFileChange = (files: FileList) => {
 };
 </script>
 <template>
-  <div class="sm:migrate-w-1/2">
+  <div class="sm:w-1/2">
     <FileSelector
       :options="{ accept: '.json', multiple: false }"
       @fileChange="handleFileChange"

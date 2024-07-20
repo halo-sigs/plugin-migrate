@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { MigrateData, Provider } from "../types";
 import MigratePreviewItem from "@/components/MigratePreviewItem.vue";
 import { computed, ref } from "vue";
+import type { MigrateData, Provider } from "../types";
 
 interface Item {
   name: string;
@@ -72,7 +72,7 @@ const handleImport = () => {
 </script>
 <template>
   <div>
-    <ul class="migrate-divide-y migrate-divide-gray-100">
+    <ul class="divide-y divide-gray-100">
       <MigratePreviewItem
         v-for="item in items"
         :key="item.name"

@@ -1,4 +1,4 @@
-import type mdit from "markdown-it";
+import type mdit from 'markdown-it'
 
 /**
  * The plugin for markdown-it to add `id` attribute to each <h> element.
@@ -22,27 +22,27 @@ export default function MarkdownItIdPlugin(md: mdit) {
     idx: number,
     options: mdit.Options,
     _: unknown,
-    self: mdit.Renderer,
-  ) => self.renderToken(tokens, idx, options);
-  const defaultHeadingOpenRenderer = md.renderer.rules.heading_open || proxy;
+    self: mdit.Renderer
+  ) => self.renderToken(tokens, idx, options)
+  const defaultHeadingOpenRenderer = md.renderer.rules.heading_open || proxy
 
-  const ids = new Set<string>();
+  const ids = new Set<string>()
 
   function generateId(text: string): string {
     let s = text
       .trim()
-      .replaceAll(/\p{Emoji_Presentation}/gu, "")
-      .replaceAll(" ", "-");
+      .replaceAll(/\p{Emoji_Presentation}/gu, '')
+      .replaceAll(' ', '-')
 
     if (ids.has(s)) {
-      let i = 1;
+      let i = 1
       while (ids.has(`${s}-${i}`)) {
-        i++;
+        i++
       }
-      s = `${s}-${i}`;
+      s = `${s}-${i}`
     }
-    ids.add(s);
-    return s;
+    ids.add(s)
+    return s
   }
 
   /**
@@ -58,15 +58,15 @@ export default function MarkdownItIdPlugin(md: mdit) {
     idx: number,
     options: mdit.Options,
     env: unknown,
-    self: mdit.Renderer,
+    self: mdit.Renderer
   ): string => {
-    const nextToken = idx + 1 >= tokens.length ? undefined : tokens[idx + 1];
-    if (!nextToken || nextToken.type !== "inline" || !nextToken.children) {
+    const nextToken = idx + 1 >= tokens.length ? undefined : tokens[idx + 1]
+    if (!nextToken || nextToken.type !== 'inline' || !nextToken.children) {
       // no content tokens for current heading
-      return defaultHeadingOpenRenderer(tokens, idx, options, env, self);
+      return defaultHeadingOpenRenderer(tokens, idx, options, env, self)
     }
-    const text = self.render(nextToken.children, options, env);
-    tokens[idx].attrSet("id", generateId(text));
-    return defaultHeadingOpenRenderer(tokens, idx, options, env, self);
-  };
+    const text = self.render(nextToken.children, options, env)
+    tokens[idx].attrSet('id', generateId(text))
+    return defaultHeadingOpenRenderer(tokens, idx, options, env, self)
+  }
 }

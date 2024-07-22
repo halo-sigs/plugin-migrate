@@ -1,40 +1,40 @@
 <script setup lang="ts">
-import { VButton } from "@halo-dev/components";
-import { ref, type ComputedRef } from "vue";
+import { VButton } from '@halo-dev/components'
+import { ref, type ComputedRef } from 'vue'
 
 export interface StepButtonItem {
-  text?: string;
-  loading?: ComputedRef;
-  disabled?: ComputedRef;
-  disabledMessage?: string;
-  handler?: () => void | Promise<boolean>;
+  text?: string
+  loading?: ComputedRef
+  disabled?: ComputedRef
+  disabledMessage?: string
+  handler?: () => void | Promise<boolean>
 }
 
 const props = defineProps<{
-  data?: StepButtonItem;
-}>();
+  data?: StepButtonItem
+}>()
 
 const emit = defineEmits<{
-  (event: "click"): void;
-}>();
+  (event: 'click'): void
+}>()
 
 const handleClick = () => {
   if (props.data?.handler) {
-    const handlePromise = props.data?.handler();
+    const handlePromise = props.data?.handler()
     if (handlePromise) {
       handlePromise.then((result) => {
         if (result) {
-          emit("click");
+          emit('click')
         }
-      });
-      return;
+      })
+      return
     }
   } else {
-    emit("click");
+    emit('click')
   }
-};
+}
 
-const tooltipShown = ref<boolean>(false);
+const tooltipShown = ref<boolean>(false)
 </script>
 <template>
   <div @mouseenter="tooltipShown = true" @mouseleave="tooltipShown = false">
@@ -45,7 +45,7 @@ const tooltipShown = ref<boolean>(false);
         content: data?.disabledMessage,
         disabled: !data?.disabled?.value && !!data?.disabledMessage,
         shown: tooltipShown,
-        triggers: [],
+        triggers: []
       }"
       @click="handleClick"
     >

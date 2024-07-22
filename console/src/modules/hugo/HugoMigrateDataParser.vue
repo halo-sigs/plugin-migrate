@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { VAlert, VButton, VCard, VLoading, VTag } from "@halo-dev/components";
-import FileSelector from "@/components/FileSelector.vue";
-import { HugoDataParser } from "@/modules/hugo/hugo-data-parser";
-import type { MigrateData } from "@/types";
-import { computed, reactive, type Ref, ref } from "vue";
+import FileSelector from '@/components/FileSelector.vue'
+import { HugoDataParser } from '@/modules/hugo/hugo-data-parser'
+import type { MigrateData } from '@/types'
+import { VAlert, VButton, VCard, VLoading, VTag } from '@halo-dev/components'
+import { computed, reactive, type Ref, ref } from 'vue'
 
 const emit = defineEmits<{
-  (event: "update:data", value: MigrateData): void;
-}>();
+  (event: 'update:data', value: MigrateData): void
+}>()
 
 /**
  * `Init` -> `Parsing` -> `Configure` -> `Parsing` -> `Parsed`
@@ -16,122 +16,121 @@ enum State {
   Init,
   Parsing,
   Configure,
-  Parsed,
+  Parsed
 }
 
 interface HaloEntry {
-  name: string;
-  slug: string;
+  name: string
+  slug: string
 }
 
 type Tag = {
-  name: string;
-  slug: string;
-};
+  name: string
+  slug: string
+}
 
 type Category = {
-  name: string;
-  slug: string;
-};
+  name: string
+  slug: string
+}
 
-type SectionType = "page" | "post" | "ignore";
+type SectionType = 'page' | 'post' | 'ignore'
 
-const state: Ref<State> = ref(State.Init);
-const errorMessage: Ref<string | null> = ref(null);
-let selectedFile: File | undefined;
+const state: Ref<State> = ref(State.Init)
+const errorMessage: Ref<string | null> = ref(null)
+let selectedFile: File | undefined
 
-const sections = reactive<Record<string, SectionType>>({});
+const sections = reactive<Record<string, SectionType>>({})
 
-const migrateData: Ref<MigrateData | null> = ref(null);
+const migrateData: Ref<MigrateData | null> = ref(null)
 const posts: Ref<HaloEntry[]> = computed(
   () =>
     migrateData.value?.posts?.map((post): HaloEntry => {
       return {
         name: post.postRequest.post.spec.title,
-        slug: post.postRequest.post.spec.slug,
-      };
-    }) ?? [],
-);
+        slug: post.postRequest.post.spec.slug
+      }
+    }) ?? []
+)
 const pages: Ref<HaloEntry[]> = computed(
   () =>
     migrateData.value?.pages?.map((page): HaloEntry => {
       return {
         name: page.singlePageRequest.page.spec.title,
-        slug: page.singlePageRequest.page.spec.slug,
-      };
-    }) ?? [],
-);
+        slug: page.singlePageRequest.page.spec.slug
+      }
+    }) ?? []
+)
 const categories: Ref<Category[]> = computed(
   () =>
     migrateData.value?.categories?.map((migrateCategory): Category => {
       return {
         name: migrateCategory.spec.displayName,
-        slug: migrateCategory.spec.slug,
-      };
-    }) ?? [],
-);
+        slug: migrateCategory.spec.slug
+      }
+    }) ?? []
+)
 const tags: Ref<Tag[]> = computed(
   () =>
     migrateData.value?.tags?.map((migrateTag): Tag => {
       return {
         name: migrateTag.spec.displayName,
-        slug: migrateTag.spec.slug,
-      };
-    }) ?? [],
-);
+        slug: migrateTag.spec.slug
+      }
+    }) ?? []
+)
 
 async function handleFileChange(files: FileList) {
   if (files.length == 0) {
-    selectedFile = undefined;
-    return;
+    selectedFile = undefined
+    return
   }
-  const file = files.item(0);
+  const file = files.item(0)
   if (!file) {
-    selectedFile = undefined;
-    return;
+    selectedFile = undefined
+    return
   }
-  selectedFile = file;
-  state.value = State.Parsing;
+  selectedFile = file
+  state.value = State.Parsing
   try {
-    await parseSections(file);
-    state.value = State.Configure;
+    await parseSections(file)
+    state.value = State.Configure
   } catch (e) {
-    console.error(e);
-    setErrorState(e);
+    console.error(e)
+    setErrorState(e)
   }
 }
 
 async function onConfirmConfiguration() {
   if (!selectedFile) {
-    resetToInitState();
-    return;
+    resetToInitState()
+    return
   }
-  state.value = State.Parsing;
+  state.value = State.Parsing
 
   // assemble section mapping
-  const postSections: string[] = [];
-  const pageSections: string[] = [];
+  const postSections: string[] = []
+  const pageSections: string[] = []
 
   for (const key in sections) {
-    if (sections[key] == "post") {
-      postSections.push(key);
-    } else if (sections[key] == "page") {
-      pageSections.push(key);
+    if (sections[key] == 'post') {
+      postSections.push(key)
+    } else if (sections[key] == 'page') {
+      pageSections.push(key)
     }
   }
 
   try {
-    const data: MigrateData = await new HugoDataParser(
-      postSections,
-      pageSections,
-    ).parse(selectedFile);
-    migrateData.value = data;
+    const data: MigrateData = await new HugoDataParser(postSections, pageSections).parse(
+      selectedFile
+    )
+    migrateData.value = data
 
-    emit("update:data", data);
-    state.value = State.Parsed;
+    emit('update:data', data)
+    state.value = State.Parsed
   } catch (e) {
-    console.error(e);
-    setErrorState(e);
+    console.error(e)
+    setErrorState(e)
   }
 }
 
@@ -141,52 +140,50 @@ async function onConfirmConfiguration() {
  */
 async function parseSections(file: File) {
   for (let key in sections) {
-    delete sections[key];
+    delete sections[key]
   }
-  const sectionsNames = await new HugoDataParser([]).parseSections(file);
+  const sectionsNames = await new HugoDataParser([]).parseSections(file)
 
   const inferSectionType = (s: string): SectionType => {
-    if (s == "post" || s == "blog") {
-      return "post";
-    } else if (s == "page") {
-      return "page";
+    if (s == 'post' || s == 'blog') {
+      return 'post'
+    } else if (s == 'page') {
+      return 'page'
     }
-    return "ignore";
-  };
+    return 'ignore'
+  }
 
   for (const s of sectionsNames) {
-    sections[s] = inferSectionType(s);
+    sections[s] = inferSectionType(s)
   }
 }
 
 function resetToInitState() {
-  selectedFile = undefined;
-  errorMessage.value = null;
-  state.value = State.Init;
-  emit("update:data", {});
+  selectedFile = undefined
+  errorMessage.value = null
+  state.value = State.Init
+  emit('update:data', {})
 }
 
 function setErrorState(e: unknown) {
-  state.value = State.Init;
+  state.value = State.Init
   if (e instanceof Error) {
-    errorMessage.value = e.message;
+    errorMessage.value = e.message
   } else {
-    errorMessage.value = `${e}`;
+    errorMessage.value = `${e}`
   }
 }
 </script>
 
 <template>
-  <div class="sm:migrate-w-2/3">
+  <div class="sm:w-2/3">
     <VAlert title="提示" type="info" :closable="false" class="sheet">
       <template #description>
         HUGO 是十分灵活强大的框架，本插件目前仅支持普通的文章与页面，并且：
         <ul>
           <li>- 不支持本地附件文件（包括图片）迁移。</li>
           <li>- 不支持模板文件 <code>_index.md</code>。</li>
-          <li>
-            - 仅支持下列 matter: title, slug, draft, categories, tags, date。
-          </li>
+          <li>- 仅支持下列 matter: title, slug, draft, categories, tags, date。</li>
           <li>- 仅处理内容，不解析 HUGO 配置文件。</li>
         </ul>
       </template>
@@ -207,25 +204,15 @@ function setErrorState(e: unknown) {
 
     <!-- upload  -->
     <div v-if="state == State.Init">
-      <span class="migrate-my-6 migrate-block">
-        请上传 HUGO <code>content</code> 目录的 zip 压缩包：
-      </span>
-      <FileSelector
-        :options="{ accept: '.zip', multiple: false }"
-        @fileChange="handleFileChange"
-      />
+      <span class="my-6 block"> 请上传 HUGO <code>content</code> 目录的 zip 压缩包： </span>
+      <FileSelector :options="{ accept: '.zip', multiple: false }" @fileChange="handleFileChange" />
     </div>
 
     <!--  section mapping configuration -->
     <VCard v-if="state == State.Configure" title="请选择内容映射" class="sheet">
       <p>
         此处列出了解析出的 HUGO
-        <a
-          href="https://gohugo.io/content-management/sections/"
-          target="_blank"
-        >
-          Section
-        </a>
+        <a href="https://gohugo.io/content-management/sections/" target="_blank"> Section </a>
         ，请分别选择要转换成的 Halo 内容类型。
       </p>
       <FormKit
@@ -237,7 +224,7 @@ function setErrorState(e: unknown) {
         :options="{
           post: '文章',
           page: '单页',
-          ignore: '忽略',
+          ignore: '忽略'
         }"
         @input="(t: SectionType) => (sections[section] = t)"
       />
@@ -249,29 +236,15 @@ function setErrorState(e: unknown) {
     <!-- parsed data -->
     <div v-if="state == State.Parsed">
       <VButton @click="resetToInitState">重新选择文件</VButton>
-      <h3 class="my-2">
-        已解析数据，确认无误后请点击页面底部的「下一步」按钮。
-      </h3>
-      <VCard
-        v-show="pages.length > 0"
-        :title="`独立页面 (${pages.length})`"
-        class="sheet"
-      >
+      <h3 class="my-2">已解析数据，确认无误后请点击页面底部的「下一步」按钮。</h3>
+      <VCard v-show="pages.length > 0" :title="`独立页面 (${pages.length})`" class="sheet">
         <ul>
-          <li
-            v-for="(item, index) in pages"
-            :key="index"
-            v-tooltip="`slug: ${item.slug}`"
-          >
+          <li v-for="(item, index) in pages" :key="index" v-tooltip="`slug: ${item.slug}`">
             - {{ item.name }}
           </li>
         </ul>
       </VCard>
-      <VCard
-        v-show="posts.length > 0"
-        :title="`文章 (${posts.length})`"
-        class="sheet"
-      >
+      <VCard v-show="posts.length > 0" :title="`文章 (${posts.length})`" class="sheet">
         <ul>
           <li v-for="(item, index) in posts" :key="index">
             - {{ item.name }}:
@@ -279,11 +252,7 @@ function setErrorState(e: unknown) {
           </li>
         </ul>
       </VCard>
-      <VCard
-        v-show="categories.length > 0"
-        :title="`分类 (${categories.length})`"
-        class="sheet"
-      >
+      <VCard v-show="categories.length > 0" :title="`分类 (${categories.length})`" class="sheet">
         <VTag
           v-for="(category, index) in categories"
           :key="index"
@@ -293,11 +262,7 @@ function setErrorState(e: unknown) {
           {{ category.name }}
         </VTag>
       </VCard>
-      <VCard
-        v-show="tags.length > 0"
-        :title="`标签 (${tags.length})`"
-        class="sheet"
-      >
+      <VCard v-show="tags.length > 0" :title="`标签 (${tags.length})`" class="sheet">
         <VTag
           v-for="(tag, index) in tags"
           :key="index"

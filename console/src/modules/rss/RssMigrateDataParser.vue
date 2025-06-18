@@ -53,8 +53,8 @@ const handleUrlSubmit = () => {
 }
 </script>
 <template>
-  <div class="sm:w-1/2">
-    <div class="mb-2">
+  <div class=":uno: sm:w-1/2">
+    <div class=":uno: mb-2">
       <VAlert title="提示" type="info" :closable="false">
         <template #description>
           RSS 文件中至少需要具有文章标题以及包含文章内容的 content:encoded 或者 description
@@ -67,14 +67,14 @@ const handleUrlSubmit = () => {
         :options="{ accept: '.xml', multiple: false }"
         @fileChange="handleFileChange"
       ></FileSelector>
-      <span class="my-6 block"> 或 </span>
+      <span class=":uno: my-6 block"> 或 </span>
       <div>
         <FormKit v-model="rssUrl" type="url" placeholder="请输入 RSS 订阅链接" validation="url">
           <template #suffix>
             <VButton
               type="primary"
               size="sm"
-              class="mx-1"
+              class=":uno: mx-1"
               :loading="loading"
               @click="handleUrlSubmit"
             >

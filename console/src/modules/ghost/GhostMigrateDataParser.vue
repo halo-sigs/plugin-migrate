@@ -33,10 +33,10 @@ function openDocument() {
 </script>
 
 <template>
-  <div class="space-y-4 sm:w-1/2">
-    <VAlert title="注意事项" type="info" :closable="false" class="sheet">
+  <div class=":uno: sm:w-1/2 space-y-4">
+    <VAlert title="注意事项" type="info" :closable="false" class=":uno: sheet">
       <template #description>
-        <ul class="ml-2 list-inside list-disc space-y-1">
+        <ul class=":uno: ml-2 list-disc list-inside space-y-1">
           <li>在开始迁移前，建议先阅读关于 Ghost 迁移的文档。</li>
           <li>
             目前仅支持根据 Ghost 导出的 JSON

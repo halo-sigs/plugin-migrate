@@ -59,7 +59,7 @@ watch(
   () => attachmentTypes.value,
   (newAttachmentTypes) => {
     let isToast = false
-    for (let { type, policyName } of newAttachmentTypes) {
+    for (const { type, policyName } of newAttachmentTypes) {
       if (type !== 'LOCAL') {
         isToast =
           policyOptions.value.filter(
@@ -83,7 +83,7 @@ watch(
 </script>
 <template>
   <div>
-    <div class="mb-5">
+    <div class=":uno: mb-5">
       <VAlert
         v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
         title="警告"
@@ -106,7 +106,7 @@ watch(
     </div>
 
     <ul>
-      <li v-for="(type, index) in attachmentTypes" :key="index" class="mb-4">
+      <li v-for="(type, index) in attachmentTypes" :key="index" class=":uno: mb-4">
         <FormKit
           v-model="type.policyName"
           type="select"

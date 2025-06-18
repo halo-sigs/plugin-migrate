@@ -72,7 +72,7 @@ const handleImport = () => {
 </script>
 <template>
   <div>
-    <ul class="divide-y divide-gray-100">
+    <ul class=":uno: divide-y divide-gray-100">
       <MigratePreviewItem
         v-for="item in items"
         :key="item.name"

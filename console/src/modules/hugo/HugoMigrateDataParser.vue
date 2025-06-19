@@ -139,7 +139,7 @@ async function onConfirmConfiguration() {
  * @param file
  */
 async function parseSections(file: File) {
-  for (let key in sections) {
+  for (const key in sections) {
     delete sections[key]
   }
   const sectionsNames = await new HugoDataParser([]).parseSections(file)
@@ -176,8 +176,8 @@ function setErrorState(e: unknown) {
 </script>
 
 <template>
-  <div class="sm:w-2/3">
-    <VAlert title="提示" type="info" :closable="false" class="sheet">
+  <div class=":uno: sm:w-2/3">
+    <VAlert title="提示" type="info" :closable="false" class=":uno: sheet">
       <template #description>
         HUGO 是十分灵活强大的框架，本插件目前仅支持普通的文章与页面，并且：
         <ul>
@@ -190,7 +190,7 @@ function setErrorState(e: unknown) {
     </VAlert>
     <VAlert
       v-if="errorMessage"
-      class="sheet"
+      class=":uno: sheet"
       title="错误"
       type="error"
       description="dddd"
@@ -204,12 +204,12 @@ function setErrorState(e: unknown) {
 
     <!-- upload  -->
     <div v-if="state == State.Init">
-      <span class="my-6 block"> 请上传 HUGO <code>content</code> 目录的 zip 压缩包： </span>
+      <span class=":uno: my-6 block"> 请上传 HUGO <code>content</code> 目录的 zip 压缩包： </span>
       <FileSelector :options="{ accept: '.zip', multiple: false }" @fileChange="handleFileChange" />
     </div>
 
     <!--  section mapping configuration -->
-    <VCard v-if="state == State.Configure" title="请选择内容映射" class="sheet">
+    <VCard v-if="state == State.Configure" title="请选择内容映射" class=":uno: sheet">
       <p>
         此处列出了解析出的 HUGO
         <a href="https://gohugo.io/content-management/sections/" target="_blank"> Section </a>
@@ -218,7 +218,7 @@ function setErrorState(e: unknown) {
       <FormKit
         v-for="(sectionType, section) in sections"
         :key="section"
-        type="select"
+        type="nativeSelect"
         :label="section"
         :value="sectionType"
         :options="{
@@ -230,43 +230,47 @@ function setErrorState(e: unknown) {
       />
 
       <VButton type="primary" @click="onConfirmConfiguration">确认</VButton>
-      <VButton class="mx-2" @click="resetToInitState">重新选择文件</VButton>
+      <VButton class=":uno: mx-2" @click="resetToInitState">重新选择文件</VButton>
     </VCard>
 
     <!-- parsed data -->
     <div v-if="state == State.Parsed">
       <VButton @click="resetToInitState">重新选择文件</VButton>
-      <h3 class="my-2">已解析数据，确认无误后请点击页面底部的「下一步」按钮。</h3>
-      <VCard v-show="pages.length > 0" :title="`独立页面 (${pages.length})`" class="sheet">
+      <h3 class=":uno: my-2">已解析数据，确认无误后请点击页面底部的「下一步」按钮。</h3>
+      <VCard v-show="pages.length > 0" :title="`独立页面 (${pages.length})`" class=":uno: sheet">
         <ul>
           <li v-for="(item, index) in pages" :key="index" v-tooltip="`slug: ${item.slug}`">
             - {{ item.name }}
           </li>
         </ul>
       </VCard>
-      <VCard v-show="posts.length > 0" :title="`文章 (${posts.length})`" class="sheet">
+      <VCard v-show="posts.length > 0" :title="`文章 (${posts.length})`" class=":uno: sheet">
         <ul>
           <li v-for="(item, index) in posts" :key="index">
             - {{ item.name }}:
-            <code class="text-gray-500">{{ item.slug }}</code>
+            <code class=":uno: text-gray-500">{{ item.slug }}</code>
           </li>
         </ul>
       </VCard>
-      <VCard v-show="categories.length > 0" :title="`分类 (${categories.length})`" class="sheet">
+      <VCard
+        v-show="categories.length > 0"
+        :title="`分类 (${categories.length})`"
+        class=":uno: sheet"
+      >
         <VTag
           v-for="(category, index) in categories"
           :key="index"
-          class="mx-1"
+          class=":uno: mx-1"
           v-tooltip="`slug: ${category.slug}`"
         >
           {{ category.name }}
         </VTag>
       </VCard>
-      <VCard v-show="tags.length > 0" :title="`标签 (${tags.length})`" class="sheet">
+      <VCard v-show="tags.length > 0" :title="`标签 (${tags.length})`" class=":uno: sheet">
         <VTag
           v-for="(tag, index) in tags"
           :key="index"
-          class="mx-1"
+          class=":uno: mx-1"
           v-tooltip="`slug: ${tag.slug}`"
         >
           {{ tag.name }}

@@ -26,7 +26,7 @@ const handleFileChange = (files: FileList) => {
 }
 </script>
 <template>
-  <div class="sm:w-1/2">
+  <div class=":uno: sm:w-1/2">
     <FileSelector
       :options="{ accept: '.xml', multiple: false }"
       @fileChange="handleFileChange"

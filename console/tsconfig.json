@@ -1,14 +1,14 @@
 {
-  "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.config.json"
+  "extends": "@vue/tsconfig/tsconfig.web.json",
+  "include": ["./env.d.ts", "./src/**/*", "./src/**/*.vue", "./src/**/*.ts"],
+  "exclude": ["./src/**/__tests__/*"],
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
     },
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.vitest.json"
-    }
-  ]
+    "types": ["unplugin-icons/types/vue"],
+    "lib": ["esnext", "DOM"]
+  }
 }

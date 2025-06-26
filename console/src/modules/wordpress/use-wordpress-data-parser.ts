@@ -164,7 +164,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
           post: {
             spec: {
               title: post.title,
-              slug: post['wp:post_name'] || post.title,
+              slug: post['wp:post_name'] ? decodeURIComponent(post['wp:post_name']) : post.title,
               deleted: post['wp:status'] === 'trash',
               publish: publish,
               publishTime: new Date(post['wp:post_date']).toISOString(),
@@ -209,7 +209,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
           page: {
             spec: {
               title: page.title,
-              slug: page['wp:post_name'] + '',
+              slug: page['wp:post_name'] ? decodeURIComponent(page['wp:post_name']) : page.title,
               deleted: page['wp:status'] === 'trash',
               publish: publish,
               publishTime: new Date(page['wp:post_date']).toISOString(),
@@ -339,7 +339,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         apiVersion: 'content.halo.run/v1alpha1',
         spec: {
           displayName: tag['wp:tag_name'] + '',
-          slug: tag['wp:tag_slug'] + ''
+          slug: tag['wp:tag_slug'] ? decodeURIComponent(tag['wp:tag_slug']) : tag['wp:tag_name']
         }
       }
     })
@@ -362,7 +362,9 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         apiVersion: 'content.halo.run/v1alpha1',
         spec: {
           displayName: category['wp:cat_name'] + '',
-          slug: category['wp:category_nicename'] + '',
+          slug: category['wp:category_nicename']
+            ? decodeURIComponent(category['wp:category_nicename'])
+            : category['wp:cat_name'],
           priority: 0,
           description: category['wp:category_description'],
           children: children || []

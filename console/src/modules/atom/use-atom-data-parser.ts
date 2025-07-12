@@ -11,7 +11,7 @@ const isArrayPath = ['feed.entry']
 const parser = new XMLParser({
   ignoreAttributes: true,
   textNodeName: 'value',
-  isArray: (name, jpath, isLeafNode, isAttribute) => {
+  isArray: (name, jpath) => {
     if (isArrayPath.includes(jpath)) return true
     return false
   }

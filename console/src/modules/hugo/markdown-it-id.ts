@@ -1,4 +1,7 @@
 import type mdit from 'markdown-it'
+import type Token from 'markdown-it/lib/token.mjs'
+import type Renderer from 'markdown-it/lib/renderer.mjs'
+import type { Options } from 'markdown-it'
 
 /**
  * The plugin for markdown-it to add `id` attribute to each <h> element.
@@ -17,13 +20,8 @@ import type mdit from 'markdown-it'
  * @constructor
  */
 export default function MarkdownItIdPlugin(md: mdit) {
-  const proxy = (
-    tokens: mdit.Token[],
-    idx: number,
-    options: mdit.Options,
-    _: unknown,
-    self: mdit.Renderer
-  ) => self.renderToken(tokens, idx, options)
+  const proxy = (tokens: Token[], idx: number, options: Options, _: unknown, self: Renderer) =>
+    self.renderToken(tokens, idx, options)
   const defaultHeadingOpenRenderer = md.renderer.rules.heading_open || proxy
 
   const ids = new Set<string>()
@@ -54,11 +52,11 @@ export default function MarkdownItIdPlugin(md: mdit) {
    * @param self a reference to the renderer itself
    */
   md.renderer.rules.heading_open = (
-    tokens: mdit.Token[],
+    tokens: Token[],
     idx: number,
-    options: mdit.Options,
+    options: Options,
     env: unknown,
-    self: mdit.Renderer
+    self: Renderer
   ): string => {
     const nextToken = idx + 1 >= tokens.length ? undefined : tokens[idx + 1]
     if (!nextToken || nextToken.type !== 'inline' || !nextToken.children) {

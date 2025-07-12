@@ -1,4 +1,5 @@
 import atom from '@/assets/atom.svg'
+import typecho from '@/assets/typecho.png'
 import ghost from '@/assets/ghost.png'
 import hugo from '@/assets/hugo.png'
 import rss from '@/assets/rss.svg'
@@ -51,5 +52,11 @@ export const providerItems: Provider[] = [
     icon: ghost,
     description: '从 Ghost 博客平台迁移',
     importComponent: defineAsyncComponent(() => import('./ghost/GhostMigrateDataParser.vue'))
+  },
+  {
+    name: 'Typecho',
+    icon: typecho,
+    description: '从 Typecho 博客平台迁移',
+    importComponent: defineAsyncComponent(() => import('./typecho/TypechoMigrateDataParser.vue'))
   }
 ]

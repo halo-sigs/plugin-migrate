@@ -16,33 +16,82 @@ const emit = defineEmits<{
 const migrateData = ref<MigrateData>()
 const isMigrateAttachments = ref<boolean>(false)
 const attachmentBaseURL = ref<string>('https://')
+const migrationStatus = ref<'idle' | 'migrating' | 'completed'>('idle')
 
 const handleFileChange = (files: FileList) => {
+  migrationStatus.value = 'idle'
   const file = files.item(0)
   if (!file) {
     return
   }
-  // uploadAttachment('193115244.png', 'https://blog.3gxk.net/usr/uploads/2017/08/193115244.png').then(
-  //   (res) => {
-  //     console.log('上传结果:', res)
-  //   }
-  // )
   useTypechoDataParser(file)
     .parse()
     .then((data) => {
       migrateData.value = data
-      console.log('迁移数据:', data)
+      console.log(data)
     })
     .catch((error: any) => {
       console.error(error)
     })
 }
 
-function handleMigrateAttachments() {
-  migrateData.value?.posts?.forEach((post) => {
-    console.log('处理文章raw:', post.postRequest.content?.raw)
-    console.log('处理文章content:', post.postRequest.content?.content)
-  })
+async function handleMigrateAttachments() {
+  if (!migrateData.value?.attachments?.length) {
+    return
+  }
+
+  migrationStatus.value = 'migrating'
+
+  const attachments = migrateData.value.attachments
+  for (let i = attachments.length - 1; i >= 0; i--) {
+    const attachment = attachments[i]
+    const oldUrl = attachmentBaseURL.value + attachment.path
+    try {
+      console.log(`正在上传附件: ${attachment.name} 从 ${oldUrl}`)
+      const res = await uploadAttachment(attachment.name, oldUrl)
+      const newUrl = res.data.metadata.annotations?.['storage.halo.run/uri'] ?? ''
+      console.log(`附件 ${attachment.name} 上传成功，新地址: ${newUrl}`)
+
+      // 替换文章中的附件地址
+      migrateData.value.posts?.forEach((post) => {
+        if (post.postRequest.content?.raw?.includes(oldUrl)) {
+          post.postRequest.content.raw = post.postRequest.content.raw.replaceAll(oldUrl, newUrl)
+          console.log(`文章 [${post.postRequest.post.spec.title}] raw 内容中的附件地址已替换`)
+        }
+        if (post.postRequest.content?.content?.includes(oldUrl)) {
+          post.postRequest.content.content = post.postRequest.content.content.replaceAll(
+            oldUrl,
+            newUrl
+          )
+          console.log(`文章 [${post.postRequest.post.spec.title}] content 内容中的附件地址已替换`)
+        }
+      })
+
+      // 替换页面中的附件地址
+      migrateData.value.pages?.forEach((page) => {
+        if (page.singlePageRequest.content?.raw?.includes(oldUrl)) {
+          page.singlePageRequest.content.raw = page.singlePageRequest.content.raw.replaceAll(
+            oldUrl,
+            newUrl
+          )
+          console.log(`页面 [${page.singlePageRequest.page.spec.title}] raw 内容中的附件地址已替换`)
+        }
+        if (page.singlePageRequest.content?.content?.includes(oldUrl)) {
+          page.singlePageRequest.content.content =
+            page.singlePageRequest.content.content.replaceAll(oldUrl, newUrl)
+          console.log(
+            `页面 [${page.singlePageRequest.page.spec.title}] content 内容中的附件地址已替换`
+          )
+        }
+      })
+      attachments.splice(i, 1)
+    } catch (error) {
+      console.error(`附件 ${attachment.name} 上传失败:`, error)
+    }
+  }
+  console.log('所有附件处理完成')
+  emit('update:data', migrateData.value)
+  migrationStatus.value = 'completed'
 }
 </script>
 <template>
@@ -67,7 +116,7 @@ function handleMigrateAttachments() {
       v-if="migrateData?.attachments?.length"
       v-model="isMigrateAttachments"
       type="checkbox"
-      label="迁移附件"
+      label="待迁移附件"
       name="isMigrateAttachments"
     />
     <div v-if="isMigrateAttachments && migrateData?.attachments?.length">
@@ -79,8 +128,31 @@ function handleMigrateAttachments() {
         placeholder="请输入原博客地址（用于附件迁移）"
         :classes="{ outer: '!mb-0 flex-1' }"
       />
-      <VButton @click="handleMigrateAttachments">开始迁移附件</VButton>
+      <VButton
+        :loading="migrationStatus === 'migrating'"
+        :disabled="migrationStatus === 'migrating'"
+        @click="handleMigrateAttachments"
+        >开始迁移附件</VButton
+      >
     </div>
+    <VAlert
+      v-if="migrationStatus === 'migrating'"
+      title="正在迁移附件"
+      type="info"
+      :closable="false"
+      class=":uno: sheet"
+    >
+      <template #description> 正在迁移附件，请不要刷新页面。 </template>
+    </VAlert>
+    <VAlert
+      v-if="migrationStatus === 'completed'"
+      title="迁移完成"
+      type="success"
+      :closable="true"
+      class=":uno: sheet"
+    >
+      <template #description> 附件迁移完成。 </template>
+    </VAlert>
     <div
       v-if="isMigrateAttachments && migrateData?.attachments?.length"
       class="border rounded p-4 space-y-2"

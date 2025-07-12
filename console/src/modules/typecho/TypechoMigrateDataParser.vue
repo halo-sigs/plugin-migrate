@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import FileSelector from '@/components/FileSelector.vue'
-import type { MigrateData } from '@/types'
+import type { MigrateAttachment, MigrateData } from '@/types'
 import { VAlert, VButton } from '@halo-dev/components'
 import { useTypechoDataParser, uploadAttachment } from './use-typecho-data-parser'
 import { ref } from 'vue'
@@ -17,6 +17,7 @@ const migrateData = ref<MigrateData>()
 const isMigrateAttachments = ref<boolean>(false)
 const attachmentBaseURL = ref<string>('https://')
 const migrationStatus = ref<'idle' | 'migrating' | 'completed'>('idle')
+const attachments = ref<MigrateAttachment[]>([])
 
 const handleFileChange = (files: FileList) => {
   migrationStatus.value = 'idle'
@@ -28,7 +29,9 @@ const handleFileChange = (files: FileList) => {
     .parse()
     .then((data) => {
       migrateData.value = data
-      console.log(data)
+      attachments.value = data.attachments ?? []
+      migrateData.value.attachments = []
+      emit('update:data', migrateData.value)
     })
     .catch((error: any) => {
       console.error(error)
@@ -36,15 +39,14 @@ const handleFileChange = (files: FileList) => {
 }
 
 async function handleMigrateAttachments() {
-  if (!migrateData.value?.attachments?.length) {
+  if (!attachments?.value.length || !migrateData.value) {
     return
   }
 
   migrationStatus.value = 'migrating'
 
-  const attachments = migrateData.value.attachments
-  for (let i = attachments.length - 1; i >= 0; i--) {
-    const attachment = attachments[i]
+  for (let i = attachments.value.length - 1; i >= 0; i--) {
+    const attachment = attachments.value[i]
     const oldUrl = attachmentBaseURL.value + attachment.path
     try {
       console.log(`正在上传附件: ${attachment.name} 从 ${oldUrl}`)
@@ -84,7 +86,7 @@ async function handleMigrateAttachments() {
           )
         }
       })
-      attachments.splice(i, 1)
+      attachments.value.splice(i, 1)
     } catch (error) {
       console.error(`附件 ${attachment.name} 上传失败:`, error)
     }
@@ -113,13 +115,13 @@ async function handleMigrateAttachments() {
       @fileChange="handleFileChange"
     ></FileSelector>
     <FormKit
-      v-if="migrateData?.attachments?.length"
+      v-if="attachments.length"
       v-model="isMigrateAttachments"
       type="checkbox"
       label="迁移附件"
       name="isMigrateAttachments"
     />
-    <div v-if="isMigrateAttachments && migrateData?.attachments?.length">
+    <div v-if="isMigrateAttachments && attachments.length">
       <FormKit
         v-model="attachmentBaseURL"
         type="text"
@@ -154,18 +156,18 @@ async function handleMigrateAttachments() {
       <template #description> 附件迁移完成。 </template>
     </VAlert>
     <div
-      v-if="isMigrateAttachments && migrateData?.attachments?.length"
+      v-if="isMigrateAttachments && attachments.length"
       class="border rounded p-4 space-y-2"
     >
       <span class="font-bold">待附件列表</span>
       <ul class="list-disc list-inside max-h-64 overflow-y-auto">
-        <li v-for="attachment in migrateData.attachments" :key="attachment.id">
+        <li v-for="attachment in attachments" :key="attachment.id">
           {{ attachmentBaseURL + attachment.path }}
         </li>
       </ul>
     </div>
     <VAlert
-      v-if="isMigrateAttachments && migrateData?.attachments?.length"
+      v-if="isMigrateAttachments && attachments.length"
       title="附件迁移说明"
       type="info"
       :closable="false"

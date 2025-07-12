@@ -1,5 +1,13 @@
 import SparkMD5 from 'spark-md5'
 
+export interface Attachment {
+  name: string
+  path: string
+  size: number
+  type: string
+  mime: string
+}
+
 /**
  * 内容
  */
@@ -385,7 +393,7 @@ export class TypechoDataParser {
  * 它可以是基本类型（字符串、数字、null），也可以是嵌套对象，
  * 其中键是字符串或数字，值是 PhpValue 本身。
  */
-export type PhpValue = string | number | null | { [key: string | number]: PhpValue }
+export type PhpValue = string | number | boolean | null | { [key: string | number]: PhpValue }
 
 /**
  * 反序列化一个 PHP 字符串，正确处理多字节字符。
@@ -427,6 +435,11 @@ export function phpUnserialize(serializedString: string): PhpValue {
     offset++ // :
 
     switch (type) {
+      case 'b': {
+        const valueStr = readUntil(';')
+        offset++ // ;
+        return parseInt(valueStr, 10) === 1
+      }
       case 'i': {
         const valueStr = readUntil(';')
         offset++ // ;

@@ -9,6 +9,7 @@ import type {
   MigrateTag
 } from '@/types'
 import {
+  type Attachment,
   phpUnserialize,
   type TypechoComment,
   type TypechoContent,
@@ -18,6 +19,7 @@ import {
 } from './typecho-data-parser'
 import markdownit from 'markdown-it'
 import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
+import { consoleApiClient } from '@halo-dev/api-client'
 
 interface useTypechoDataParserReturn {
   parse: () => Promise<MigrateData>
@@ -34,14 +36,13 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
           try {
             const parser = new TypechoDataParser(buffer)
             const backupData = parser.parse()
-            console.log('解析结果:', backupData)
             resolve({
               posts: parsePosts(backupData.contents, backupData.relationships, backupData.metas),
               pages: parsePages(backupData.contents),
               comments: parseComments(backupData.contents, backupData.comments),
               tags: parseTags(backupData.metas),
               categories: parseCategories(backupData.metas),
-              attachments: undefined
+              attachments: parseAttachments(backupData.contents)
             } as MigrateData)
           } catch (error) {
             console.error('解析失败:', error)
@@ -222,6 +223,26 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
     return data
   }
 
+  const parseAttachments = (contents?: TypechoContent[]): MigrateAttachment[] => {
+    return (
+      contents
+        ?.filter((content) => content.type === 'attachment')
+        .map((content) => {
+          const img = phpUnserialize(content.text) as unknown as Attachment
+          return {
+            id: content.cid,
+            name: img.name,
+            path: img.path,
+            type: 'LOCAL',
+            height: 0,
+            width: 0,
+            mediaType: img.mime,
+            size: img.size
+          }
+        }) ?? []
+    )
+  }
+
   const createComment = (
     comment: TypechoComment,
     content: TypechoContent,
@@ -298,4 +319,14 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
   return {
     parse
   }
+}
+
+export async function uploadAttachment(name: string, url: string) {
+  return await consoleApiClient.storage.attachment.externalTransferAttachment({
+    uploadFromUrlRequest: {
+      filename: name,
+      policyName: 'default-policy',
+      url: url
+    }
+  })
 }

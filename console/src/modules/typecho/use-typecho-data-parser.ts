@@ -25,6 +25,8 @@ interface useTypechoDataParserReturn {
   parse: () => Promise<MigrateData>
 }
 
+// 原始数据中posts、pages和attachments共用一张表,comments单独一张表,tags和categories共用一张表
+// 为了防止metadata.name冲突, 因此各自添加一个前缀
 export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
   const parse = (): Promise<MigrateData> => {
     return new Promise<MigrateData>((resolve, reject) => {
@@ -87,7 +89,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
                         return relationship.cid === content.cid && relationship.mid === meta.mid
                       })
                     })
-                    .map((meta) => meta.mid),
+                    .map((meta) => `category-${meta.mid}`),
                   tags: metas
                     ?.filter((meta) => meta.type === 'tag')
                     ?.filter((meta) => {
@@ -95,12 +97,12 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
                         return relationship.cid === content.cid && relationship.mid === meta.mid
                       })
                     })
-                    .map((meta) => meta.mid)
+                    .map((meta) => `tag-${meta.mid}`)
                 },
                 apiVersion: 'content.halo.run/v1alpha1',
                 kind: 'Post',
                 metadata: {
-                  name: content.cid
+                  name: `post-${content.cid}`
                 }
               },
               content: {
@@ -123,7 +125,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         .map((it) => {
           return {
             metadata: {
-              name: it.mid
+              name: `tag-${it.mid}`
             },
             kind: 'Tag',
             apiVersion: 'content.halo.run/v1alpha1',
@@ -143,10 +145,10 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         .map((it) => {
           const children = metas
             ?.filter((meta) => meta.parent === it.mid && meta.type === 'category')
-            .map((item) => item.mid)
+            .map((item) => `category-${item.mid}`)
           return {
             metadata: {
-              name: it.mid
+              name: `category-${it.mid}`
             },
             kind: 'Category',
             apiVersion: 'content.halo.run/v1alpha1',
@@ -187,7 +189,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
                 apiVersion: 'content.halo.run/v1alpha1',
                 kind: 'SinglePage',
                 metadata: {
-                  name: content.cid
+                  name: `page-${content.cid}`
                 }
               },
               content: {
@@ -208,6 +210,16 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
     comments?: TypechoComment[]
   ): (MigrateComment | MigrateReply)[] => {
     const data: (MigrateComment | MigrateReply)[] = []
+    const findRootComment = (comment: TypechoComment): TypechoComment => {
+      if (comment.parent === '0') {
+        return comment
+      }
+      const parentComment = comments?.find((c) => c.coid === comment.parent)
+      if (parentComment) {
+        return findRootComment(parentComment)
+      }
+      return comment
+    }
     for (const comment of comments ?? []) {
       const content = contents?.find((c) => c.cid === comment.cid)
       if (!content) {
@@ -217,7 +229,8 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       if (comment.parent === '0') {
         data.push(createComment(comment, content, refType))
       } else {
-        data.push(createReply(comment, refType))
+        const rootComment = findRootComment(comment)
+        data.push(createReply(comment, refType, `comment-${rootComment.coid}`))
       }
     }
     return data
@@ -230,7 +243,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         .map((content) => {
           const img = phpUnserialize(content.text) as unknown as Attachment
           return {
-            id: content.cid,
+            id: `attachment-${content.cid}`,
             name: img.name,
             path: img.path,
             type: 'LOCAL',
@@ -274,22 +287,26 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
           kind: content.type == 'post' ? 'Post' : 'SinglePage',
           group: 'content.halo.run',
           version: 'v1alpha1',
-          name: content.cid
+          name: `${content.type}-${content.cid}`
         }
       },
       metadata: {
-        name: comment.coid
+        name: `comment-${comment.coid}`
       }
     }
   }
 
-  const createReply = (reply: TypechoComment, refType: 'Post' | 'SinglePage'): MigrateReply => {
+  const createReply = (
+    reply: TypechoComment,
+    refType: 'Post' | 'SinglePage',
+    commentName: string
+  ): MigrateReply => {
     return {
       refType: refType,
       kind: 'Reply',
       apiVersion: 'content.halo.run/v1alpha1',
       metadata: {
-        name: reply.coid
+        name: `comment-${reply.coid}`
       },
       spec: {
         raw: reply.text,
@@ -309,8 +326,8 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         approved: reply.status === 'approved',
         creationTime: new Date(Number(reply.created) * 1000).toISOString(),
         hidden: false,
-        commentName: reply.parent,
-        quoteReply: reply.parent
+        commentName: commentName,
+        quoteReply: `comment-${reply.parent}`
       },
       status: {}
     }

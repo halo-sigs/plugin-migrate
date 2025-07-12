@@ -116,7 +116,7 @@ async function handleMigrateAttachments() {
       v-if="migrateData?.attachments?.length"
       v-model="isMigrateAttachments"
       type="checkbox"
-      label="待迁移附件"
+      label="迁移附件"
       name="isMigrateAttachments"
     />
     <div v-if="isMigrateAttachments && migrateData?.attachments?.length">
@@ -157,7 +157,7 @@ async function handleMigrateAttachments() {
       v-if="isMigrateAttachments && migrateData?.attachments?.length"
       class="border rounded p-4 space-y-2"
     >
-      <span class="font-bold">附件列表</span>
+      <span class="font-bold">待附件列表</span>
       <ul class="list-disc list-inside max-h-64 overflow-y-auto">
         <li v-for="attachment in migrateData.attachments" :key="attachment.id">
           {{ attachmentBaseURL + attachment.path }}

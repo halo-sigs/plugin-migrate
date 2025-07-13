@@ -163,15 +163,17 @@ async function handleMigrateAttachments() {
       class=":uno: sheet"
     >
       <template #description>
-        有 {{ attachments.length }} 个附件迁移失败。请检查下方“待附件列表”中的链接是否可以正常访问，并确认原博客地址填写正确。
+        有
+        {{ attachments.length }}
+        个附件迁移失败。请检查下方“待附件列表”中的链接是否可以正常访问，并确认原博客地址填写正确。
       </template>
     </VAlert>
     <div
       v-if="isMigrateAttachments && attachments.length"
-      class="border rounded p-4 space-y-2"
+      class=":uno: border rounded p-4 space-y-2"
     >
-      <span class="font-bold">待附件列表</span>
-      <ul class="list-disc list-inside max-h-64 overflow-y-auto">
+      <span class=":uno: font-bold">待附件列表</span>
+      <ul class=":uno: max-h-64 list-disc list-inside overflow-y-auto">
         <li v-for="attachment in attachments" :key="attachment.id">
           {{ attachmentBaseURL + attachment.path }}
         </li>

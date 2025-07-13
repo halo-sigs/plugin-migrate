@@ -1,5 +1,5 @@
 {
-  "extends": "@vue/tsconfig/tsconfig.web.json",
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
   "include": ["./env.d.ts", "./src/**/*", "./src/**/*.vue", "./src/**/*.ts"],
   "exclude": ["./src/**/__tests__/*"],
   "compilerOptions": {
@@ -9,6 +9,7 @@
       "@/*": ["./src/*"]
     },
     "types": ["unplugin-icons/types/vue"],
-    "lib": ["esnext", "DOM"]
+    "lib": ["esnext", "DOM"],
+    "moduleResolution": "bundler"
   }
 }

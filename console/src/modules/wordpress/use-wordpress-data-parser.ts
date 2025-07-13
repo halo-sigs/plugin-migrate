@@ -325,7 +325,8 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         hidden: false,
         commentName: reply['wp:comment_parent'] + '',
         quoteReply: reply['wp:comment_parent'] + ''
-      }
+      },
+      status: {}
     }
   }
 

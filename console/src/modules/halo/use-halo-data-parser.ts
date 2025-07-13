@@ -374,7 +374,8 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
         hidden: false,
         commentName: commentName + '',
         quoteReply: comment.parentId + ''
-      }
+      },
+      status: {}
     }
   }
 

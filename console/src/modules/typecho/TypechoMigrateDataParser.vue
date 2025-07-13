@@ -147,13 +147,24 @@ async function handleMigrateAttachments() {
       <template #description> 正在迁移附件，请不要刷新页面。 </template>
     </VAlert>
     <VAlert
-      v-if="migrationStatus === 'completed'"
+      v-if="migrationStatus === 'completed' && !attachments.length"
       title="迁移完成"
       type="success"
       :closable="true"
       class=":uno: sheet"
     >
-      <template #description> 附件迁移完成。 </template>
+      <template #description> 所有附件迁移完成。 </template>
+    </VAlert>
+    <VAlert
+      v-if="migrationStatus === 'completed' && attachments.length"
+      title="部分附件迁移失败"
+      type="warning"
+      :closable="true"
+      class=":uno: sheet"
+    >
+      <template #description>
+        有 {{ attachments.length }} 个附件迁移失败。请检查下方“待附件列表”中的链接是否可以正常访问，并确认原博客地址填写正确。
+      </template>
     </VAlert>
     <div
       v-if="isMigrateAttachments && attachments.length"

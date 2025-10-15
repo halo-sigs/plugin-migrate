@@ -11,6 +11,7 @@
 3. RSS / Atom 订阅链接
 4. [Hugo](https://gohugo.io/)
 5. [Ghost](https://ghost.org/)
+6. [Typecho](https://github.com/typecho/typecho)
 
 ## 使用方式
 
@@ -30,8 +31,8 @@
 所需环境：
 
 1. Java 17
-2. Node 18
-3. pnpm 8
+2. Node 20
+3. pnpm 10
 4. Docker (可选)
 
 克隆项目：

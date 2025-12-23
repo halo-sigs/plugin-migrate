@@ -3,7 +3,7 @@ import type { MigrateAttachment } from '@/types'
 import { coreApiClient, type Policy } from '@halo-dev/api-client'
 import { VAlert } from '@halo-dev/components'
 import { useQuery } from '@tanstack/vue-query'
-import { groupBy } from 'lodash-es'
+import { groupBy } from 'es-toolkit'
 import { computed, reactive, ref, watch } from 'vue'
 
 const props = defineProps<{

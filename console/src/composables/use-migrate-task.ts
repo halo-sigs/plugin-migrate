@@ -25,7 +25,7 @@ import {
   type User
 } from '@halo-dev/api-client'
 import type { AxiosResponse } from 'axios'
-import { groupBy } from 'lodash-es'
+import { groupBy } from 'es-toolkit'
 
 export interface MigrateRequestTask<T> {
   item: T

@@ -9,7 +9,6 @@
       "@/*": ["./src/*"]
     },
     "types": ["unplugin-icons/types/vue"],
-    "lib": ["esnext", "DOM"],
-    "moduleResolution": "bundler"
+    "lib": ["esnext", "DOM"]
   }
 }

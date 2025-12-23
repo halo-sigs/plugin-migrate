@@ -1,8 +1,7 @@
-import { definePlugin } from '@halo-dev/console-shared'
-import { defineAsyncComponent, markRaw } from 'vue'
-import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone'
+import { definePlugin } from '@halo-dev/ui-shared'
 import 'uno.css'
-import { VLoading } from '@halo-dev/components'
+import { markRaw } from 'vue'
+import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone'
 
 export default definePlugin({
   routes: [
@@ -14,10 +13,7 @@ export default definePlugin({
           {
             path: '',
             name: 'Migrate',
-            component: defineAsyncComponent({
-              loader: () => import('./views/MigrateView.vue'),
-              loadingComponent: VLoading
-            }),
+            component: () => import('./views/MigrateView.vue'),
             meta: {
               title: '迁移',
               searchable: true,
@@ -33,6 +29,5 @@ export default definePlugin({
         ]
       }
     }
-  ],
-  extensionPoints: {}
+  ]
 })

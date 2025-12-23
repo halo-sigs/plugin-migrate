@@ -46,5 +46,5 @@ build {
 }
 
 halo {
-    version = '2.21'
+    version = '2.22.0-rc.1'
 }

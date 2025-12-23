@@ -1,6 +1,6 @@
 import type { MigrateData, MigratePost } from '@/types'
+import { utils } from '@halo-dev/ui-shared'
 import { XMLParser } from 'fast-xml-parser'
-import { randomUUID } from '@/utils/id'
 import { slugify } from 'transliteration'
 
 interface useAtomDataParserReturn {
@@ -119,7 +119,7 @@ export function useRssDataParser(source: File | string): useAtomDataParserReturn
               apiVersion: 'content.halo.run/v1alpha1',
               kind: 'Post',
               metadata: {
-                name: randomUUID()
+                name: utils.id.uuid()
               }
             },
             content: {

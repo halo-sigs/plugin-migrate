@@ -2,6 +2,7 @@
 import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateData } from '@/types'
 import { useWordPressDataParser } from './use-wordpress-data-parser'
+import { Toast } from '@halo-dev/components';
 defineProps<{
   data: MigrateData
 }>()
@@ -21,6 +22,7 @@ const handleFileChange = (files: FileList) => {
       emit('update:data', data)
     })
     .catch((error: any) => {
+      Toast.error(error)
       console.error(error)
     })
 }

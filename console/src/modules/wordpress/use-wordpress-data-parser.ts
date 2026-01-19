@@ -23,6 +23,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         const xmlData = event.target?.result as string
         const isArrayPath = [
           'rss.channel.item',
+          'rss.channel.wp:term',
           'rss.channel.wp:category',
           'rss.channel.wp:tag',
           'rss.channel.item.category',

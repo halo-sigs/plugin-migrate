@@ -10,6 +10,7 @@ import { consoleApiClient, type PluginList, type User } from '@halo-dev/api-clie
 import { Dialog, VPageHeader } from '@halo-dev/components'
 import type { AxiosResponse } from 'axios'
 import * as fastq from 'fastq'
+import type { queueAsPromised } from "fastq";
 import { computed, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone'
@@ -50,7 +51,7 @@ const handlePolicyChange = (typeToPolicyMap: Map<string, string>) => {
   policyMap.value = typeToPolicyMap
 }
 
-const taskQueue: fastq.queueAsPromised<MigrateRequestTask<any>> = fastq.promise(asyncWorker, 9)
+const taskQueue: queueAsPromised<MigrateRequestTask<any>> = fastq.promise(asyncWorker, 9)
 
 async function asyncWorker(arg: MigrateRequestTask<any>): Promise<AxiosResponse<any, any>> {
   return arg.run()

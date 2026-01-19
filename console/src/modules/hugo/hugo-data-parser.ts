@@ -5,7 +5,7 @@ import type {
   MigrateSinglePage,
   MigrateTag
 } from '@/types'
-import { type Entry, TextWriter, ZipReader } from '@zip.js/zip.js'
+import { type FileEntry, TextWriter, ZipReader } from '@zip.js/zip.js'
 import YAML from 'yaml'
 import * as toml from 'toml'
 import { slugify } from 'transliteration'
@@ -87,7 +87,7 @@ export class HugoDataParser {
   async parseSections(file: File): Promise<string[]> {
     const zipReader = new ZipReader(file.stream())
     try {
-      const entries = await zipReader.getEntries({})
+      const entries = await zipReader.getEntries({}) as FileEntry[]
       this.identifyBaseFileName(entries)
 
       return this.filterMarkdownEntries(entries)
@@ -101,7 +101,7 @@ export class HugoDataParser {
   async parse(file: File): Promise<MigrateData> {
     const zipReader = new ZipReader(file.stream())
     try {
-      const entries = await zipReader.getEntries({})
+      const entries = await zipReader.getEntries({}) as FileEntry[]
       this.identifyBaseFileName(entries)
       const mdEntries = this.filterMarkdownEntries(entries)
       const posts: HugoDocument[] = []
@@ -122,7 +122,7 @@ export class HugoDataParser {
     }
   }
 
-  private filterMarkdownEntries(entries: Entry[]): Entry[] {
+  private filterMarkdownEntries(entries: FileEntry[]): FileEntry[] {
     return entries.filter((entry) => !entry.directory && entry.filename.endsWith('.md'))
   }
 
@@ -302,7 +302,7 @@ export class HugoDataParser {
    * @throws Error
    * @private
    */
-  private async parseHugoDocument(entry: Entry): Promise<HugoDocument> {
+  private async parseHugoDocument(entry: FileEntry): Promise<HugoDocument> {
     if (!entry.getData) {
       throw new Error(`entry '${entry.filename}' is unreadable`)
     }
@@ -395,7 +395,7 @@ export class HugoDataParser {
    * @param entry
    * @private
    */
-  private getSectionName(entry: Entry): string {
+  private getSectionName(entry: FileEntry): string {
     let s = entry.filename
     if (this.baseFileName) {
       s = s.substring(this.baseFileName.length)
@@ -409,7 +409,7 @@ export class HugoDataParser {
    * @param entries
    * @private
    */
-  private identifyBaseFileName(entries: Entry[]) {
+  private identifyBaseFileName(entries: FileEntry[]) {
     const e = entries.find(
       (entry) => entry.directory && (entry.filename == 'content/' || entry.filename == 'post/')
     )

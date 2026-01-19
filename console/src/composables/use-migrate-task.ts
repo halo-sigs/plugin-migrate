@@ -57,7 +57,7 @@ class TagTask implements MigrateRequestTask<MigrateTag> {
 
   run() {
     return coreApiClient.content.tag.createTag({
-      tag: this.item as Tag
+      tag: this.item
     })
   }
 }
@@ -435,7 +435,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
 
   const createMenuTasks = () => {
     const menus = data.menuItems || []
-    const groupedMenus = groupBy(menus, 'groupId')
+    const groupedMenus = groupBy(menus, item => item.groupId)
     const menuTask: MenuTask[] = []
     Object.keys(groupedMenus).forEach((key) => {
       const itemNames = groupedMenus[key].map((item) => item.menu.metadata.name)
@@ -457,7 +457,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
 
   const createPhotoTasks = () => {
     const photos = data.photos || []
-    const groupedPhotos = groupBy(photos, 'spec.groupName')
+    const groupedPhotos = groupBy(photos, item => item.spec.groupName)
     const photoGroupTasks: PhotoGroupTask[] = []
     Object.keys(groupedPhotos).forEach((key) => {
       photoGroupTasks.push(new PhotoGroupTask(key))
@@ -472,7 +472,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
 
   const createLinkTasks = () => {
     const links = data.links || []
-    const groupedLinks = groupBy(links, 'spec.groupName')
+    const groupedLinks = groupBy(links, item => item.spec.groupName || '')
     const linkGroupTasks: LinkGroupTask[] = []
     Object.keys(groupedLinks).forEach((key) => {
       linkGroupTasks.push(new LinkGroupTask(key))
@@ -494,12 +494,12 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
     if (!user || !typeToPolicyMap || typeToPolicyMap.size === 0) {
       return []
     }
-    const typeGroupAttachments = groupBy(attachments, 'type')
+    const typeGroupAttachments = groupBy(attachments, item => item.type)
 
     let attachmentRequests: MigrateRequestTask<any>[] = []
-    const userName = user.metadata.name
-    Object.keys(typeGroupAttachments).forEach((type) => {
-      const attachments = typeGroupAttachments[type]
+    const userName = user.metadata.name;
+
+    Object.entries(typeGroupAttachments).forEach(([key, attachments]) => {
       attachmentRequests = [
         ...attachmentRequests,
         ...attachments
@@ -529,7 +529,7 @@ export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
           })
           .filter((item) => item && item != undefined)
       ]
-    })
+    });
 
     return attachmentRequests
   }

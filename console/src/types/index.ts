@@ -79,6 +79,17 @@ export interface MigrateReply extends Reply {
   refType: 'Post' | 'SinglePage' | 'Moment'
 }
 
+export type AttachmentType = 
+| 'LOCAL'
+| 'UPOSS'
+| 'QINIUOSS'
+| 'SMMS'
+| 'ALIOSS'
+| 'BAIDUBOS'
+| 'TENCENTCOS'
+| 'HUAWEIOBS'
+| 'MINIO';
+
 export interface MigrateAttachment {
   id: number | string
   name: string
@@ -92,16 +103,7 @@ export interface MigrateAttachment {
   height?: number
   size?: number
   tags?: string[]
-  type:
-    | 'LOCAL'
-    | 'UPOSS'
-    | 'QINIUOSS'
-    | 'SMMS'
-    | 'ALIOSS'
-    | 'BAIDUBOS'
-    | 'TENCENTCOS'
-    | 'HUAWEIOBS'
-    | 'MINIO'
+  type: AttachmentType;
   createTime?: number
   updateTime?: number
 }

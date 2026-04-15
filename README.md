@@ -30,8 +30,8 @@
 
 所需环境：
 
-1. Java 17
-2. Node 20
+1. Java 21
+2. Node 24
 3. pnpm 10
 4. Docker (可选)
 

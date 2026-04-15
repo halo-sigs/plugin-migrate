@@ -5,7 +5,8 @@
     "dev": "rsbuild build --env-mode development --watch",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
     "prettier": "prettier --write .",
-    "type-check": "vue-tsc --noEmit -p tsconfig.json --composite false"
+    "type-check": "vue-tsc --noEmit -p tsconfig.json --composite false",
+    "test:unit": "echo 'No tests'"
   },
   "prettier": {
     "plugins": [

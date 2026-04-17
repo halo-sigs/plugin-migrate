@@ -26,6 +26,14 @@ const handleFileChange = (files: FileList) => {
       console.error(error)
     })
 }
+
+const reset = () => {
+  emit('update:data', {} as MigrateData)
+}
+
+defineExpose({
+  reset
+})
 </script>
 <template>
   <div>

@@ -171,11 +171,14 @@ defineExpose({
                 : ':uno: border-gray-300'
             "
           >
-            <span v-if="localStrategy === 'upload'" class=":uno: h-1.5 w-1.5 rounded-full bg-white" />
+            <span
+              v-if="localStrategy === 'upload'"
+              class=":uno: h-1.5 w-1.5 rounded-full bg-white"
+            />
           </span>
           <div>
-            <div class=":uno: font-medium">上传到新 Halo</div>
-            <div class=":uno: text-xs opacity-80">自动替换文章中的附件链接</div>
+            <div class=":uno: font-medium">上传到 Halo</div>
+            <div class=":uno: text-xs opacity-80">选择本地附件文件夹，自动上传并替换链接</div>
           </div>
         </button>
 
@@ -197,11 +200,14 @@ defineExpose({
                 : ':uno: border-gray-300'
             "
           >
-            <span v-if="localStrategy === 'manual'" class=":uno: h-1.5 w-1.5 rounded-full bg-white" />
+            <span
+              v-if="localStrategy === 'manual'"
+              class=":uno: h-1.5 w-1.5 rounded-full bg-white"
+            />
           </span>
           <div>
             <div class=":uno: font-medium">手动迁移</div>
-            <div class=":uno: text-xs opacity-80">复制 upload 目录并创建代理</div>
+            <div class=":uno: text-xs opacity-80">需要将旧的附件目录移动到 Halo 工作目录</div>
           </div>
         </button>
       </div>
@@ -209,7 +215,8 @@ defineExpose({
       <!-- 上传方案详情 -->
       <div v-if="localStrategy === 'upload'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
         <p class=":uno: mb-2 text-xs text-gray-600">
-          请选择包含 Halo 1.x upload 目录的文件夹，系统会在开始导入时自动匹配文章中的图片链接并上传。
+          请选择包含 Halo 1.x
+          附件目录的文件夹，系统会在开始导入时自动匹配文章中的图片链接并上传，这种方式可能会导致旧网站的资源链接地址发生改变。
         </p>
 
         <div class=":uno: flex flex-wrap items-center gap-2">
@@ -223,7 +230,8 @@ defineExpose({
       <!-- 手动迁移详情 -->
       <div v-if="localStrategy === 'manual'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
         <p class=":uno: mb-2 text-xs text-gray-600">
-          将 Halo 1.x 的 upload 目录复制到新 Halo 的附件目录，然后选择本地存储策略。
+          需要将 1.x 工作目录的 upload 目录里面的所有文件夹移动到 2.0 工作目录下的
+          attachments/migrate-from-1.x 文件夹，这种方式不会导致旧网站的资源地址发生改变。
         </p>
         <FormKit
           v-if="localPolicyOptions.length"
@@ -270,11 +278,7 @@ defineExpose({
       </VAlert>
 
       <div class=":uno: grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div
-          v-for="type in remoteTypes"
-          :key="type"
-          class=":uno: rounded-md bg-gray-50 p-3"
-        >
+        <div v-for="type in remoteTypes" :key="type" class=":uno: rounded-md bg-gray-50 p-3">
           <div class=":uno: mb-1.5 flex items-center justify-between">
             <span class=":uno: text-sm text-gray-700 font-medium">{{ type }}</span>
             <VTag size="sm">{{ typeGroupCounts[type] }} 个</VTag>

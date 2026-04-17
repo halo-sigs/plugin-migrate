@@ -50,6 +50,15 @@ const handleUrlSubmit = () => {
       })
   }
 }
+
+const reset = () => {
+  rssUrl.value = ''
+  emit('update:data', {} as MigrateData)
+}
+
+defineExpose({
+  reset
+})
 </script>
 <template>
   <div>

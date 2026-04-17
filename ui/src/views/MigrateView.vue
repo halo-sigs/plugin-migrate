@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MigrateAttachmentHandler from '@/components/MigrateAttachmentHandler.vue'
 import MigrateTaskDashboard from '@/components/MigrateTaskDashboard.vue'
+import HaloMigrateAttachmentHandler from '@/modules/halo/HaloMigrateAttachmentHandler.vue'
 import { useAttachmentPreprocessor } from '@/composables/use-attachment-preprocessor'
 import { useMigrateTask } from '@/composables/use-migrate-task'
 import { providerItems } from '@/modules/index'
@@ -54,6 +55,7 @@ const importLoading = ref(false)
 const isImportStarted = ref(false)
 const showTasks = ref(false)
 const attachmentHandlerRef = ref<InstanceType<typeof MigrateAttachmentHandler> | null>(null)
+const haloAttachmentHandlerRef = ref<InstanceType<typeof HaloMigrateAttachmentHandler> | null>(null)
 const providerComponentRef = ref<any>(null)
 const attachmentPreprocessor = useAttachmentPreprocessor()
 const migrateViewAttachmentFiles = ref<FileList | null>(null)
@@ -168,15 +170,39 @@ const handleProviderNext = () => {
   handleNextStep()
 }
 
-const handleNonHaloNextStep = () => {
-  if (migrateData.value?.attachments?.length && attachmentHandlerRef.value) {
-    if (!attachmentHandlerRef.value.canConfirm()) {
-      return
+const handleResetData = () => {
+  providerComponentRef.value?.reset?.()
+  migrateData.value = undefined
+  migrateViewAttachmentFiles.value = null
+  migrateViewAttachmentStrategy.value = null
+  showTasks.value = false
+  taskGroups.value = []
+}
+
+const handleUnifiedNextStep = () => {
+  if (!migrateData.value) return
+
+  // 收集附件处理器的状态
+  if (activeProvider.value?.name === 'Halo') {
+    if (haloAttachmentHandlerRef.value) {
+      if (!haloAttachmentHandlerRef.value.canConfirm()) {
+        return
+      }
+      migrateData.value = haloAttachmentHandlerRef.value.getProcessedData()
+      migrateViewAttachmentFiles.value = haloAttachmentHandlerRef.value.selectedFolderFiles || null
+      migrateViewAttachmentStrategy.value = haloAttachmentHandlerRef.value.localStrategy || null
     }
-    migrateData.value = attachmentHandlerRef.value.getProcessedData()
-    migrateViewAttachmentFiles.value = attachmentHandlerRef.value.selectedFolderFiles || null
-    migrateViewAttachmentStrategy.value = attachmentHandlerRef.value.localStrategy || null
+  } else {
+    if (migrateData.value?.attachments?.length && attachmentHandlerRef.value) {
+      if (!attachmentHandlerRef.value.canConfirm()) {
+        return
+      }
+      migrateData.value = attachmentHandlerRef.value.getProcessedData()
+      migrateViewAttachmentFiles.value = attachmentHandlerRef.value.selectedFolderFiles || null
+      migrateViewAttachmentStrategy.value = attachmentHandlerRef.value.localStrategy || null
+    }
   }
+
   handleNextStep()
 }
 
@@ -390,19 +416,22 @@ onBeforeRouteLeave((to, from, next) => {
           v-model:data="migrateData"
           :activatedPluginNames="activatedPluginNames"
           @policyChange="handlePolicyChange"
-          @next="handleProviderNext"
         />
 
-        <!-- 附件存储策略（非 Halo） -->
+        <!-- 附件存储策略 -->
         <div
-          v-if="
-            migrateData?.attachments &&
-            migrateData.attachments.length > 0 &&
-            activeProvider?.name !== 'Halo'
-          "
+          v-if="migrateData?.attachments && migrateData.attachments.length > 0"
         >
           <h3 class=":uno: mb-2 text-sm text-gray-900 font-semibold">附件存储策略</h3>
+          <HaloMigrateAttachmentHandler
+            v-if="activeProvider?.name === 'Halo'"
+            ref="haloAttachmentHandlerRef"
+            :data="migrateData"
+            :activatedPluginNames="activatedPluginNames"
+            @policyChange="handlePolicyChange"
+          />
           <MigrateAttachmentHandler
+            v-else
             ref="attachmentHandlerRef"
             :data="migrateData"
             :activatedPluginNames="activatedPluginNames"
@@ -410,19 +439,22 @@ onBeforeRouteLeave((to, from, next) => {
           />
         </div>
 
-        <!-- 下一步按钮（非 Halo 提供商） -->
+        <!-- 底部操作区 -->
         <div
-          v-if="migrateData && activeProvider?.name !== 'Halo'"
-          class=":uno: flex justify-end pt-2"
+          v-if="migrateData"
+          class=":uno: flex items-center justify-between pt-2"
         >
+          <VButton type="secondary" size="sm" @click="handleResetData">
+            重新选择文件
+          </VButton>
           <VButton
             type="primary"
             :disabled="
               !!(migrateData?.attachments?.length &&
-                attachmentHandlerRef &&
-                !attachmentHandlerRef.canConfirm())
+                ((activeProvider?.name === 'Halo' && haloAttachmentHandlerRef && !haloAttachmentHandlerRef.canConfirm()) ||
+                 (activeProvider?.name !== 'Halo' && attachmentHandlerRef && !attachmentHandlerRef.canConfirm())))
             "
-            @click="handleNonHaloNextStep"
+            @click="handleUnifiedNextStep"
           >
             下一步
           </VButton>

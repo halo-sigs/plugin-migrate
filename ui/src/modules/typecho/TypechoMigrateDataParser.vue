@@ -19,6 +19,19 @@ const attachmentBaseURL = ref<string>('https://')
 const migrationStatus = ref<'idle' | 'migrating' | 'completed'>('idle')
 const attachments = ref<MigrateAttachment[]>([])
 
+const reset = () => {
+  migrateData.value = undefined
+  attachments.value = []
+  migrationStatus.value = 'idle'
+  attachmentBaseURL.value = 'https://'
+  isMigrateAttachments.value = false
+  emit('update:data', {} as MigrateData)
+}
+
+defineExpose({
+  reset
+})
+
 const handleFileChange = (files: FileList) => {
   migrationStatus.value = 'idle'
   const file = files.item(0)

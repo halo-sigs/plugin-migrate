@@ -30,6 +30,14 @@ const handleFileChange = (files: FileList) => {
 function openDocument() {
   window.open('https://halo-plugin-migrate.pages.dev/provider/ghost.html', '_blank')
 }
+
+const reset = () => {
+  emit('update:data', {} as MigrateData)
+}
+
+defineExpose({
+  reset
+})
 </script>
 
 <template>

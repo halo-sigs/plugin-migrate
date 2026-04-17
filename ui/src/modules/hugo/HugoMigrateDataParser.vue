@@ -165,6 +165,14 @@ function resetToInitState() {
   emit('update:data', {})
 }
 
+const reset = () => {
+  resetToInitState()
+}
+
+defineExpose({
+  reset
+})
+
 function setErrorState(e: unknown) {
   state.value = State.Init
   if (e instanceof Error) {

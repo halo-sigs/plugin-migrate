@@ -44,7 +44,7 @@ export function useAttachmentPreprocessor() {
     return undefined
   }
 
-  function extractImageUrls(data: MigrateData): string[] {
+  function extractMediaUrls(data: MigrateData): string[] {
     const urls: string[] = []
     const addUrl = (url?: string) => {
       if (url && !url.startsWith('data:')) urls.push(url)
@@ -53,6 +53,10 @@ export function useAttachmentPreprocessor() {
     const extractFromHtml = (html: string) => {
       const doc = new DOMParser().parseFromString(html, 'text/html')
       doc.querySelectorAll('img').forEach((img) => addUrl(img.src))
+      doc.querySelectorAll('video, audio, source').forEach((el) => {
+        const src = el.getAttribute('src')
+        if (src) addUrl(src)
+      })
       // 提取 style="background-image: url(...)"
       const urlMatches = html.match(/url\(["']?([^"')]+)["']?\)/g)
       urlMatches?.forEach((match) => {
@@ -62,9 +66,15 @@ export function useAttachmentPreprocessor() {
     }
 
     const extractFromMarkdown = (text: string) => {
-      const regex = /!\[.*?\]\((.+?)\)/g
+      // 图片
+      const imgRegex = /!\[.*?\]\((.+?)\)/g
       let match
-      while ((match = regex.exec(text)) !== null) {
+      while ((match = imgRegex.exec(text)) !== null) {
+        addUrl(match[1])
+      }
+      // Markdown 中的视频/音频链接（常见写法）
+      const mediaRegex = /\[(?:视频|音频|video|audio)?.*?\]\(([^)]+\.(?:mp4|webm|ogg|mov|mp3|wav|aac|flac|m4a))\)/gi
+      while ((match = mediaRegex.exec(text)) !== null) {
         addUrl(match[1])
       }
     }
@@ -161,7 +171,7 @@ export function useAttachmentPreprocessor() {
 
   async function process(data: MigrateData, files: FileList) {
     isUploading.value = true
-    const urls = extractImageUrls(data)
+    const urls = extractMediaUrls(data)
     uploadProgress.value = { current: 0, total: urls.length }
     const urlMap = new Map<string, string>()
     const uploadedCache = new Map<string, string>()

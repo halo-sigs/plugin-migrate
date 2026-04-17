@@ -235,230 +235,205 @@ defineExpose({
 </script>
 
 <template>
-  <div class=":uno: border border-gray-100 rounded-xl bg-gray-50/60 p-5 space-y-5">
+  <div class=":uno: space-y-4">
     <!-- 本地附件 -->
-    <div v-if="hasLocal">
+    <div v-if="hasLocal" class=":uno: border border-gray-200 rounded-lg bg-white p-4">
       <div class=":uno: mb-3 flex items-center gap-2">
-        <span
-          class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-indigo-100 text-xs text-indigo-600 font-semibold"
-          >1</span
-        >
-        <h4 class=":uno: text-gray-900 font-semibold">本地附件</h4>
-        <VTag>{{ typeGroupCounts['LOCAL'] }} 个</VTag>
+        <h4 class=":uno: text-sm text-gray-900 font-semibold">本地附件</h4>
+        <VTag size="sm">{{ typeGroupCounts['LOCAL'] }} 个</VTag>
       </div>
 
-      <div class=":uno: space-y-3">
-        <!-- 方案选择 -->
-        <div class=":uno: flex gap-3">
-          <button
-            type="button"
-            class=":uno: flex flex-1 items-center gap-3 border rounded-lg bg-white px-4 py-3 text-left transition-all hover:border-indigo-300"
+      <!-- 方案选择 -->
+      <div class=":uno: flex gap-2">
+        <button
+          type="button"
+          class=":uno: flex flex-1 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all"
+          :class="
+            localStrategy === 'upload'
+              ? ':uno: border-indigo-500 bg-indigo-50 text-indigo-900'
+              : ':uno: border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+          "
+          @click="localStrategy = 'upload'"
+        >
+          <span
+            class=":uno: h-4 w-4 flex-shrink-0 flex items-center justify-center rounded-full border"
             :class="
               localStrategy === 'upload'
-                ? ':uno: border-indigo-500 ring-1 ring-indigo-500'
-                : ':uno: border-gray-200'
+                ? ':uno: border-indigo-500 bg-indigo-500'
+                : ':uno: border-gray-300'
             "
-            @click="localStrategy = 'upload'"
           >
-            <span
-              class=":uno: h-5 w-5 flex items-center justify-center border rounded-full"
-              :class="
-                localStrategy === 'upload'
-                  ? ':uno: border-indigo-500 bg-indigo-500'
-                  : ':uno: border-gray-300'
-              "
-            >
-              <span v-if="localStrategy === 'upload'" class=":uno: h-2 w-2 rounded-full bg-white" />
-            </span>
-            <div>
-              <div class=":uno: text-gray-900 font-medium">上传到新 Halo</div>
-              <div class=":uno: text-xs text-gray-500">自动替换文章中的附件链接</div>
-            </div>
-          </button>
+            <span v-if="localStrategy === 'upload'" class=":uno: h-1.5 w-1.5 rounded-full bg-white" />
+          </span>
+          <div>
+            <div class=":uno: font-medium">上传到新 Halo</div>
+            <div class=":uno: text-xs opacity-80">自动替换文章中的附件链接</div>
+          </div>
+        </button>
 
-          <button
-            type="button"
-            class=":uno: flex flex-1 items-center gap-3 border rounded-lg bg-white px-4 py-3 text-left transition-all hover:border-indigo-300"
+        <button
+          type="button"
+          class=":uno: flex flex-1 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all"
+          :class="
+            localStrategy === 'manual'
+              ? ':uno: border-indigo-500 bg-indigo-50 text-indigo-900'
+              : ':uno: border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+          "
+          @click="localStrategy = 'manual'"
+        >
+          <span
+            class=":uno: h-4 w-4 flex-shrink-0 flex items-center justify-center rounded-full border"
             :class="
               localStrategy === 'manual'
-                ? ':uno: border-indigo-500 ring-1 ring-indigo-500'
-                : ':uno: border-gray-200'
+                ? ':uno: border-indigo-500 bg-indigo-500'
+                : ':uno: border-gray-300'
             "
-            @click="localStrategy = 'manual'"
           >
-            <span
-              class=":uno: h-5 w-5 flex items-center justify-center border rounded-full"
-              :class="
-                localStrategy === 'manual'
-                  ? ':uno: border-indigo-500 bg-indigo-500'
-                  : ':uno: border-gray-300'
-              "
-            >
-              <span v-if="localStrategy === 'manual'" class=":uno: h-2 w-2 rounded-full bg-white" />
-            </span>
-            <div>
-              <div class=":uno: text-gray-900 font-medium">手动迁移</div>
-              <div class=":uno: text-xs text-gray-500">复制 upload 目录并创建代理</div>
-            </div>
-          </button>
+            <span v-if="localStrategy === 'manual'" class=":uno: h-1.5 w-1.5 rounded-full bg-white" />
+          </span>
+          <div>
+            <div class=":uno: font-medium">手动迁移</div>
+            <div class=":uno: text-xs opacity-80">复制 upload 目录并创建代理</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- 上传方案详情 -->
+      <div v-if="localStrategy === 'upload'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
+        <p class=":uno: mb-2 text-xs text-gray-600">
+          请选择包含 Halo 1.x upload 目录的文件夹，系统会自动匹配路径并上传。
+        </p>
+
+        <div class=":uno: flex flex-wrap items-center gap-2">
+          <FileSelector folder button-text="选择文件夹" @fileChange="handleFolderChange" />
+          <span v-if="selectedFolderFiles" class=":uno: text-xs text-gray-600">
+            已选择 {{ selectedFolderFiles.length }} 个文件
+          </span>
         </div>
 
-        <!-- 上传方案详情 -->
-        <div
-          v-if="localStrategy === 'upload'"
-          class=":uno: border border-indigo-100 rounded-lg bg-white p-4"
+        <VButton
+          v-if="selectedFolderFiles && !isUploading && uploadedUrlMap.size === 0"
+          type="primary"
+          size="sm"
+          class=":uno: mt-2"
+          @click="handleUploadAttachments"
         >
-          <VAlert type="info" title="选择附件文件夹" :closable="false" class=":uno: mb-3">
-            <template #description>
-              请选择包含 Halo 1.x <code>upload</code> 目录的文件夹，系统会自动匹配路径并上传。
-            </template>
-          </VAlert>
+          开始上传
+        </VButton>
 
-          <div class=":uno: flex items-center gap-3">
-            <FileSelector folder button-text="选择附件文件夹" @fileChange="handleFolderChange" />
-            <span v-if="selectedFolderFiles" class=":uno: text-sm text-gray-600">
-              已选择 {{ selectedFolderFiles.length }} 个文件
+        <div v-if="isUploading" class=":uno: mt-2 space-y-1">
+          <div class=":uno: flex items-center justify-between text-xs">
+            <span class=":uno: flex items-center gap-1.5 text-gray-600">
+              <VLoading />
+              正在上传附件
+            </span>
+            <span class=":uno: text-gray-900 font-medium">
+              {{ uploadProgress.current }} / {{ uploadProgress.total }}
             </span>
           </div>
-
-          <VButton
-            v-if="selectedFolderFiles && !isUploading && uploadedUrlMap.size === 0"
-            type="primary"
-            class=":uno: mt-3"
-            @click="handleUploadAttachments"
-          >
-            开始上传
-          </VButton>
-
-          <div v-if="isUploading" class=":uno: mt-3 space-y-2">
-            <div class=":uno: flex items-center justify-between text-sm">
-              <span class=":uno: flex items-center gap-2 text-gray-600">
-                <VLoading />
-                正在上传附件
-              </span>
-              <span class=":uno: text-gray-900 font-medium">
-                {{ uploadProgress.current }} / {{ uploadProgress.total }}
-              </span>
-            </div>
-            <div class=":uno: h-2 w-full overflow-hidden rounded-full bg-gray-100">
-              <div
-                class=":uno: h-full bg-indigo-500 transition-all"
-                :style="{
-                  width: uploadProgress.total
-                    ? `${(uploadProgress.current / uploadProgress.total) * 100}%`
-                    : '0%'
-                }"
-              />
-            </div>
+          <div class=":uno: h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              class=":uno: h-full bg-indigo-500 transition-all"
+              :style="{
+                width: uploadProgress.total
+                  ? `${(uploadProgress.current / uploadProgress.total) * 100}%`
+                  : '0%'
+              }"
+            />
           </div>
-
-          <VAlert
-            v-if="uploadedUrlMap.size > 0"
-            type="success"
-            :closable="false"
-            class=":uno: mt-3"
-          >
-            <template #description>
-              成功上传 {{ uploadedUrlMap.size }} 个附件，文章/页面/日志中的链接已自动替换。
-            </template>
-          </VAlert>
-
-          <VAlert
-            v-if="uploadErrors.length > 0"
-            type="warning"
-            :closable="false"
-            class=":uno: mt-3"
-          >
-            <template #description>
-              <div class=":uno: max-h-32 overflow-y-auto text-xs">
-                <div v-for="(err, idx) in uploadErrors" :key="idx" class=":uno: py-0.5">
-                  {{ err }}
-                </div>
-              </div>
-            </template>
-          </VAlert>
         </div>
 
-        <!-- 手动迁移详情 -->
-        <div
-          v-if="localStrategy === 'manual'"
-          class=":uno: border border-gray-200 rounded-lg bg-white p-4"
+        <VAlert
+          v-if="uploadedUrlMap.size > 0"
+          type="success"
+          :closable="false"
+          class=":uno: mt-2"
         >
-          <VAlert type="info" title="手动迁移说明" :closable="false" class=":uno: mb-3">
-            <template #description>
-              将 Halo 1.x 的 <code>upload</code> 目录复制到新 Halo
-              的附件目录，然后选择本地存储策略。
-            </template>
-          </VAlert>
-          <FormKit
-            v-if="localPolicyOptions.length"
-            :model-value="typeToPolicyMap.get('LOCAL')"
-            type="select"
-            label="本地存储策略"
-            :options="localPolicyOptions"
-            @update:model-value="(v: string) => typeToPolicyMap.set('LOCAL', v)"
-          />
-          <VAlert v-else type="warning" title="警告" :closable="false">
-            <template #description> 当前没有可用的本地存储策略，请先创建一个。 </template>
-          </VAlert>
-        </div>
+          <template #description>
+            <span class=":uno: text-xs"> 成功上传 {{ uploadedUrlMap.size }} 个附件，文章/页面/日志中的链接已自动替换。 </span>
+          </template>
+        </VAlert>
+
+        <VAlert
+          v-if="uploadErrors.length > 0"
+          type="warning"
+          :closable="false"
+          class=":uno: mt-2"
+        >
+          <template #description>
+            <div class=":uno: max-h-24 overflow-y-auto text-xs space-y-0.5">
+              <div v-for="(err, idx) in uploadErrors" :key="idx">{{ err }}</div>
+            </div>
+          </template>
+        </VAlert>
+      </div>
+
+      <!-- 手动迁移详情 -->
+      <div v-if="localStrategy === 'manual'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
+        <p class=":uno: mb-2 text-xs text-gray-600">
+          将 Halo 1.x 的 upload 目录复制到新 Halo 的附件目录，然后选择本地存储策略。
+        </p>
+        <FormKit
+          v-if="localPolicyOptions.length"
+          :model-value="typeToPolicyMap.get('LOCAL')"
+          type="select"
+          label="本地存储策略"
+          :options="localPolicyOptions"
+          @update:model-value="(v: string) => typeToPolicyMap.set('LOCAL', v)"
+        />
+        <VAlert v-else type="warning" title="警告" :closable="false">
+          <template #description> 当前没有可用的本地存储策略，请先创建一个。 </template>
+        </VAlert>
       </div>
     </div>
 
     <!-- 云存储附件 -->
-    <div v-if="hasRemote">
+    <div v-if="hasRemote" class=":uno: border border-gray-200 rounded-lg bg-white p-4">
       <div class=":uno: mb-3 flex items-center gap-2">
-        <span
-          class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-indigo-100 text-xs text-indigo-600 font-semibold"
-        >
-          {{ hasLocal ? '2' : '1' }}
-        </span>
-        <h4 class=":uno: text-gray-900 font-semibold">云存储附件</h4>
+        <h4 class=":uno: text-sm text-gray-900 font-semibold">云存储附件</h4>
       </div>
 
-      <div class=":uno: border border-gray-200 rounded-lg bg-white p-4">
-        <VAlert
-          v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
-          type="warning"
-          title="警告"
-          :closable="false"
-          class=":uno: mb-3"
+      <VAlert
+        v-if="!activatedPluginNames.includes('PluginS3ObjectStorage')"
+        type="warning"
+        title="警告"
+        :closable="false"
+        class=":uno: mb-3"
+      >
+        <template #description>
+          当前未安装/启用 S3 插件，云存储附件将无法迁移。
+          <a
+            href="https://halo.run/store/apps/app-Qxhpp"
+            target="_blank"
+            class=":uno: text-indigo-600 hover:underline"
+            >前往安装</a
+          >。
+        </template>
+      </VAlert>
+
+      <VAlert v-else type="info" :closable="false" class=":uno: mb-3">
+        <template #description>
+          为每种云存储类型选择对应的存储策略，系统会创建 attachments 数据记录，不移动远程文件。
+        </template>
+      </VAlert>
+
+      <div class=":uno: grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div
+          v-for="type in remoteTypes"
+          :key="type"
+          class=":uno: rounded-md bg-gray-50 p-3"
         >
-          <template #description>
-            当前未安装/启用 S3 插件，云存储附件将无法迁移。
-            <a
-              href="https://halo.run/store/apps/app-Qxhpp"
-              target="_blank"
-              class=":uno: text-indigo-600 hover:underline"
-              >前往安装</a
-            >。
-          </template>
-        </VAlert>
-
-        <VAlert v-else type="info" :closable="false" class=":uno: mb-3">
-          <template #description>
-            为每种云存储类型选择对应的存储策略，系统会创建 attachments 数据记录，不移动远程文件。
-          </template>
-        </VAlert>
-
-        <div class=":uno: grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div
-            v-for="type in remoteTypes"
-            :key="type"
-            class=":uno: border border-gray-100 rounded-lg bg-gray-50/50 p-3"
-          >
-            <div class=":uno: mb-2 flex items-center justify-between">
-              <span class=":uno: text-gray-900 font-medium">{{ type }}</span>
-              <VTag size="sm">{{ typeGroupCounts[type] }} 个</VTag>
-            </div>
-            <FormKit
-              v-model="remotePolicySelections[type]"
-              type="select"
-              :label="`存储策略`"
-              :options="policyOptions"
-              :disabled="!activatedPluginNames.includes('PluginS3ObjectStorage')"
-            />
+          <div class=":uno: mb-1.5 flex items-center justify-between">
+            <span class=":uno: text-sm text-gray-700 font-medium">{{ type }}</span>
+            <VTag size="sm">{{ typeGroupCounts[type] }} 个</VTag>
           </div>
+          <FormKit
+            v-model="remotePolicySelections[type]"
+            type="select"
+            label="存储策略"
+            :options="policyOptions"
+            :disabled="!activatedPluginNames.includes('PluginS3ObjectStorage')"
+          />
         </div>
       </div>
     </div>
@@ -467,6 +442,5 @@ defineExpose({
     <VAlert v-if="!hasLocal && !hasRemote" type="info" title="提示" :closable="false">
       <template #description> 当前数据中不包含附件，可以直接开始迁移。 </template>
     </VAlert>
-
   </div>
 </template>

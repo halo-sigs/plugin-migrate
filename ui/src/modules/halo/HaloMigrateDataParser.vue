@@ -71,7 +71,7 @@ const handleNext = () => {
 </script>
 
 <template>
-  <div class=":uno: space-y-4">
+  <div>
     <div v-if="!parsedData">
       <VAlert title="迁移提示" type="info" :closable="false" class=":uno: mb-3">
         <template #description>请选择从 Halo 1.x 后台导出的 JSON 数据文件（如 migrate-xxxxxxxx.json）。</template>
@@ -83,17 +83,7 @@ const handleNext = () => {
       <div v-if="parsing" class=":uno: mt-3 text-sm text-gray-600">正在解析数据...</div>
     </div>
 
-    <div v-else class=":uno: space-y-4">
-      <VAlert type="success" title="解析完成" :closable="false">
-        <template #description>
-          数据文件解析成功。
-          <span v-if="parsedData.attachments && parsedData.attachments.length > 0">
-            检测到 {{ parsedData.attachments.length }} 个附件，请配置下方的附件处理方案。
-          </span>
-          <span v-else> 数据中不包含附件，可直接开始迁移。 </span>
-        </template>
-      </VAlert>
-
+    <div v-else class=":uno: space-y-5">
       <HaloMigrateAttachmentHandler
         v-if="parsedData.attachments && parsedData.attachments.length > 0"
         ref="attachmentHandlerRef"

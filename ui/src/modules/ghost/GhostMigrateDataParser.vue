@@ -34,6 +34,11 @@ function openDocument() {
 
 <template>
   <div class=":uno: sm:w-1/2 space-y-4">
+    <VAlert title="迁移提示" type="info" :closable="false" class=":uno: sheet">
+      <template #description>
+        请选择从 Ghost 后台【Settings &rarr; Labs】中导出的 JSON 文件。
+      </template>
+    </VAlert>
     <VAlert title="注意事项" type="info" :closable="false" class=":uno: sheet">
       <template #description>
         <ul class=":uno: ml-2 list-disc list-inside space-y-1">

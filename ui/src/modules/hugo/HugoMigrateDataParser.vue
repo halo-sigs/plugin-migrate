@@ -177,6 +177,11 @@ function setErrorState(e: unknown) {
 
 <template>
   <div class=":uno: sm:w-2/3">
+    <VAlert title="迁移提示" type="info" :closable="false" class=":uno: sheet">
+      <template #description>
+        请上传 Hugo 站点中 <code>content</code> 目录的 ZIP 压缩包，系统将自动解析其中的文章、页面、分类和标签。
+      </template>
+    </VAlert>
     <VAlert title="提示" type="info" :closable="false" class=":uno: sheet">
       <template #description>
         HUGO 是十分灵活强大的框架，本插件目前仅支持普通的文章与页面，并且：

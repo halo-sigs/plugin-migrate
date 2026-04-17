@@ -73,6 +73,9 @@ const handleNext = () => {
 <template>
   <div class=":uno: space-y-4">
     <div v-if="!parsedData">
+      <VAlert title="迁移提示" type="info" :closable="false" class=":uno: mb-3">
+        <template #description>请选择从 Halo 1.x 后台导出的 JSON 数据文件（如 migrate-xxxxxxxx.json）。</template>
+      </VAlert>
       <FileSelector
         :options="{ accept: '.json', multiple: false }"
         @fileChange="handleFileChange"

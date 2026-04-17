@@ -55,6 +55,13 @@ const handleUrlSubmit = () => {
 <template>
   <div >
     <div class=":uno: mb-2">
+      <VAlert title="迁移提示" type="info" :closable="false">
+        <template #description>
+          请上传 RSS 订阅源文件（.xml）或输入订阅链接，系统会自动解析其中的文章数据。
+        </template>
+      </VAlert>
+    </div>
+    <div class=":uno: mb-2">
       <VAlert title="提示" type="info" :closable="false">
         <template #description>
           RSS 文件中至少需要具有文章标题以及包含文章内容的 content:encoded 或者 description

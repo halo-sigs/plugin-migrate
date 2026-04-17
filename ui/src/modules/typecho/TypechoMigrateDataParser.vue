@@ -98,6 +98,11 @@ async function handleMigrateAttachments() {
 </script>
 <template>
   <div class=":uno: sm:w-1/2 space-y-4">
+    <VAlert title="迁移提示" type="info" :closable="false" class=":uno: sheet">
+      <template #description>
+        请选择从 Typecho 后台【备份】功能中导出的数据文件（.dat / .txt）。
+      </template>
+    </VAlert>
     <VAlert title="注意事项" type="info" :closable="false" class=":uno: sheet">
       <template #description>
         <ul class=":uno: ml-2 list-disc list-inside space-y-1">

@@ -2,11 +2,11 @@
 import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateData } from '@/types'
 import { VAlert, VButton } from '@halo-dev/components'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import HaloMigrateAttachmentHandler from './HaloMigrateAttachmentHandler.vue'
 import { useHaloDataParser } from './use-halo-data-parser'
 
-defineProps<{
+const props = defineProps<{
   data: MigrateData
   activatedPluginNames: string[]
 }>()
@@ -20,6 +20,49 @@ const emit = defineEmits<{
 const parsedData = ref<MigrateData>()
 const parsing = ref(false)
 const attachmentHandlerRef = ref<InstanceType<typeof HaloMigrateAttachmentHandler> | null>(null)
+
+interface RequiredPlugin {
+  key: string
+  name: string
+  storeUrl: string
+}
+
+const REQUIRED_PLUGINS: Record<string, RequiredPlugin> = {
+  moments: {
+    key: 'PluginMoments',
+    name: '瞬间',
+    storeUrl: 'https://www.halo.run/store/apps/app-SnwWD'
+  },
+  photos: {
+    key: 'PluginPhotos',
+    name: '图库',
+    storeUrl: 'https://www.halo.run/store/apps/app-BmQJW'
+  },
+  links: {
+    key: 'PluginLinks',
+    name: '链接',
+    storeUrl: 'https://www.halo.run/store/apps/app-hfbQg'
+  }
+}
+
+const requiredPlugins = computed(() => {
+  if (!parsedData.value) return []
+  const list: RequiredPlugin[] = []
+  if (parsedData.value.moments && parsedData.value.moments.length > 0) {
+    list.push(REQUIRED_PLUGINS.moments)
+  }
+  if (parsedData.value.photos && parsedData.value.photos.length > 0) {
+    list.push(REQUIRED_PLUGINS.photos)
+  }
+  if (parsedData.value.links && parsedData.value.links.length > 0) {
+    list.push(REQUIRED_PLUGINS.links)
+  }
+  return list
+})
+
+const missingPlugins = computed(() => {
+  return requiredPlugins.value.filter((p) => !props.activatedPluginNames.includes(p.key))
+})
 
 const handleFileChange = (files: FileList) => {
   const file = files.item(0)
@@ -52,6 +95,9 @@ const handleReset = () => {
 }
 
 const handleNext = () => {
+  if (missingPlugins.value.length > 0) {
+    return
+  }
   let finalData = parsedData.value
   if (
     attachmentHandlerRef.value &&
@@ -94,6 +140,33 @@ defineExpose({
     </div>
 
     <div v-else class=":uno: space-y-5">
+      <VAlert
+        v-if="missingPlugins.length > 0"
+        type="warning"
+        title="缺少必要插件"
+        :closable="false"
+      >
+        <template #description>
+          <div class=":uno: space-y-1 text-sm"
+>
+            <p>检测到以下数据，但对应插件尚未安装或启用，请先安装后再继续迁移：</p>
+            <ul class=":uno: list-inside list-disc space-y-1"
+>
+              <li v-for="plugin in missingPlugins" :key="plugin.key">
+                {{ plugin.name }}
+                <a
+                  :href="plugin.storeUrl"
+                  target="_blank"
+                  class=":uno: text-indigo-600 hover:underline"
+                >
+                  前往安装
+                </a>
+              </li>
+            </ul>
+          </div>
+        </template>
+      </VAlert>
+
       <HaloMigrateAttachmentHandler
         v-if="parsedData.attachments && parsedData.attachments.length > 0"
         ref="attachmentHandlerRef"
@@ -104,7 +177,13 @@ defineExpose({
 
       <div class=":uno: flex items-center justify-between pt-2">
         <VButton type="secondary" size="sm" @click="handleReset">重新选择文件</VButton>
-        <VButton type="primary" @click="handleNext">下一步</VButton>
+        <VButton
+          type="primary"
+          :disabled="missingPlugins.length > 0"
+          @click="handleNext"
+        >
+          下一步
+        </VButton>
       </div>
     </div>
   </div>

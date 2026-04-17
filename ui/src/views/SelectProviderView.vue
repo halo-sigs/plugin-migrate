@@ -36,26 +36,26 @@ const handleSelectProvider = (provider: Provider) => {
         <MigrateProvider :providers="providerItems" @selectProvider="handleSelectProvider" />
       </div>
 
-      <div class=":uno: flex justify-center gap-8 text-sm text-gray-500">
-        <div class=":uno: flex items-center gap-2">
+      <div class=":uno: flex justify-center gap-8 text-sm">
+        <div class=":uno: flex items-center gap-2 text-gray-900 font-medium">
           <span
-            class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-indigo-50 text-xs text-indigo-600 font-medium"
+            class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-900 text-xs text-white font-medium"
             >1</span
           >
           <span>选择平台</span>
         </div>
         <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
-        <div class=":uno: flex items-center gap-2">
+        <div class=":uno: flex items-center gap-2 text-gray-400 font-medium">
           <span
-            class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 font-medium"
+            class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs"
             >2</span
           >
           <span>上传数据</span>
         </div>
         <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
-        <div class=":uno: flex items-center gap-2">
+        <div class=":uno: flex items-center gap-2 text-gray-400 font-medium">
           <span
-            class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 font-medium"
+            class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs"
             >3</span
           >
           <span>开始迁移</span>

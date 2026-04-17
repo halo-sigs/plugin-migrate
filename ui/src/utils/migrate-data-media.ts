@@ -1,7 +1,39 @@
 import type { MigrateData } from '@/types'
+import { isProxy, toRaw } from 'vue'
 
 export function cloneMigrateData(data: MigrateData): MigrateData {
-  return structuredClone(data)
+  return cloneValue(data)
+}
+
+function cloneValue<T>(value: T): T {
+  const rawValue = isProxy(value) ? toRaw(value) : value
+
+  if (rawValue === null || typeof rawValue !== 'object') {
+    return rawValue
+  }
+
+  if (rawValue instanceof Date) {
+    return new Date(rawValue.getTime()) as T
+  }
+
+  if (Array.isArray(rawValue)) {
+    return rawValue.map((item) => cloneValue(item)) as T
+  }
+
+  if (rawValue instanceof File || rawValue instanceof Blob) {
+    return rawValue
+  }
+
+  const prototype = Object.getPrototypeOf(rawValue)
+  if (prototype === Object.prototype || prototype === null) {
+    const result: Record<string, unknown> = {}
+    Object.entries(rawValue).forEach(([key, item]) => {
+      result[key] = cloneValue(item)
+    })
+    return result as T
+  }
+
+  return structuredClone(rawValue)
 }
 
 function replaceText(text: string, urlMap: ReadonlyMap<string, string>) {

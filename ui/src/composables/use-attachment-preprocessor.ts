@@ -19,12 +19,24 @@ export function useAttachmentPreprocessor() {
   const uploadProgress = ref({ current: 0, total: 0 })
 
   function normalizeUrl(url: string): string {
+    const ghostPlaceholderPath = url.replace(/^__GHOST_URL__\/?/, '')
+    if (ghostPlaceholderPath !== url) {
+      return normalizePath(ghostPlaceholderPath)
+    }
+
     try {
       const u = new URL(url)
-      return u.pathname + u.search
+      return normalizePath(u.pathname)
     } catch {
-      return url
+      return normalizePath(url)
     }
+  }
+
+  function normalizePath(path: string): string {
+    return path
+      .split(/[?#]/)[0]
+      .replace(/^\/+/, '')
+      .replace(/^content\/images\/size\/w\d+\//, 'content/images/')
   }
 
   function findMatchingFile(path: string, files: FileList): File | undefined {
@@ -59,15 +71,65 @@ export function useAttachmentPreprocessor() {
   function extractMediaUrls(data: MigrateData): string[] {
     const urls: string[] = []
     const addUrl = (url?: string) => {
-      if (url && !url.startsWith('data:')) urls.push(url)
+      if (!url) {
+        return
+      }
+
+      const normalized = url.trim()
+      if (
+        !normalized ||
+        normalized.startsWith('data:') ||
+        normalized.startsWith('#') ||
+        normalized.startsWith('mailto:') ||
+        normalized.startsWith('tel:') ||
+        normalized.startsWith('javascript:')
+      ) {
+        return
+      }
+
+      urls.push(normalized)
+    }
+
+    const extractSrcSet = (srcset?: string | null) => {
+      if (!srcset) {
+        return
+      }
+
+      srcset.split(',').forEach((candidate) => {
+        const [src] = candidate.trim().split(/\s+/)
+        if (src) {
+          addUrl(src)
+        }
+      })
+    }
+
+    const isLikelyFileUrl = (url: string) => {
+      const normalized = normalizeUrl(url)
+
+      return (
+        normalized.includes('content/files/') ||
+        /\.(?:zip|rar|7z|tar|gz|bz2|xz|pdf|docx?|xlsx?|pptx?|mp4|webm|ogg|mov|mp3|wav|aac|flac|m4a)$/i.test(
+          normalized
+        )
+      )
     }
 
     const extractFromHtml = (html: string) => {
       const doc = new DOMParser().parseFromString(html, 'text/html')
-      doc.querySelectorAll('img').forEach((img) => addUrl(img.src))
+      doc.querySelectorAll('img').forEach((img) => {
+        addUrl(img.getAttribute('src') || undefined)
+        extractSrcSet(img.getAttribute('srcset'))
+      })
       doc.querySelectorAll('video, audio, source').forEach((el) => {
         const src = el.getAttribute('src')
         if (src) addUrl(src)
+        extractSrcSet(el.getAttribute('srcset'))
+      })
+      doc.querySelectorAll('a').forEach((link) => {
+        const href = link.getAttribute('href')
+        if (href && isLikelyFileUrl(href)) {
+          addUrl(href)
+        }
       })
       // 提取 style="background-image: url(...)"
       const urlMatches = html.match(/url\(["']?([^"')]+)["']?\)/g)

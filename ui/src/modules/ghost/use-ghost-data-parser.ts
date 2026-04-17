@@ -65,6 +65,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
     return rawPosts
       .filter((rawPost) => rawPost.type === 'post')
       .map((rawPost) => {
+        const cleanedHtml = sanitizeGhostHtml(rawPost.html)
         const postTagIds = rawPostsTags
           .filter((postTag) => postTag.post_id === rawPost.id)
           .map((postTag) => {
@@ -102,8 +103,8 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
               }
             },
             content: {
-              raw: rawPost.html,
-              content: rawPost.html,
+              raw: cleanedHtml,
+              content: cleanedHtml,
               rawType: 'HTML'
             }
           }
@@ -115,6 +116,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
     return rawPosts
       .filter((rawPost) => rawPost.type === 'page')
       .map((rawPost) => {
+        const cleanedHtml = sanitizeGhostHtml(rawPost.html)
         return {
           singlePageRequest: {
             page: {
@@ -144,8 +146,8 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
               }
             },
             content: {
-              raw: rawPost.html,
-              content: rawPost.html,
+              raw: cleanedHtml,
+              content: cleanedHtml,
               rawType: 'HTML'
             }
           },
@@ -156,24 +158,15 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
 
   function extractAttachments(rawPosts: Post[], rawTags: Tag[]): MigrateAttachment[] {
     const attachments: MigrateAttachment[] = []
-    const seenUrls = new Set<string>()
+    const seenPaths = new Set<string>()
 
     const addAttachment = (url: string | null | undefined) => {
-      if (!url || seenUrls.has(url)) return
-      seenUrls.add(url)
+      if (!isGhostLocalMediaUrl(url)) return
 
-      let path = url
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        try {
-          const urlObj = new URL(url)
-          path = urlObj.pathname
-        } catch {
-          path = url
-        }
-      }
-      path = path.startsWith('/') ? path.slice(1) : path
+      const path = normalizeGhostMediaPath(url)
+      if (!path || seenPaths.has(path)) return
 
-      if (url.startsWith('data:') || path.startsWith('http')) return
+      seenPaths.add(path)
 
       attachments.push({
         id: uuid(),
@@ -186,12 +179,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
 
     rawPosts.forEach((post) => {
       addAttachment(post.feature_image)
-      const imgRegex = /<img[^>]+src=["']([^"']+)["']/g
-      let match
-      const html = post.html || ''
-      while ((match = imgRegex.exec(html)) !== null) {
-        addAttachment(match[1])
-      }
+      extractMediaUrlsFromHtml(post.html).forEach(addAttachment)
     })
 
     rawTags.forEach((tag) => {
@@ -203,6 +191,67 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
 
   return {
     parse
+  }
+}
+
+function extractMediaUrlsFromHtml(html?: string): string[] {
+  if (!html) {
+    return []
+  }
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const urls: string[] = []
+
+  doc.querySelectorAll('img, video, audio, source').forEach((element) => {
+    const src = element.getAttribute('src')
+    if (src) {
+      urls.push(src)
+    }
+  })
+
+  doc.querySelectorAll('a').forEach((link) => {
+    const href = link.getAttribute('href')
+    if (href) {
+      urls.push(href)
+    }
+  })
+
+  return urls
+}
+
+function sanitizeGhostHtml(html?: string): string {
+  if (!html) {
+    return ''
+  }
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+
+  doc.querySelectorAll('img, source').forEach((element) => {
+    element.removeAttribute('srcset')
+    element.removeAttribute('sizes')
+  })
+
+  return doc.body.innerHTML
+}
+
+function isGhostLocalMediaUrl(url?: string | null): url is string {
+  if (!url) {
+    return false
+  }
+
+  return /^content\/(images|files)\//.test(normalizeGhostMediaPath(url))
+}
+
+function normalizeGhostMediaPath(url: string): string {
+  try {
+    const parsedUrl = new URL(url)
+    return normalizeGhostMediaPath(parsedUrl.pathname)
+  } catch {
+    const withoutQuery = url.split(/[?#]/)[0]
+    const withoutPlaceholder = withoutQuery.replace(/^__GHOST_URL__\/?/, '')
+    const withoutLeadingSlash = withoutPlaceholder.replace(/^\/+/, '')
+
+    return withoutLeadingSlash.replace(/^content\/images\/size\/w\d+\//, 'content/images/')
   }
 }
 

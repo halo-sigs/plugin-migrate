@@ -66,7 +66,17 @@ export const providerItems: Provider[] = [
     description: '从 Ghost 博客平台迁移',
     importComponent: defineAsyncComponent(() => import('./ghost/GhostMigrateDataParser.vue')),
     options: {
-      attachmentFolderPath: 'migrate-from-ghost'
+      attachmentFolderPath: 'migrate-from-ghost',
+      attachmentHandlerDescriptions: {
+        localUploadTitle: '上传到 Halo',
+        localUploadDescription: '选择 Ghost content 目录或其子目录，自动上传并替换链接',
+        localUploadHint:
+          '请选择 Ghost content 目录或其中包含 images/files 的任意目录，系统会根据 content/images 和 content/files 路径尽量匹配本地文件并上传。',
+        localManualTitle: '手动迁移',
+        localManualDescription: '保留 Ghost 原始媒体路径，自行迁移 content 目录',
+        localManualHint:
+          '系统只会创建附件记录，不会上传文件。你需要自行迁移 Ghost 的 content 目录，并确保文章中引用的原始媒体路径仍然可访问。'
+      }
     }
   },
   {

@@ -34,22 +34,25 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       reader.readAsArrayBuffer(file)
       reader.onload = (event) => {
         const buffer = event.target?.result as ArrayBuffer
-        if (buffer) {
-          try {
-            const parser = new TypechoDataParser(buffer)
-            const backupData = parser.parse()
-            resolve({
-              posts: parsePosts(backupData.contents, backupData.relationships, backupData.metas),
-              pages: parsePages(backupData.contents),
-              comments: parseComments(backupData.contents, backupData.comments),
-              tags: parseTags(backupData.metas),
-              categories: parseCategories(backupData.metas),
-              attachments: parseAttachments(backupData.contents)
-            } as MigrateData)
-          } catch (error) {
-            console.error('解析失败:', error)
-            reject(error)
-          }
+        if (!buffer) {
+          reject(new Error('未读取到有效的 Typecho 备份内容'))
+          return
+        }
+
+        try {
+          const parser = new TypechoDataParser(buffer)
+          const backupData = parser.parse()
+          resolve({
+            posts: parsePosts(backupData.contents, backupData.relationships, backupData.metas),
+            pages: parsePages(backupData.contents),
+            comments: parseComments(backupData.contents, backupData.comments),
+            tags: parseTags(backupData.metas),
+            categories: parseCategories(backupData.metas),
+            attachments: parseAttachments(backupData.contents)
+          } as MigrateData)
+        } catch (error) {
+          console.error('解析失败:', error)
+          reject(error)
         }
       }
       reader.onerror = () => {
@@ -242,16 +245,16 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       contents
         ?.filter((content) => content.type === 'attachment')
         .map((content) => {
-          const img = phpUnserialize(content.text) as unknown as Attachment
+          const attachment = parseTypechoAttachment(content.text)
           return {
             id: `attachment-${content.cid}`,
-            name: img.name,
-            path: img.path,
+            name: attachment.name || content.title || `attachment-${content.cid}`,
+            path: attachment.path,
             type: 'LOCAL',
             height: 0,
             width: 0,
-            mediaType: img.mime,
-            size: img.size
+            mediaType: attachment.mime,
+            size: attachment.size
           }
         }) ?? []
     )
@@ -269,14 +272,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       spec: {
         raw: comment.text,
         content: comment.text,
-        owner: {
-          kind: 'Email',
-          name: comment.mail,
-          displayName: comment.author,
-          annotations: {
-            website: comment.url || ''
-          }
-        },
+        owner: createCommentOwner(comment),
         ipAddress: comment.ip,
         priority: 0,
         top: false,
@@ -294,7 +290,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       metadata: {
         name: `comment-${comment.coid}`
       }
-    }
+    } satisfies MigrateComment
   }
 
   const createReply = (
@@ -312,14 +308,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       spec: {
         raw: reply.text,
         content: reply.text,
-        owner: {
-          kind: 'Email',
-          name: reply.mail,
-          displayName: reply.author,
-          annotations: {
-            website: reply.url || ''
-          }
-        },
+        owner: createCommentOwner(reply),
         ipAddress: reply.ip,
         priority: 0,
         top: false,
@@ -331,7 +320,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         quoteReply: `comment-${reply.parent}`
       },
       status: {}
-    }
+    } satisfies MigrateReply
   }
 
   return {
@@ -347,4 +336,59 @@ export async function uploadAttachment(name: string, url: string) {
       url: url
     }
   })
+}
+
+function parseTypechoAttachment(raw: string): Attachment {
+  const normalized = raw.trim()
+
+  if (!normalized) {
+    throw new Error('附件元数据为空')
+  }
+
+  if (normalized.startsWith('{')) {
+    const parsed = JSON.parse(normalized) as Partial<Attachment>
+    return normalizeTypechoAttachment(parsed)
+  }
+
+  if (normalized.startsWith('a:')) {
+    const parsed = phpUnserialize(normalized) as unknown as Partial<Attachment>
+    return normalizeTypechoAttachment(parsed)
+  }
+
+  throw new Error('不支持的 Typecho 附件元数据格式')
+}
+
+function normalizeTypechoAttachment(attachment: Partial<Attachment>): Attachment {
+  if (!attachment.path) {
+    throw new Error('附件元数据缺少 path 字段')
+  }
+
+  return {
+    name: attachment.name || attachment.path.split('/').pop() || 'attachment',
+    path: attachment.path,
+    size: Number(attachment.size || 0),
+    type: attachment.type || '',
+    mime: attachment.mime || 'application/octet-stream'
+  }
+}
+
+function createCommentOwner(comment: TypechoComment): MigrateComment['spec']['owner'] {
+  const isRegisteredUser = comment.authorId !== '0' && comment.authorId !== ''
+
+  if (isRegisteredUser) {
+    return {
+      kind: 'User',
+      name: comment.authorId,
+      displayName: comment.author
+    }
+  }
+
+  return {
+    kind: 'Email',
+    name: comment.mail,
+    displayName: comment.author,
+    annotations: {
+      website: comment.url || ''
+    }
+  }
 }

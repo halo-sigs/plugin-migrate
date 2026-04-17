@@ -19,6 +19,7 @@ const isMigrateAttachments = ref<boolean>(false)
 const attachmentBaseURL = ref<string>('https://')
 const migrationStatus = ref<'idle' | 'migrating' | 'completed'>('idle')
 const attachments = ref<MigrateAttachment[]>([])
+const parseError = ref<string>()
 
 const reset = () => {
   migrateData.value = undefined
@@ -26,6 +27,7 @@ const reset = () => {
   migrationStatus.value = 'idle'
   attachmentBaseURL.value = 'https://'
   isMigrateAttachments.value = false
+  parseError.value = undefined
   emit('update:data', {} as MigrateData)
 }
 
@@ -35,6 +37,7 @@ defineExpose({
 
 const handleFileChange = (files: FileList) => {
   migrationStatus.value = 'idle'
+  parseError.value = undefined
   const file = files.item(0)
   if (!file) {
     return
@@ -42,12 +45,14 @@ const handleFileChange = (files: FileList) => {
   useTypechoDataParser(file)
     .parse()
     .then((data) => {
+      parseError.value = undefined
       migrateData.value = data
       attachments.value = data.attachments ?? []
       migrateData.value.attachments = []
       emit('update:data', migrateData.value)
     })
-    .catch((error: any) => {
+    .catch((error: unknown) => {
+      parseError.value = error instanceof Error ? error.message : String(error)
       console.error(error)
     })
 }
@@ -87,9 +92,14 @@ async function handleMigrateAttachments() {
       </template>
     </VAlert>
     <FileSelector
-      :options="{ accept: '.dat', multiple: false }"
+      :options="{ accept: '.dat,.txt', multiple: false }"
       @fileChange="handleFileChange"
     ></FileSelector>
+    <VAlert v-if="parseError" title="解析失败" type="error" :closable="false" class=":uno: sheet">
+      <template #description>
+        {{ parseError }}
+      </template>
+    </VAlert>
     <FormKit
       v-if="attachments.length"
       v-model="isMigrateAttachments"

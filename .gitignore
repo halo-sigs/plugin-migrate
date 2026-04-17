@@ -75,3 +75,5 @@ application-local.properties
 node_modules
 /docs/.vitepress/cache/
 /src/main/resources/console/
+
+typecho-src/

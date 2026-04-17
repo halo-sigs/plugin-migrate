@@ -15,7 +15,17 @@ export const providerItems: Provider[] = [
     description: 'Halo 1.5 / 1.6 数据迁移',
     importComponent: defineAsyncComponent(() => import('./halo/HaloMigrateDataParser.vue')),
     options: {
-      attachmentFolderPath: 'migrate-from-1.x'
+      attachmentFolderPath: 'migrate-from-1.x',
+      attachmentHandlerDescriptions: {
+        localUploadTitle: '上传到 Halo',
+        localUploadDescription: '选择本地附件文件夹，自动上传并替换链接',
+        localUploadHint:
+          '请选择包含 Halo 1.x 附件目录的文件夹，系统会在开始导入时自动匹配文章中的图片链接并上传，这种方式可能会导致旧网站的资源链接地址发生改变。',
+        localManualTitle: '手动迁移',
+        localManualDescription: '需要将旧的附件目录移动到 Halo 工作目录',
+        localManualHint:
+          '选择本地存储策略后，系统只会创建附件记录。你需要自行将原站点附件目录移动到 Halo 工作目录中。'
+      }
     }
   },
   {
@@ -66,3 +76,7 @@ export const providerItems: Provider[] = [
     importComponent: defineAsyncComponent(() => import('./typecho/TypechoMigrateDataParser.vue'))
   }
 ]
+
+export function getProviderByName(name?: string) {
+  return providerItems.find((provider) => provider.name === name)
+}

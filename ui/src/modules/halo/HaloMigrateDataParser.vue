@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateData } from '@/types'
-import { VAlert, VButton } from '@halo-dev/components'
+import { VAlert } from '@halo-dev/components'
 import { computed, ref } from 'vue'
 import { useHaloDataParser } from './use-halo-data-parser'
 
@@ -12,7 +12,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'update:data', value: MigrateData): void
-  (event: 'policyChange', value: Map<string, string>): void
 }>()
 
 const parsedData = ref<MigrateData>()
@@ -82,10 +81,6 @@ const handleFileChange = (files: FileList) => {
     })
 }
 
-const handlePolicyChange = (map: Map<string, string>) => {
-  emit('policyChange', map)
-}
-
 const reset = () => {
   parsedData.value = undefined
   emit('update:data', {} as MigrateData)
@@ -121,9 +116,9 @@ defineExpose({
         :closable="false"
       >
         <template #description>
-          <div class=":uno: space-y-1 text-sm">
+          <div class=":uno: text-sm space-y-1">
             <p>检测到以下数据，但对应插件尚未安装或启用，请先安装后再继续迁移：</p>
-            <ul class=":uno: list-inside list-disc space-y-1">
+            <ul class=":uno: list-disc list-inside space-y-1">
               <li v-for="plugin in missingPlugins" :key="plugin.key">
                 {{ plugin.name }}
                 <a

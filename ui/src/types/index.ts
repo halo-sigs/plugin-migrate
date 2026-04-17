@@ -13,6 +13,7 @@ import type { Component } from 'vue'
 
 export interface MigrationOption {
   attachmentFolderPath?: string
+  attachmentHandlerDescriptions?: AttachmentHandlerDescriptions
 }
 
 export interface Provider {
@@ -21,6 +22,17 @@ export interface Provider {
   description: string
   importComponent?: string | Component
   options?: MigrationOption
+}
+
+export type LocalAttachmentStrategy = 'upload' | 'manual'
+
+export interface AttachmentHandlerDescriptions {
+  localUploadTitle?: string
+  localUploadDescription?: string
+  localUploadHint?: string
+  localManualTitle?: string
+  localManualDescription?: string
+  localManualHint?: string
 }
 
 export interface MigrateDataParser {
@@ -192,4 +204,20 @@ export interface MigrateTaskGroup {
   key: string
   label: string
   tasks: MigrateTaskItem<any>[]
+}
+
+export interface AttachmentPreparationResult {
+  data: MigrateData
+  typeToPolicyMap: Map<string, string>
+  selectedFolderFiles: FileList | null
+  localStrategy: LocalAttachmentStrategy | null
+}
+
+export interface AttachmentHandlerExpose {
+  canConfirm: () => boolean
+  getPreparationResult: () => AttachmentPreparationResult
+}
+
+export interface ProviderParserExpose {
+  reset: () => void
 }

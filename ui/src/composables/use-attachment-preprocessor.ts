@@ -1,5 +1,5 @@
-import { consoleApiClient } from '@halo-dev/api-client'
 import type { MigrateData } from '@/types'
+import { consoleApiClient } from '@halo-dev/api-client'
 import { ref } from 'vue'
 
 export function useAttachmentPreprocessor() {
@@ -73,7 +73,8 @@ export function useAttachmentPreprocessor() {
         addUrl(match[1])
       }
       // Markdown 中的视频/音频链接（常见写法）
-      const mediaRegex = /\[(?:视频|音频|video|audio)?.*?\]\(([^)]+\.(?:mp4|webm|ogg|mov|mp3|wav|aac|flac|m4a))\)/gi
+      const mediaRegex =
+        /\[(?:视频|音频|video|audio)?.*?\]\(([^)]+\.(?:mp4|webm|ogg|mov|mp3|wav|aac|flac|m4a))\)/gi
       while ((match = mediaRegex.exec(text)) !== null) {
         addUrl(match[1])
       }

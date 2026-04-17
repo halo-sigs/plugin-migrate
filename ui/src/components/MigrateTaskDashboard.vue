@@ -198,10 +198,7 @@ watch(
             transform: `translateY(${virtualRow.start}px)`
           }"
         >
-          <div
-            v-if="filteredTasks[virtualRow.index]"
-            class=":uno: h-full flex items-center gap-3"
-          >
+          <div v-if="filteredTasks[virtualRow.index]" class=":uno: h-full flex items-center gap-3">
             <div
               class=":uno: h-8 w-1.5 flex-shrink-0 rounded-full"
               :class="{

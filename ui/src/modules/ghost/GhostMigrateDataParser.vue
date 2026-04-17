@@ -45,7 +45,7 @@ defineExpose({
     <VAlert title="迁移提示" type="info" :closable="false" class=":uno: sheet">
       <template #description>
         请选择从 Ghost 后台【Settings &rarr; Labs】中导出的 JSON 文件。
-        <ul class=":uno: ml-2 list-disc list-inside space-y-1 mt-1">
+        <ul class=":uno: ml-2 mt-1 list-disc list-inside space-y-1">
           <li>在开始迁移前，建议先阅读关于 Ghost 迁移的文档。</li>
           <li>
             目前仅支持根据 Ghost 导出的 JSON

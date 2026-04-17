@@ -1,4 +1,10 @@
-import type { MigrateAttachment, MigrateData, MigratePost, MigrateSinglePage, MigrateTag } from '@/types'
+import type {
+  MigrateAttachment,
+  MigrateData,
+  MigratePost,
+  MigrateSinglePage,
+  MigrateTag
+} from '@/types'
 import type { Post, PostsTag, Root, Tag } from './types'
 
 interface useGhostDataParserReturn {

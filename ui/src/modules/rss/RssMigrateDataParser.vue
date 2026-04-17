@@ -62,7 +62,7 @@ defineExpose({
 })
 </script>
 <template>
-  <div >
+  <div>
     <div class=":uno: mb-2">
       <VAlert title="迁移提示" type="info" :closable="false">
         <template #description>

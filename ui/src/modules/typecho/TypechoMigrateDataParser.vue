@@ -114,7 +114,7 @@ async function handleMigrateAttachments() {
     <VAlert title="迁移提示" type="info" :closable="false" class=":uno: sheet">
       <template #description>
         请选择从 Typecho 后台【备份】功能中导出的数据文件（.dat / .txt）。
-        <ul class=":uno: ml-2 list-disc list-inside space-y-1 mt-1">
+        <ul class=":uno: ml-2 mt-1 list-disc list-inside space-y-1">
           <li>目前仅支持根据 Typecho 后台导出的备份文件自动迁移数据。</li>
           <li>
             由于平台之间的差异性，目前仅支持迁移<b>文章</b>、<b>分类</b>、<b>标签</b>、<b>页面</b>、<b>评论</b>、<b>附件</b>数据，其它

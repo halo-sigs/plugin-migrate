@@ -187,7 +187,8 @@ function setErrorState(e: unknown) {
   <div>
     <VAlert title="迁移提示" type="info" :closable="false" class=":uno: sheet">
       <template #description>
-        请上传 Hugo 站点中 <code>content</code> 目录的 ZIP 压缩包，系统将自动解析其中的文章、页面、分类和标签。
+        请上传 Hugo 站点中 <code>content</code> 目录的 ZIP
+        压缩包，系统将自动解析其中的文章、页面、分类和标签。
         <br />
         目前仅支持普通的文章与页面，并且：
         <ul>

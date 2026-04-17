@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import FileSelector from '@/components/FileSelector.vue'
-import type { MigrateData } from '@/types'
+import type {
+  AttachmentHandlerDescriptions,
+  AttachmentPreparationResult,
+  LocalAttachmentStrategy,
+  MigrateData
+} from '@/types'
 import { coreApiClient, type Policy } from '@halo-dev/api-client'
 import { VAlert, VTag } from '@halo-dev/components'
 import { useQuery } from '@tanstack/vue-query'
@@ -10,14 +15,10 @@ import { computed, ref, watch } from 'vue'
 interface Props {
   data: MigrateData
   activatedPluginNames: string[]
+  descriptions?: AttachmentHandlerDescriptions
 }
 
 const props = defineProps<Props>()
-
-const emit = defineEmits<{
-  (event: 'update:data', value: MigrateData): void
-  (event: 'policyChange', value: Map<string, string>): void
-}>()
 
 const attachments = computed(() => props.data.attachments || [])
 const typeGroups = computed(() => groupBy(attachments.value, (a) => a.type))
@@ -33,7 +34,21 @@ const typeGroupCounts = computed(() => {
   return counts
 })
 
-const localStrategy = ref<'upload' | 'manual' | null>(null)
+const defaultDescriptions: Required<AttachmentHandlerDescriptions> = {
+  localUploadTitle: '上传到新 Halo',
+  localUploadDescription: '自动替换文章中的附件链接',
+  localUploadHint: '请选择包含附件的文件夹，系统会在开始导入时自动匹配文章中的图片链接并上传。',
+  localManualTitle: '手动迁移',
+  localManualDescription: '仅创建 attachments 数据记录',
+  localManualHint: '选择本地存储策略，系统仅创建 attachments 数据记录，不会移动或上传文件。'
+}
+
+const descriptions = computed(() => ({
+  ...defaultDescriptions,
+  ...props.descriptions
+}))
+
+const localStrategy = ref<LocalAttachmentStrategy | null>(null)
 const selectedFolderFiles = ref<FileList | null>(null)
 
 const policyOptions = ref<{ label: string; value: string; templateName: string }[]>([])
@@ -77,7 +92,6 @@ watch(
     Object.entries(selections).forEach(([type, policyName]) => {
       typeToPolicyMap.value.set(type, policyName)
     })
-    emit('policyChange', typeToPolicyMap.value)
   },
   { deep: true }
 )
@@ -90,7 +104,6 @@ watch(
     } else {
       typeToPolicyMap.value.delete('LOCAL')
     }
-    emit('policyChange', typeToPolicyMap.value)
   }
 )
 
@@ -99,7 +112,6 @@ watch(
   (options) => {
     if (localStrategy.value === 'manual' && options.length > 0) {
       typeToPolicyMap.value.set('LOCAL', options[0]?.value)
-      emit('policyChange', typeToPolicyMap.value)
     }
   }
 )
@@ -110,6 +122,15 @@ function getProcessedData(): MigrateData {
     result.attachments = (result.attachments || []).filter((a) => a.type !== 'LOCAL')
   }
   return result
+}
+
+function getPreparationResult(): AttachmentPreparationResult {
+  return {
+    data: getProcessedData(),
+    typeToPolicyMap: new Map(typeToPolicyMap.value),
+    selectedFolderFiles: selectedFolderFiles.value,
+    localStrategy: localStrategy.value
+  }
 }
 
 function canConfirm() {
@@ -126,19 +147,14 @@ function canConfirm() {
   return true
 }
 
-const handleConfirm = () => {
-  emit('update:data', getProcessedData())
-}
-
 const handleFolderChange = (files: FileList) => {
   selectedFolderFiles.value = files
 }
 
 defineExpose({
-  getProcessedData,
+  getPreparationResult,
   canConfirm,
-  selectedFolderFiles,
-  localStrategy
+  getProcessedData
 })
 </script>
 
@@ -155,7 +171,7 @@ defineExpose({
       <div class=":uno: flex gap-2">
         <button
           type="button"
-          class=":uno: flex flex-1 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all"
+          class=":uno: flex flex-1 items-center gap-2 border rounded-md px-3 py-2 text-left text-sm transition-all"
           :class="
             localStrategy === 'upload'
               ? ':uno: border-indigo-500 bg-indigo-50 text-indigo-900'
@@ -164,24 +180,27 @@ defineExpose({
           @click="localStrategy = 'upload'"
         >
           <span
-            class=":uno: h-4 w-4 flex-shrink-0 flex items-center justify-center rounded-full border"
+            class=":uno: h-4 w-4 flex flex-shrink-0 items-center justify-center border rounded-full"
             :class="
               localStrategy === 'upload'
                 ? ':uno: border-indigo-500 bg-indigo-500'
                 : ':uno: border-gray-300'
             "
           >
-            <span v-if="localStrategy === 'upload'" class=":uno: h-1.5 w-1.5 rounded-full bg-white" />
+            <span
+              v-if="localStrategy === 'upload'"
+              class=":uno: h-1.5 w-1.5 rounded-full bg-white"
+            />
           </span>
           <div>
-            <div class=":uno: font-medium">上传到新 Halo</div>
-            <div class=":uno: text-xs opacity-80">自动替换文章中的附件链接</div>
+            <div class=":uno: font-medium">{{ descriptions.localUploadTitle }}</div>
+            <div class=":uno: text-xs opacity-80">{{ descriptions.localUploadDescription }}</div>
           </div>
         </button>
 
         <button
           type="button"
-          class=":uno: flex flex-1 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition-all"
+          class=":uno: flex flex-1 items-center gap-2 border rounded-md px-3 py-2 text-left text-sm transition-all"
           :class="
             localStrategy === 'manual'
               ? ':uno: border-indigo-500 bg-indigo-50 text-indigo-900'
@@ -190,27 +209,28 @@ defineExpose({
           @click="localStrategy = 'manual'"
         >
           <span
-            class=":uno: h-4 w-4 flex-shrink-0 flex items-center justify-center rounded-full border"
+            class=":uno: h-4 w-4 flex flex-shrink-0 items-center justify-center border rounded-full"
             :class="
               localStrategy === 'manual'
                 ? ':uno: border-indigo-500 bg-indigo-500'
                 : ':uno: border-gray-300'
             "
           >
-            <span v-if="localStrategy === 'manual'" class=":uno: h-1.5 w-1.5 rounded-full bg-white" />
+            <span
+              v-if="localStrategy === 'manual'"
+              class=":uno: h-1.5 w-1.5 rounded-full bg-white"
+            />
           </span>
           <div>
-            <div class=":uno: font-medium">手动迁移</div>
-            <div class=":uno: text-xs opacity-80">仅创建 attachments 数据记录</div>
+            <div class=":uno: font-medium">{{ descriptions.localManualTitle }}</div>
+            <div class=":uno: text-xs opacity-80">{{ descriptions.localManualDescription }}</div>
           </div>
         </button>
       </div>
 
       <!-- 上传方案详情 -->
       <div v-if="localStrategy === 'upload'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
-        <p class=":uno: mb-2 text-xs text-gray-600">
-          请选择包含附件的文件夹，系统会在开始导入时自动匹配文章中的图片链接并上传。
-        </p>
+        <p class=":uno: mb-2 text-xs text-gray-600">{{ descriptions.localUploadHint }}</p>
 
         <div class=":uno: flex flex-wrap items-center gap-2">
           <FileSelector folder button-text="选择文件夹" @fileChange="handleFolderChange" />
@@ -222,9 +242,7 @@ defineExpose({
 
       <!-- 手动迁移详情 -->
       <div v-if="localStrategy === 'manual'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
-        <p class=":uno: mb-2 text-xs text-gray-600">
-          选择本地存储策略，系统仅创建 attachments 数据记录，不会移动或上传文件。
-        </p>
+        <p class=":uno: mb-2 text-xs text-gray-600">{{ descriptions.localManualHint }}</p>
         <FormKit
           v-if="localPolicyOptions.length"
           :model-value="typeToPolicyMap.get('LOCAL')"
@@ -270,11 +288,7 @@ defineExpose({
       </VAlert>
 
       <div class=":uno: grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div
-          v-for="type in remoteTypes"
-          :key="type"
-          class=":uno: rounded-md bg-gray-50 p-3"
-        >
+        <div v-for="type in remoteTypes" :key="type" class=":uno: rounded-md bg-gray-50 p-3">
           <div class=":uno: mb-1.5 flex items-center justify-between">
             <span class=":uno: text-sm text-gray-700 font-medium">{{ type }}</span>
             <VTag size="sm">{{ typeGroupCounts[type] }} 个</VTag>

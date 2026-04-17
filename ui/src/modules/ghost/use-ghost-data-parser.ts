@@ -226,12 +226,110 @@ function sanitizeGhostHtml(html?: string): string {
 
   const doc = new DOMParser().parseFromString(html, 'text/html')
 
+  transformGhostGalleryCards(doc)
+
   doc.querySelectorAll('img, source').forEach((element) => {
     element.removeAttribute('srcset')
     element.removeAttribute('sizes')
   })
 
   return doc.body.innerHTML
+}
+
+function transformGhostGalleryCards(doc: Document) {
+  doc.querySelectorAll('figure.kg-gallery-card').forEach((figure) => {
+    const rows = Array.from(
+      figure.querySelectorAll(':scope > .kg-gallery-container > .kg-gallery-row')
+    )
+    if (rows.length === 0) {
+      return
+    }
+
+    const groupSize = Math.max(
+      ...rows.map((row) => row.querySelectorAll(':scope > .kg-gallery-image').length)
+    )
+    const gallery = doc.createElement('div')
+    gallery.setAttribute('data-type', 'gallery')
+    gallery.setAttribute('data-group-size', String(groupSize))
+    gallery.setAttribute('data-layout', 'auto')
+    gallery.setAttribute('data-gap', '8')
+
+    const galleryGrid = doc.createElement('div')
+    galleryGrid.setAttribute('style', 'display: grid; gap: 8px;')
+
+    rows.forEach((row) => {
+      const group = doc.createElement('div')
+      group.setAttribute('data-type', 'gallery-group')
+      group.setAttribute(
+        'style',
+        'display: flex; flex-direction: row; justify-content: center; gap: 8px;'
+      )
+
+      Array.from(row.querySelectorAll(':scope > .kg-gallery-image')).forEach((item) => {
+        const img = item.querySelector('img')
+        if (!img) {
+          return
+        }
+
+        const ratio = getImageAspectRatio(img)
+        const imageWrapper = doc.createElement('div')
+        imageWrapper.setAttribute('style', `flex: ${ratio} 1 0%;`)
+        imageWrapper.setAttribute('data-aspect-ratio', String(ratio))
+
+        const nextImg = doc.createElement('img')
+        copyAttribute(img, nextImg, 'src')
+        copyAttribute(img, nextImg, 'alt')
+        if (img.getAttribute('width')) {
+          nextImg.setAttribute('width', img.getAttribute('width') || '')
+        }
+        if (img.getAttribute('height')) {
+          nextImg.setAttribute('height', img.getAttribute('height') || '')
+        }
+        nextImg.setAttribute('data-type', 'gallery-image')
+        nextImg.setAttribute('style', 'width: 100%; height: 100%; margin: 0; object-fit: cover;')
+
+        imageWrapper.append(nextImg)
+        group.append(imageWrapper)
+      })
+
+      if (group.childElementCount > 0) {
+        galleryGrid.append(group)
+      }
+    })
+
+    if (galleryGrid.childElementCount === 0) {
+      return
+    }
+
+    gallery.append(galleryGrid)
+
+    const caption = figure.querySelector(':scope > figcaption')
+    if (caption?.textContent?.trim()) {
+      const captionParagraph = doc.createElement('p')
+      captionParagraph.textContent = caption.textContent.trim()
+      gallery.append(captionParagraph)
+    }
+
+    figure.replaceWith(gallery)
+  })
+}
+
+function getImageAspectRatio(img: HTMLImageElement) {
+  const width = Number(img.getAttribute('width'))
+  const height = Number(img.getAttribute('height'))
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || height <= 0) {
+    return 1
+  }
+
+  return width / height
+}
+
+function copyAttribute(source: Element, target: Element, name: string) {
+  const value = source.getAttribute(name)
+  if (value) {
+    target.setAttribute(name, value)
+  }
 }
 
 function isGhostLocalMediaUrl(url?: string | null): url is string {

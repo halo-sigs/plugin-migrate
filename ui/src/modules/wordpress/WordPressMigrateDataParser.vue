@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateData } from '@/types'
-import { Toast } from '@halo-dev/components'
+import { Toast, VAlert } from '@halo-dev/components'
 import { useWordPressDataParser } from './use-wordpress-data-parser'
 defineProps<{
   data: MigrateData

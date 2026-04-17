@@ -28,7 +28,7 @@ const handleFileChange = (files: FileList) => {
 }
 </script>
 <template>
-  <div class=":uno: sm:w-1/2">
+  <div>
     <VAlert title="迁移提示" type="info" :closable="false" class=":uno: mb-3">
       <template #description>
         请选择从 WordPress 后台【工具 &rarr; 导出】中下载的 WXR 文件（.xml）。

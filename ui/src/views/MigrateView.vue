@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AttachmentPolicy from '@/components/AttachmentPolicy.vue'
+import MigrateAttachmentHandler from '@/components/MigrateAttachmentHandler.vue'
 import MigrateTaskDashboard from '@/components/MigrateTaskDashboard.vue'
 import { useMigrateTask } from '@/composables/use-migrate-task'
 import { providerItems } from '@/modules/index'
@@ -52,6 +52,7 @@ const taskGroups = ref<MigrateTaskGroup[]>([])
 const importLoading = ref(false)
 const isImportStarted = ref(false)
 const showTasks = ref(false)
+const attachmentHandlerRef = ref<InstanceType<typeof MigrateAttachmentHandler> | null>(null)
 
 const dataSummaryItems = computed(() => {
   if (!migrateData.value) return []
@@ -150,6 +151,16 @@ const handleNextStep = () => {
   nextTick(() => {
     showTasks.value = true
   })
+}
+
+const handleNonHaloNextStep = () => {
+  if (migrateData.value?.attachments?.length && attachmentHandlerRef.value) {
+    if (!attachmentHandlerRef.value.canConfirm()) {
+      return
+    }
+    migrateData.value = attachmentHandlerRef.value.getProcessedData()
+  }
+  handleNextStep()
 }
 
 const handleBackToSelect = () => {
@@ -331,14 +342,15 @@ onBeforeRouteLeave((to, from, next) => {
         <!-- 数据概览 -->
         <div
           v-if="migrateData && dataSummaryItems.length > 0"
-          class=":uno: border border-gray-100 rounded-lg bg-gray-50/50 p-4"
+          class=":uno: border border-gray-200 rounded-lg bg-white p-4"
         >
-          <h3 class=":uno: mb-3 text-sm text-gray-700 font-semibold">数据概览</h3>
-          <div class=":uno: grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+          <h3 class=":uno: mb-2 text-sm text-gray-900 font-semibold">数据概览</h3>
+          <div class=":uno: flex flex-wrap gap-2"
+          >
             <div
               v-for="item in dataSummaryItems"
               :key="item.key"
-              class=":uno: flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm shadow-sm"
+              class=":uno: flex items-center gap-2 rounded-md border border-gray-200 px-2.5 py-1.5 text-sm"
             >
               <span class=":uno: text-gray-500">{{ item.label }}</span>
               <span class=":uno: text-gray-900 font-semibold">{{ item.count }}</span>
@@ -361,12 +373,12 @@ onBeforeRouteLeave((to, from, next) => {
             migrateData.attachments.length > 0 &&
             activeProvider?.name !== 'Halo'
           "
-          class=":uno: border border-gray-100 rounded-lg bg-gray-50/50 p-4"
         >
-          <h3 class=":uno: mb-3 text-sm text-gray-700 font-semibold">附件存储策略</h3>
-          <AttachmentPolicy
+          <h3 class=":uno: mb-2 text-sm text-gray-900 font-semibold">附件存储策略</h3>
+          <MigrateAttachmentHandler
+            ref="attachmentHandlerRef"
+            :data="migrateData"
             :activatedPluginNames="activatedPluginNames"
-            :attachments="migrateData.attachments"
             @policyChange="handlePolicyChange"
           />
         </div>
@@ -376,7 +388,17 @@ onBeforeRouteLeave((to, from, next) => {
           v-if="migrateData && activeProvider?.name !== 'Halo'"
           class=":uno: flex justify-end pt-2"
         >
-          <VButton type="primary" @click="handleNextStep">下一步</VButton>
+          <VButton
+            type="primary"
+            :disabled="
+              !!(migrateData?.attachments?.length &&
+                attachmentHandlerRef &&
+                !attachmentHandlerRef.canConfirm())
+            "
+            @click="handleNonHaloNextStep"
+          >
+            下一步
+          </VButton>
         </div>
       </div>
     </div>

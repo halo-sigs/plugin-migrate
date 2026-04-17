@@ -1,5 +1,6 @@
 import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
 import type {
+  MigrateAttachment,
   MigrateCategory,
   MigrateData,
   MigratePost,
@@ -104,19 +105,68 @@ export class HugoDataParser {
       const entries = (await zipReader.getEntries({})) as FileEntry[]
       this.identifyBaseFileName(entries)
       const mdEntries = this.filterMarkdownEntries(entries)
+      const imageEntries = this.filterImageEntries(entries)
       const posts: HugoDocument[] = []
       const pages: HugoDocument[] = []
+      const attachments: MigrateAttachment[] = []
+      const seenUrls = new Set<string>()
+
       for (const entry of mdEntries) {
         const sectionName = this.getSectionName(entry)
+        const doc = await this.parseHugoDocument(entry)
         if (this.postSectionNames.has(sectionName)) {
-          posts.push(await this.parseHugoDocument(entry))
+          posts.push(doc)
         } else if (this.pageSectionNames.has(sectionName)) {
-          pages.push(await this.parseHugoDocument(entry))
+          pages.push(doc)
         } else {
           console.log(`unknown section '${sectionName}', ignore`)
+          continue
+        }
+
+        const refs = this.extractImageReferences(doc.body)
+        const docDir = entry.filename.substring(0, entry.filename.lastIndexOf('/'))
+        for (const ref of refs) {
+          if (
+            seenUrls.has(ref) ||
+            ref.startsWith('http://') ||
+            ref.startsWith('https://') ||
+            ref.startsWith('data:')
+          ) {
+            continue
+          }
+          seenUrls.add(ref)
+
+          let filePath = ''
+          if (ref.startsWith('/')) {
+            const staticPath = this.baseFileName
+              ? this.baseFileName + 'static' + ref
+              : 'static' + ref
+            const match = imageEntries.find(
+              (e) => e.filename === staticPath || e.filename.endsWith(ref)
+            )
+            filePath = match ? match.filename : staticPath
+          } else {
+            const relativePath = docDir + '/' + ref
+            const match = imageEntries.find((e) => e.filename === relativePath)
+            filePath = match ? match.filename : relativePath
+          }
+
+          const name = filePath.split('/').pop() || ref.split('/').pop() || 'attachment'
+          attachments.push({
+            id: uuid(),
+            name,
+            path: filePath,
+            url: ref,
+            type: 'LOCAL'
+          })
         }
       }
-      return this.buildMigrateData(posts, pages)
+
+      const data = this.buildMigrateData(posts, pages)
+      if (attachments.length > 0) {
+        data.attachments = attachments
+      }
+      return data
     } finally {
       await zipReader.close()
     }
@@ -124,6 +174,36 @@ export class HugoDataParser {
 
   private filterMarkdownEntries(entries: FileEntry[]): FileEntry[] {
     return entries.filter((entry) => !entry.directory && entry.filename.endsWith('.md'))
+  }
+
+  private filterImageEntries(entries: FileEntry[]): FileEntry[] {
+    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico']
+    return entries.filter((entry) => {
+      if (entry.directory) return false
+      const lower = entry.filename.toLowerCase()
+      return imageExts.some((ext) => lower.endsWith(ext))
+    })
+  }
+
+  private extractImageReferences(body: string): string[] {
+    const refs: string[] = []
+    // Markdown image syntax: ![alt](url)
+    const mdRegex = /!\[.*?\]\((.*?)\)/g
+    let match
+    while ((match = mdRegex.exec(body)) !== null) {
+      refs.push(match[1])
+    }
+    // HTML img tag
+    const htmlRegex = /<img[^>]+src=["']([^"']+)["']/g
+    while ((match = htmlRegex.exec(body)) !== null) {
+      refs.push(match[1])
+    }
+    // Hugo figure shortcode: {{< figure src="url" >}}
+    const figureRegex = /{{< figure[^}]*src=["']([^"']+)["'][^}]*}}/g
+    while ((match = figureRegex.exec(body)) !== null) {
+      refs.push(match[1])
+    }
+    return [...new Set(refs)]
   }
 
   private buildMigrateData(posts: HugoDocument[], pages: HugoDocument[]): MigrateData {

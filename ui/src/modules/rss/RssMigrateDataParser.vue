@@ -53,7 +53,7 @@ const handleUrlSubmit = () => {
 }
 </script>
 <template>
-  <div class=":uno: sm:w-1/2">
+  <div >
     <div class=":uno: mb-2">
       <VAlert title="提示" type="info" :closable="false">
         <template #description>

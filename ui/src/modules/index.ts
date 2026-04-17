@@ -45,13 +45,19 @@ export const providerItems: Provider[] = [
     name: 'Hugo',
     icon: hugo,
     description: '从 HUGO 静态博客生成器迁移',
-    importComponent: defineAsyncComponent(() => import('./hugo/HugoMigrateDataParser.vue'))
+    importComponent: defineAsyncComponent(() => import('./hugo/HugoMigrateDataParser.vue')),
+    options: {
+      attachmentFolderPath: 'migrate-from-hugo'
+    }
   },
   {
     name: 'Ghost',
     icon: ghost,
     description: '从 Ghost 博客平台迁移',
-    importComponent: defineAsyncComponent(() => import('./ghost/GhostMigrateDataParser.vue'))
+    importComponent: defineAsyncComponent(() => import('./ghost/GhostMigrateDataParser.vue')),
+    options: {
+      attachmentFolderPath: 'migrate-from-ghost'
+    }
   },
   {
     name: 'Typecho',

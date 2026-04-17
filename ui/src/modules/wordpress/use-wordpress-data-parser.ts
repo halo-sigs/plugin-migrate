@@ -483,6 +483,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         id: attachment['wp:post_id'] + '',
         name: attachment.title,
         path: ATTACHMENT_PATH_PREFIX + path,
+        url: attachment['wp:attachment_url'],
         type: 'LOCAL',
         height: metadata?.height,
         width: metadata?.width,

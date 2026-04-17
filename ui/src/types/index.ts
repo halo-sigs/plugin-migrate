@@ -95,6 +95,7 @@ export interface MigrateAttachment {
   id: number | string
   name: string
   path: string
+  url?: string
   groupName?: string
   fileKey?: string
   thumbPath?: string

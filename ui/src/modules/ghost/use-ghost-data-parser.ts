@@ -1,4 +1,4 @@
-import type { MigrateData, MigratePost, MigrateSinglePage, MigrateTag } from '@/types'
+import type { MigrateAttachment, MigrateData, MigratePost, MigrateSinglePage, MigrateTag } from '@/types'
 import type { Post, PostsTag, Root, Tag } from './types'
 
 interface useGhostDataParserReturn {
@@ -23,7 +23,8 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
           resolve({
             posts: parsePosts(posts, posts_tags),
             pages: parsePages(posts),
-            tags: parseTags(tags)
+            tags: parseTags(tags),
+            attachments: extractAttachments(posts, tags)
           })
         } catch (error) {
           reject('Failed to parse data. error -> ' + error)
@@ -147,7 +148,61 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
       })
   }
 
+  function extractAttachments(rawPosts: Post[], rawTags: Tag[]): MigrateAttachment[] {
+    const attachments: MigrateAttachment[] = []
+    const seenUrls = new Set<string>()
+
+    const addAttachment = (url: string | null | undefined) => {
+      if (!url || seenUrls.has(url)) return
+      seenUrls.add(url)
+
+      let path = url
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        try {
+          const urlObj = new URL(url)
+          path = urlObj.pathname
+        } catch {
+          path = url
+        }
+      }
+      path = path.startsWith('/') ? path.slice(1) : path
+
+      if (url.startsWith('data:') || path.startsWith('http')) return
+
+      attachments.push({
+        id: uuid(),
+        name: path.split('/').pop() || 'attachment',
+        path,
+        url,
+        type: 'LOCAL'
+      })
+    }
+
+    rawPosts.forEach((post) => {
+      addAttachment(post.feature_image)
+      const imgRegex = /<img[^>]+src=["']([^"']+)["']/g
+      let match
+      const html = post.html || ''
+      while ((match = imgRegex.exec(html)) !== null) {
+        addAttachment(match[1])
+      }
+    })
+
+    rawTags.forEach((tag) => {
+      addAttachment(tag.feature_image)
+    })
+
+    return attachments
+  }
+
   return {
     parse
   }
+}
+
+function uuid() {
+  function r4() {
+    return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1)
+  }
+  return `${r4() + r4()}-${r4()}-${r4()}-${r4()}-${r4() + r4() + r4()}`
 }

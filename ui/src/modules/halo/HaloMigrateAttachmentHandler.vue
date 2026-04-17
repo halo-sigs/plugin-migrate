@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateData } from '@/types'
-import { consoleApiClient, coreApiClient, type Policy } from '@halo-dev/api-client'
-import { VAlert, VButton, VLoading, VTag } from '@halo-dev/components'
+import { coreApiClient, type Policy } from '@halo-dev/api-client'
+import { VAlert, VTag } from '@halo-dev/components'
 import { useQuery } from '@tanstack/vue-query'
 import { groupBy } from 'es-toolkit'
 import { computed, ref, watch } from 'vue'
@@ -35,10 +35,6 @@ const typeGroupCounts = computed(() => {
 
 const localStrategy = ref<'upload' | 'manual' | null>(null)
 const selectedFolderFiles = ref<FileList | null>(null)
-const uploadProgress = ref({ current: 0, total: 0 })
-const uploadErrors = ref<string[]>([])
-const uploadedUrlMap = ref<Map<string, string>>(new Map())
-const isUploading = ref(false)
 
 const policyOptions = ref<{ label: string; value: string; templateName: string }[]>([])
 const localPolicyOptions = ref<{ label: string; value: string; templateName: string }[]>([])
@@ -108,97 +104,9 @@ watch(
   }
 )
 
-function findMatchingFile(path: string, files: FileList): File | undefined {
-  const normalizedPath = path.startsWith('/') ? path.slice(1) : path
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    const relativePath = file.webkitRelativePath || file.name
-    if (relativePath === normalizedPath) return file
-  }
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    const relativePath = file.webkitRelativePath || file.name
-    if (relativePath.endsWith('/' + normalizedPath)) return file
-  }
-  const pathBasename = normalizedPath.split('/').pop()
-  if (pathBasename) {
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const basename = (file.webkitRelativePath || file.name).split('/').pop()
-      if (basename === pathBasename) return file
-    }
-  }
-  return undefined
-}
-
-async function handleUploadAttachments() {
-  if (!selectedFolderFiles.value) return
-  isUploading.value = true
-  uploadErrors.value = []
-  uploadedUrlMap.value = new Map()
-  const localAttachments = typeGroups.value['LOCAL'] || []
-  uploadProgress.value = { current: 0, total: localAttachments.length }
-  const policyName = localPolicyOptions.value[0]?.value || 'default-policy'
-
-  for (const attachment of localAttachments) {
-    const file = findMatchingFile(attachment.path, selectedFolderFiles.value)
-    if (!file) {
-      uploadErrors.value.push(`未找到文件: ${attachment.path}`)
-      uploadProgress.value.current++
-      continue
-    }
-    try {
-      const res = await consoleApiClient.storage.attachment.uploadAttachment({
-        file,
-        policyName,
-        groupName: attachment.groupName || ''
-      })
-      const uri = res.data.metadata?.annotations?.['storage.halo.run/uri']
-      if (uri) {
-        uploadedUrlMap.value.set(`/${attachment.path}`, uri)
-        uploadedUrlMap.value.set(attachment.path, uri)
-      }
-    } catch (error: any) {
-      uploadErrors.value.push(`${attachment.name} 上传失败: ${error?.message || String(error)}`)
-    }
-    uploadProgress.value.current++
-  }
-  isUploading.value = false
-}
-
-function replaceAttachmentUrls(data: MigrateData, urlMap: Map<string, string>) {
-  const replaceInText = (text: string) => {
-    if (!text) return text
-    let result = text
-    urlMap.forEach((newUrl, oldUrl) => {
-      result = result.replaceAll(oldUrl, newUrl)
-    })
-    return result
-  }
-  data.posts?.forEach((post) => {
-    if (post.postRequest.content) {
-      post.postRequest.content.raw = replaceInText(post.postRequest.content.raw || '')
-      post.postRequest.content.content = replaceInText(post.postRequest.content.content || '')
-    }
-  })
-  data.pages?.forEach((page) => {
-    if (page.singlePageRequest.content) {
-      page.singlePageRequest.content.raw = replaceInText(page.singlePageRequest.content.raw || '')
-      page.singlePageRequest.content.content = replaceInText(
-        page.singlePageRequest.content.content || ''
-      )
-    }
-  })
-  data.moments?.forEach((moment) => {
-    moment.spec.content.raw = replaceInText(moment.spec.content.raw || '')
-    moment.spec.content.html = replaceInText(moment.spec.content.html || '')
-  })
-}
-
 function getProcessedData(): MigrateData {
   const result: MigrateData = JSON.parse(JSON.stringify(props.data))
   if (hasLocal.value && localStrategy.value === 'upload') {
-    replaceAttachmentUrls(result, uploadedUrlMap.value)
     result.attachments = (result.attachments || []).filter((a) => a.type !== 'LOCAL')
   }
   return result
@@ -207,7 +115,7 @@ function getProcessedData(): MigrateData {
 function canConfirm() {
   if (!hasLocal.value && !hasRemote.value) return true
   if (hasLocal.value && !localStrategy.value) return false
-  if (hasLocal.value && localStrategy.value === 'upload' && uploadedUrlMap.value.size === 0) {
+  if (hasLocal.value && localStrategy.value === 'upload' && !selectedFolderFiles.value) {
     return false
   }
   if (hasRemote.value) {
@@ -224,13 +132,13 @@ const handleConfirm = () => {
 
 const handleFolderChange = (files: FileList) => {
   selectedFolderFiles.value = files
-  uploadedUrlMap.value = new Map()
-  uploadErrors.value = []
 }
 
 defineExpose({
   getProcessedData,
-  canConfirm
+  canConfirm,
+  selectedFolderFiles,
+  localStrategy
 })
 </script>
 
@@ -301,7 +209,7 @@ defineExpose({
       <!-- 上传方案详情 -->
       <div v-if="localStrategy === 'upload'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
         <p class=":uno: mb-2 text-xs text-gray-600">
-          请选择包含 Halo 1.x upload 目录的文件夹，系统会自动匹配路径并上传。
+          请选择包含 Halo 1.x upload 目录的文件夹，系统会在开始导入时自动匹配文章中的图片链接并上传。
         </p>
 
         <div class=":uno: flex flex-wrap items-center gap-2">
@@ -310,62 +218,6 @@ defineExpose({
             已选择 {{ selectedFolderFiles.length }} 个文件
           </span>
         </div>
-
-        <VButton
-          v-if="selectedFolderFiles && !isUploading && uploadedUrlMap.size === 0"
-          type="primary"
-          size="sm"
-          class=":uno: mt-2"
-          @click="handleUploadAttachments"
-        >
-          开始上传
-        </VButton>
-
-        <div v-if="isUploading" class=":uno: mt-2 space-y-1">
-          <div class=":uno: flex items-center justify-between text-xs">
-            <span class=":uno: flex items-center gap-1.5 text-gray-600">
-              <VLoading />
-              正在上传附件
-            </span>
-            <span class=":uno: text-gray-900 font-medium">
-              {{ uploadProgress.current }} / {{ uploadProgress.total }}
-            </span>
-          </div>
-          <div class=":uno: h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-            <div
-              class=":uno: h-full bg-indigo-500 transition-all"
-              :style="{
-                width: uploadProgress.total
-                  ? `${(uploadProgress.current / uploadProgress.total) * 100}%`
-                  : '0%'
-              }"
-            />
-          </div>
-        </div>
-
-        <VAlert
-          v-if="uploadedUrlMap.size > 0"
-          type="success"
-          :closable="false"
-          class=":uno: mt-2"
-        >
-          <template #description>
-            <span class=":uno: text-xs"> 成功上传 {{ uploadedUrlMap.size }} 个附件，文章/页面/日志中的链接已自动替换。 </span>
-          </template>
-        </VAlert>
-
-        <VAlert
-          v-if="uploadErrors.length > 0"
-          type="warning"
-          :closable="false"
-          class=":uno: mt-2"
-        >
-          <template #description>
-            <div class=":uno: max-h-24 overflow-y-auto text-xs space-y-0.5">
-              <div v-for="(err, idx) in uploadErrors" :key="idx">{{ err }}</div>
-            </div>
-          </template>
-        </VAlert>
       </div>
 
       <!-- 手动迁移详情 -->

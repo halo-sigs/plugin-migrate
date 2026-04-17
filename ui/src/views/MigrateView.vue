@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MigrateAttachmentHandler from '@/components/MigrateAttachmentHandler.vue'
 import MigrateTaskDashboard from '@/components/MigrateTaskDashboard.vue'
+import { useAttachmentPreprocessor } from '@/composables/use-attachment-preprocessor'
 import { useMigrateTask } from '@/composables/use-migrate-task'
 import { providerItems } from '@/modules/index'
 import type { MigrateData, MigrateTaskGroup, MigrateTaskItem } from '@/types'
@@ -53,6 +54,10 @@ const importLoading = ref(false)
 const isImportStarted = ref(false)
 const showTasks = ref(false)
 const attachmentHandlerRef = ref<InstanceType<typeof MigrateAttachmentHandler> | null>(null)
+const providerComponentRef = ref<any>(null)
+const attachmentPreprocessor = useAttachmentPreprocessor()
+const migrateViewAttachmentFiles = ref<FileList | null>(null)
+const migrateViewAttachmentStrategy = ref<'upload' | 'manual' | null>(null)
 
 const dataSummaryItems = computed(() => {
   if (!migrateData.value) return []
@@ -153,12 +158,24 @@ const handleNextStep = () => {
   })
 }
 
+const handleProviderNext = () => {
+  if (providerComponentRef.value?.selectedFolderFiles != null) {
+    migrateViewAttachmentFiles.value = providerComponentRef.value.selectedFolderFiles || null
+  }
+  if (providerComponentRef.value?.localStrategy != null) {
+    migrateViewAttachmentStrategy.value = providerComponentRef.value.localStrategy || null
+  }
+  handleNextStep()
+}
+
 const handleNonHaloNextStep = () => {
   if (migrateData.value?.attachments?.length && attachmentHandlerRef.value) {
     if (!attachmentHandlerRef.value.canConfirm()) {
       return
     }
     migrateData.value = attachmentHandlerRef.value.getProcessedData()
+    migrateViewAttachmentFiles.value = attachmentHandlerRef.value.selectedFolderFiles || null
+    migrateViewAttachmentStrategy.value = attachmentHandlerRef.value.localStrategy || null
   }
   handleNextStep()
 }
@@ -178,13 +195,22 @@ const handlePolicyChange = (typeToPolicyMap: Map<string, string>) => {
   policyMap.value = typeToPolicyMap
 }
 
-const handleImport = () => {
+const handleImport = async () => {
   if (pendingTasks.value.length === 0 && failedTasks.value.length === 0) {
     Dialog.info({
       title: '没有可导入的任务',
       description: '当前没有待执行或失败的任务。'
     })
     return
+  }
+
+  // 预处理本地附件：扫描内容中的图片链接，按需上传并替换内容
+  let files = migrateViewAttachmentFiles.value
+  let strategy = migrateViewAttachmentStrategy.value
+  if (strategy === 'upload' && files && files.length > 0 && migrateData.value) {
+    importLoading.value = true
+    await attachmentPreprocessor.process(migrateData.value, files)
+    importLoading.value = false
   }
 
   importLoading.value = true
@@ -360,10 +386,11 @@ onBeforeRouteLeave((to, from, next) => {
 
         <component
           :is="activeProvider?.importComponent"
+          ref="providerComponentRef"
           v-model:data="migrateData"
           :activatedPluginNames="activatedPluginNames"
           @policyChange="handlePolicyChange"
-          @next="handleNextStep"
+          @next="handleProviderNext"
         />
 
         <!-- 附件存储策略（非 Halo） -->

@@ -164,7 +164,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         postRequest: {
           post: {
             spec: {
-              title: post.title,
+              title: post.title || '未命名标题',
               slug: post['wp:post_name'] ? decodeURIComponent(post['wp:post_name']) : post.title,
               deleted: post['wp:status'] === 'trash',
               publish: publish,

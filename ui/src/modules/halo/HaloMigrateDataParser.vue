@@ -68,6 +68,16 @@ const handleNext = () => {
     emit('next')
   }
 }
+
+defineExpose({
+  attachmentHandlerRef,
+  get selectedFolderFiles() {
+    return attachmentHandlerRef.value?.selectedFolderFiles
+  },
+  get localStrategy() {
+    return attachmentHandlerRef.value?.localStrategy
+  }
+})
 </script>
 
 <template>

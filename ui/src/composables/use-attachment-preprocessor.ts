@@ -1,0 +1,201 @@
+import { consoleApiClient } from '@halo-dev/api-client'
+import type { MigrateData } from '@/types'
+import { ref } from 'vue'
+
+export function useAttachmentPreprocessor() {
+  const isUploading = ref(false)
+  const uploadProgress = ref({ current: 0, total: 0 })
+
+  function normalizeUrl(url: string): string {
+    try {
+      const u = new URL(url)
+      return u.pathname + u.search
+    } catch {
+      return url
+    }
+  }
+
+  function findMatchingFile(path: string, files: FileList): File | undefined {
+    const normalizedPath = path.startsWith('/') ? path.slice(1) : path
+    // 精确匹配
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const rp = file.webkitRelativePath || file.name
+      if (rp === normalizedPath || rp === path) return file
+    }
+    // 后缀匹配（兼容用户选择不同层级根目录）
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const rp = file.webkitRelativePath || file.name
+      if (path.endsWith(rp) || normalizedPath.endsWith(rp)) return file
+    }
+    // basename fallback（处理 WordPress 缩略图变体，如 image-1024x526.jpg 匹配到原图 image.jpg）
+    const pathBasename = normalizedPath.split('/').pop()
+    if (pathBasename) {
+      const baseWithoutSize = pathBasename.replace(/-\d+x\d+(?=\.[^.]+$)/, '')
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const basename = (file.webkitRelativePath || file.name).split('/').pop()
+        if (!basename) continue
+        if (basename === pathBasename) return file
+        if (basename.replace(/-\d+x\d+(?=\.[^.]+$)/, '') === baseWithoutSize) return file
+      }
+    }
+    return undefined
+  }
+
+  function extractImageUrls(data: MigrateData): string[] {
+    const urls: string[] = []
+    const addUrl = (url?: string) => {
+      if (url && !url.startsWith('data:')) urls.push(url)
+    }
+
+    const extractFromHtml = (html: string) => {
+      const doc = new DOMParser().parseFromString(html, 'text/html')
+      doc.querySelectorAll('img').forEach((img) => addUrl(img.src))
+      // 提取 style="background-image: url(...)"
+      const urlMatches = html.match(/url\(["']?([^"')]+)["']?\)/g)
+      urlMatches?.forEach((match) => {
+        const url = match.replace(/url\(["']?([^"')]+)["']?\)/, '$1')
+        addUrl(url)
+      })
+    }
+
+    const extractFromMarkdown = (text: string) => {
+      const regex = /!\[.*?\]\((.+?)\)/g
+      let match
+      while ((match = regex.exec(text)) !== null) {
+        addUrl(match[1])
+      }
+    }
+
+    data.posts?.forEach((post) => {
+      const raw = post.postRequest.content?.raw
+      const content = post.postRequest.content?.content
+      if (raw) {
+        extractFromHtml(raw)
+        extractFromMarkdown(raw)
+      }
+      if (content) {
+        extractFromHtml(content)
+      }
+      addUrl(post.postRequest.post?.spec?.cover)
+    })
+
+    data.pages?.forEach((page) => {
+      const raw = page.singlePageRequest.content?.raw
+      const content = page.singlePageRequest.content?.content
+      if (raw) {
+        extractFromHtml(raw)
+        extractFromMarkdown(raw)
+      }
+      if (content) {
+        extractFromHtml(content)
+      }
+      addUrl(page.singlePageRequest.page?.spec?.cover)
+    })
+
+    data.moments?.forEach((moment) => {
+      const raw = moment.spec?.content?.raw
+      const html = moment.spec?.content?.html
+      if (raw) {
+        extractFromHtml(raw)
+        extractFromMarkdown(raw)
+      }
+      if (html) {
+        extractFromHtml(html)
+      }
+    })
+
+    return [...new Set(urls)]
+  }
+
+  function replaceUrlsInData(data: MigrateData, urlMap: Map<string, string>) {
+    const replaceInText = (text: string) => {
+      if (!text) return text
+      let result = text
+      urlMap.forEach((newUrl, oldUrl) => {
+        result = result.replaceAll(oldUrl, newUrl)
+      })
+      return result
+    }
+
+    data.posts?.forEach((post) => {
+      const content = post.postRequest.content
+      if (content) {
+        content.raw = replaceInText(content.raw || '')
+        content.content = replaceInText(content.content || '')
+      }
+      const cover = post.postRequest.post?.spec?.cover
+      if (cover) {
+        const newCover = replaceInText(cover)
+        if (newCover !== cover) {
+          post.postRequest.post.spec.cover = newCover
+        }
+      }
+    })
+
+    data.pages?.forEach((page) => {
+      const content = page.singlePageRequest.content
+      if (content) {
+        content.raw = replaceInText(content.raw || '')
+        content.content = replaceInText(content.content || '')
+      }
+      const cover = page.singlePageRequest.page?.spec?.cover
+      if (cover) {
+        const newCover = replaceInText(cover)
+        if (newCover !== cover) {
+          page.singlePageRequest.page.spec.cover = newCover
+        }
+      }
+    })
+
+    data.moments?.forEach((moment) => {
+      const c = moment.spec?.content
+      if (c) {
+        c.raw = replaceInText(c.raw || '')
+        c.html = replaceInText(c.html || '')
+      }
+    })
+  }
+
+  async function process(data: MigrateData, files: FileList) {
+    isUploading.value = true
+    const urls = extractImageUrls(data)
+    uploadProgress.value = { current: 0, total: urls.length }
+    const urlMap = new Map<string, string>()
+    const uploadedCache = new Map<string, string>()
+
+    for (const url of urls) {
+      const path = normalizeUrl(url)
+      const file = findMatchingFile(path, files)
+      if (file) {
+        const cacheKey = file.webkitRelativePath || file.name
+        let permalink = uploadedCache.get(cacheKey)
+        if (!permalink) {
+          const blob = await file.arrayBuffer()
+          const newFile = new File([blob], file.name, { type: file.type })
+          const res = await consoleApiClient.storage.attachment.uploadAttachmentForConsole({
+            file: newFile,
+            filename: newFile.name
+          })
+          permalink = res.data.status?.permalink
+          if (permalink) {
+            uploadedCache.set(cacheKey, permalink)
+          }
+        }
+        if (permalink) {
+          urlMap.set(url, permalink)
+          urlMap.set(path, permalink)
+        }
+      }
+      uploadProgress.value.current++
+    }
+
+    replaceUrlsInData(data, urlMap)
+    isUploading.value = false
+    return { replacedCount: urlMap.size / 2 }
+  }
+
+  return { process, isUploading, uploadProgress }
+}

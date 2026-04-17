@@ -14,10 +14,12 @@ defineProps<{
 const emit = defineEmits<{
   (event: 'update:data', value: MigrateData): void
   (event: 'policyChange', value: Map<string, string>): void
+  (event: 'next'): void
 }>()
 
 const parsedData = ref<MigrateData>()
 const parsing = ref(false)
+const attachmentHandlerRef = ref<InstanceType<typeof HaloMigrateAttachmentHandler> | null>(null)
 
 const handleFileChange = (files: FileList) => {
   const file = files.item(0)
@@ -29,10 +31,7 @@ const handleFileChange = (files: FileList) => {
     .parse()
     .then((data) => {
       parsedData.value = data
-      // 如果没有附件，直接 emit
-      if (!data.attachments || data.attachments.length === 0) {
-        emit('update:data', data)
-      }
+      emit('update:data', data)
     })
     .catch((error: any) => {
       console.error(error)
@@ -43,10 +42,6 @@ const handleFileChange = (files: FileList) => {
     })
 }
 
-const handleAttachmentProcessed = (data: MigrateData) => {
-  emit('update:data', data)
-}
-
 const handlePolicyChange = (map: Map<string, string>) => {
   emit('policyChange', map)
 }
@@ -54,6 +49,24 @@ const handlePolicyChange = (map: Map<string, string>) => {
 const handleReset = () => {
   parsedData.value = undefined
   emit('update:data', {} as MigrateData)
+}
+
+const handleNext = () => {
+  let finalData = parsedData.value
+  if (
+    attachmentHandlerRef.value &&
+    parsedData.value?.attachments &&
+    parsedData.value.attachments.length > 0
+  ) {
+    if (!attachmentHandlerRef.value.canConfirm()) {
+      return
+    }
+    finalData = attachmentHandlerRef.value.getProcessedData()
+  }
+  if (finalData) {
+    emit('update:data', finalData)
+    emit('next')
+  }
 }
 </script>
 
@@ -80,14 +93,15 @@ const handleReset = () => {
 
       <HaloMigrateAttachmentHandler
         v-if="parsedData.attachments && parsedData.attachments.length > 0"
+        ref="attachmentHandlerRef"
         :data="parsedData"
         :activatedPluginNames="activatedPluginNames"
-        @update:data="handleAttachmentProcessed"
         @policyChange="handlePolicyChange"
       />
 
-      <div class=":uno: flex justify-start">
-        <VButton type="secondary" size="sm" @click="handleReset"> 重新选择文件 </VButton>
+      <div class=":uno: flex items-center justify-between pt-2">
+        <VButton type="secondary" size="sm" @click="handleReset">重新选择文件</VButton>
+        <VButton type="primary" @click="handleNext">下一步</VButton>
       </div>
     </div>
   </div>

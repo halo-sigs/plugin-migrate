@@ -5,10 +5,10 @@ import { useMigrateTask } from '@/composables/use-migrate-task'
 import { providerItems } from '@/modules/index'
 import type { MigrateData, MigrateTaskGroup, MigrateTaskItem } from '@/types'
 import { consoleApiClient, type PluginList, type User } from '@halo-dev/api-client'
-import { Dialog, VAlert, VButton, VPageHeader } from '@halo-dev/components'
+import { Dialog, VButton, VEmpty, VPageHeader } from '@halo-dev/components'
 import type { queueAsPromised } from 'fastq'
 import * as fastq from 'fastq'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone'
 
@@ -51,6 +51,23 @@ const policyMap = ref<Map<string, string>>(new Map())
 const taskGroups = ref<MigrateTaskGroup[]>([])
 const importLoading = ref(false)
 const isImportStarted = ref(false)
+const showTasks = ref(false)
+
+const dataSummaryItems = computed(() => {
+  if (!migrateData.value) return []
+  return [
+    { key: 'tags', label: '标签', count: migrateData.value.tags?.length || 0 },
+    { key: 'categories', label: '分类', count: migrateData.value.categories?.length || 0 },
+    { key: 'posts', label: '文章', count: migrateData.value.posts?.length || 0 },
+    { key: 'pages', label: '页面', count: migrateData.value.pages?.length || 0 },
+    { key: 'comments', label: '评论', count: migrateData.value.comments?.length || 0 },
+    { key: 'moments', label: '日志', count: migrateData.value.moments?.length || 0 },
+    { key: 'menuItems', label: '菜单', count: migrateData.value.menuItems?.length || 0 },
+    { key: 'links', label: '链接', count: migrateData.value.links?.length || 0 },
+    { key: 'photos', label: '图库', count: migrateData.value.photos?.length || 0 },
+    { key: 'attachments', label: '附件', count: migrateData.value.attachments?.length || 0 }
+  ].filter((item) => item.count > 0)
+})
 
 const taskQueue: queueAsPromised<MigrateTaskItem<any>> = fastq.promise(asyncWorker, 9)
 
@@ -94,6 +111,7 @@ function bindTaskRetry(groups: MigrateTaskGroup[]) {
 watch(
   () => migrateData.value,
   (data) => {
+    showTasks.value = false
     if (data) {
       const groups = useMigrateTask(data, {
         relativePathFolder: activeProvider.value?.options?.attachmentFolderPath,
@@ -127,6 +145,12 @@ watch(
   },
   { deep: true }
 )
+
+const handleNextStep = () => {
+  nextTick(() => {
+    showTasks.value = true
+  })
+}
 
 const handleBackToSelect = () => {
   if (importLoading.value) {
@@ -234,40 +258,112 @@ onBeforeRouteLeave((to, from, next) => {
         v-if="activeProvider?.icon"
         :src="activeProvider.icon"
         class=":uno: mr-2 h-6 w-6 rounded"
-        :alt="activeProvider.name"
+        alt=""
       />
       <SolarTransferHorizontalBoldDuotone v-else class=":uno: mr-2 self-center" />
     </template>
     <template #actions>
-      <VButton @click="handleBackToSelect">重新选择平台</VButton>
+      <VButton type="secondary" @click="handleBackToSelect">重新选择平台</VButton>
     </template>
   </VPageHeader>
 
-  <div class=":uno: m-4 flex flex-1 flex-col gap-4">
-    <!-- 顶部：文件解析 + 附件策略 + 提示 -->
+  <div class=":uno: m-4 flex flex-1 flex-col gap-5">
+    <!-- 步骤导航 -->
+    <div class=":uno: mx-auto max-w-3xl w-full flex items-center justify-center gap-4 py-2">
+      <div class=":uno: flex items-center gap-2 text-sm text-gray-400 font-medium">
+        <span
+          class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs"
+          >1</span
+        >
+        <span>选择平台</span>
+      </div>
+      <div class=":uno: w-8 border-t border-gray-300 border-dashed" />
+      <div
+        class=":uno: flex items-center gap-2 text-sm font-medium"
+        :class="migrateData ? ':uno: text-gray-400' : ':uno: text-gray-900'"
+      >
+        <span
+          class=":uno: h-6 w-6 flex items-center justify-center rounded-full text-xs"
+          :class="migrateData ? ':uno: bg-gray-100' : ':uno: bg-gray-900 text-white'"
+          >2</span
+        >
+        <span>上传数据</span>
+      </div>
+      <div class=":uno: w-8 border-t border-gray-300 border-dashed" />
+      <div
+        class=":uno: flex items-center gap-2 text-sm font-medium"
+        :class="migrateData ? ':uno: text-indigo-600' : ':uno: text-gray-400'"
+      >
+        <span
+          class=":uno: h-6 w-6 flex items-center justify-center rounded-full text-xs"
+          :class="migrateData ? ':uno: bg-indigo-100' : ':uno: bg-gray-100'"
+          >3</span
+        >
+        <span>开始迁移</span>
+      </div>
+    </div>
+
+    <!-- 数据准备卡片 -->
     <div
-      class=":uno: rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200"
-      :class="{ ':uno: pb-2': !migrateData?.attachments?.length }"
+      v-if="!showTasks"
+      class=":uno: mx-auto max-w-3xl w-full rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200"
     >
-      <div class=":uno: flex flex-col gap-4">
-        <div>
-          <h3 class=":uno: mb-2 text-base font-semibold">导入数据</h3>
-          <component
-            :is="activeProvider?.importComponent"
-            v-model:data="migrateData"
-            :activatedPluginNames="activatedPluginNames"
-            @policyChange="handlePolicyChange"
-          />
+      <div class=":uno: mb-4 flex items-center gap-3">
+        <div
+          class=":uno: h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"
+        >
+          <svg
+            class=":uno: h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        </div>
+        <h2 class=":uno: text-lg font-semibold">导入数据</h2>
+      </div>
+
+      <div class=":uno: space-y-5">
+        <!-- 数据概览 -->
+        <div
+          v-if="migrateData && dataSummaryItems.length > 0"
+          class=":uno: border border-gray-100 rounded-lg bg-gray-50/50 p-4"
+        >
+          <h3 class=":uno: mb-3 text-sm text-gray-700 font-semibold">数据概览</h3>
+          <div class=":uno: grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+            <div
+              v-for="item in dataSummaryItems"
+              :key="item.key"
+              class=":uno: flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm shadow-sm"
+            >
+              <span class=":uno: text-gray-500">{{ item.label }}</span>
+              <span class=":uno: text-gray-900 font-semibold">{{ item.count }}</span>
+            </div>
+          </div>
         </div>
 
+        <component
+          :is="activeProvider?.importComponent"
+          v-model:data="migrateData"
+          :activatedPluginNames="activatedPluginNames"
+          @policyChange="handlePolicyChange"
+          @next="handleNextStep"
+        />
+
+        <!-- 附件存储策略（非 Halo） -->
         <div
           v-if="
             migrateData?.attachments &&
             migrateData.attachments.length > 0 &&
             activeProvider?.name !== 'Halo'
           "
+          class=":uno: border border-gray-100 rounded-lg bg-gray-50/50 p-4"
         >
-          <h3 class=":uno: mb-2 text-base font-semibold">附件存储策略</h3>
+          <h3 class=":uno: mb-3 text-sm text-gray-700 font-semibold">附件存储策略</h3>
           <AttachmentPolicy
             :activatedPluginNames="activatedPluginNames"
             :attachments="migrateData.attachments"
@@ -275,18 +371,41 @@ onBeforeRouteLeave((to, from, next) => {
           />
         </div>
 
-        <VAlert v-if="!migrateData" type="info" title="提示" :closable="false">
-          <template #description>
-            请先上传或选择迁移文件，解析成功后将在下方显示具体的迁移任务。
-          </template>
-        </VAlert>
+        <!-- 下一步按钮（非 Halo 提供商） -->
+        <div
+          v-if="migrateData && activeProvider?.name !== 'Halo'"
+          class=":uno: flex justify-end pt-2"
+        >
+          <VButton type="primary" @click="handleNextStep">下一步</VButton>
+        </div>
       </div>
     </div>
 
-    <!-- 底部：任务面板 -->
-    <div v-if="migrateData" class=":uno: rounded-lg bg-white p-5 shadow-sm ring-1 ring-gray-200">
-      <div class=":uno: mb-4 flex items-center justify-between">
-        <h3 class=":uno: text-base font-semibold">迁移任务</h3>
+    <!-- 任务执行卡片 -->
+    <div
+      v-if="migrateData && showTasks"
+      class=":uno: mx-auto max-w-5xl w-full flex-1 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200"
+    >
+      <div class=":uno: mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div class=":uno: flex items-center gap-3">
+          <div
+            class=":uno: h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600"
+          >
+            <svg
+              class=":uno: h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <div>
+            <h2 class=":uno: text-lg font-semibold">迁移任务</h2>
+            <p class=":uno: text-sm text-gray-500">共 {{ allTasks.length }} 个任务，准备就绪</p>
+          </div>
+        </div>
         <div class=":uno: flex gap-2">
           <VButton v-if="hasFailedTasks" :disabled="importLoading" @click="handleRetryAll">
             全部重试
@@ -307,6 +426,14 @@ onBeforeRouteLeave((to, from, next) => {
         :loading="importLoading"
         @retry="handleRetryTask"
       />
+    </div>
+
+    <!-- 未就绪空状态 -->
+    <div
+      v-if="!migrateData"
+      class=":uno: mx-auto max-w-3xl w-full flex flex-1 flex-col items-center justify-center rounded-xl bg-white p-10 shadow-sm ring-1 ring-gray-200"
+    >
+      <VEmpty title="等待数据导入" description="请在上方的数据导入区域上传迁移文件" />
     </div>
   </div>
 </template>

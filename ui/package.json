@@ -23,6 +23,7 @@
     "@halo-dev/components": "2.22.0",
     "@halo-dev/ui-shared": "2.22.0",
     "@tanstack/vue-query": "^4.41.0",
+    "@tanstack/vue-virtual": "^3.13.23",
     "@vueuse/core": "^10.11.1",
     "@zip.js/zip.js": "^2.8.10",
     "axios": "^1.13.2",

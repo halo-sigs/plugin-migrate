@@ -1,13 +1,14 @@
 import type {
   Category,
   Comment,
-  Reply,
   MenuItem,
   Metadata,
   PostRequest,
+  Reply,
   SinglePageRequest,
   Tag
 } from '@halo-dev/api-client'
+import type { AxiosResponse } from 'axios'
 import type { Component } from 'vue'
 
 export interface MigrationOption {
@@ -79,16 +80,16 @@ export interface MigrateReply extends Reply {
   refType: 'Post' | 'SinglePage' | 'Moment'
 }
 
-export type AttachmentType = 
-| 'LOCAL'
-| 'UPOSS'
-| 'QINIUOSS'
-| 'SMMS'
-| 'ALIOSS'
-| 'BAIDUBOS'
-| 'TENCENTCOS'
-| 'HUAWEIOBS'
-| 'MINIO';
+export type AttachmentType =
+  | 'LOCAL'
+  | 'UPOSS'
+  | 'QINIUOSS'
+  | 'SMMS'
+  | 'ALIOSS'
+  | 'BAIDUBOS'
+  | 'TENCENTCOS'
+  | 'HUAWEIOBS'
+  | 'MINIO'
 
 export interface MigrateAttachment {
   id: number | string
@@ -103,7 +104,7 @@ export interface MigrateAttachment {
   height?: number
   size?: number
   tags?: string[]
-  type: AttachmentType;
+  type: AttachmentType
   createTime?: number
   updateTime?: number
 }
@@ -171,4 +172,23 @@ export interface LinkSpec {
   description?: string
   priority?: number
   groupName?: string
+}
+
+export type MigrateTaskState = 'pending' | 'running' | 'success' | 'failed'
+
+export interface MigrateTaskItem<T = any> {
+  id: string
+  type: string
+  label: string
+  item: T
+  status: MigrateTaskState
+  error?: string
+  run: () => Promise<AxiosResponse<any, any>>
+  retry: () => void
+}
+
+export interface MigrateTaskGroup {
+  key: string
+  label: string
+  tasks: MigrateTaskItem<any>[]
 }

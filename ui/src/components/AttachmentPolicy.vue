@@ -39,13 +39,15 @@ useQuery({
       }
     })
     if (props.attachments) {
-      attachmentTypes.value = Object.keys(groupBy(props.attachments, item => item.type)).map((type) => {
-        return {
-          type: type,
-          policyName:
-            type == 'LOCAL' ? localPolicyOptions.value[0]?.value : policyOptions.value[0]?.value
+      attachmentTypes.value = Object.keys(groupBy(props.attachments, (item) => item.type)).map(
+        (type) => {
+          return {
+            type: type,
+            policyName:
+              type == 'LOCAL' ? localPolicyOptions.value[0]?.value : policyOptions.value[0]?.value
+          }
         }
-      })
+      )
     }
 
     localPolicyOptions.value = policyOptions.value.filter((item) => item.templateName === 'local')

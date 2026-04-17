@@ -1,7 +1,7 @@
 import type mdit from 'markdown-it'
-import type Token from 'markdown-it/lib/token.mjs'
-import type Renderer from 'markdown-it/lib/renderer.mjs'
 import type { Options } from 'markdown-it'
+import type Renderer from 'markdown-it/lib/renderer.mjs'
+import type Token from 'markdown-it/lib/token.mjs'
 
 /**
  * The plugin for markdown-it to add `id` attribute to each <h> element.

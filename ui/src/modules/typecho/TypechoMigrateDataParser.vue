@@ -2,8 +2,8 @@
 import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateAttachment, MigrateData } from '@/types'
 import { VAlert, VButton } from '@halo-dev/components'
-import { useTypechoDataParser, uploadAttachment } from './use-typecho-data-parser'
 import { ref } from 'vue'
+import { uploadAttachment, useTypechoDataParser } from './use-typecho-data-parser'
 
 defineProps<{
   data: MigrateData

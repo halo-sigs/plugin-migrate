@@ -12,7 +12,7 @@ const parser = new XMLParser({
   ignoreAttributes: true,
   attributeNamePrefix: '_',
   textNodeName: 'value',
-  isArray: (name, jpath, isLeafNode, isAttribute) => {
+  isArray: (name, jpath) => {
     if (isArrayPath.includes(jpath)) return true
     return false
   }

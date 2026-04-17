@@ -1,3 +1,4 @@
+import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
 import type {
   MigrateCategory,
   MigrateData,
@@ -6,11 +7,10 @@ import type {
   MigrateTag
 } from '@/types'
 import { type FileEntry, TextWriter, ZipReader } from '@zip.js/zip.js'
-import YAML from 'yaml'
+import markdownit from 'markdown-it'
 import * as toml from 'toml'
 import { slugify } from 'transliteration'
-import markdownit from 'markdown-it'
-import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
+import YAML from 'yaml'
 
 type HugoMatter = {
   title?: string
@@ -87,7 +87,7 @@ export class HugoDataParser {
   async parseSections(file: File): Promise<string[]> {
     const zipReader = new ZipReader(file.stream())
     try {
-      const entries = await zipReader.getEntries({}) as FileEntry[]
+      const entries = (await zipReader.getEntries({})) as FileEntry[]
       this.identifyBaseFileName(entries)
 
       return this.filterMarkdownEntries(entries)
@@ -101,7 +101,7 @@ export class HugoDataParser {
   async parse(file: File): Promise<MigrateData> {
     const zipReader = new ZipReader(file.stream())
     try {
-      const entries = await zipReader.getEntries({}) as FileEntry[]
+      const entries = (await zipReader.getEntries({})) as FileEntry[]
       this.identifyBaseFileName(entries)
       const mdEntries = this.filterMarkdownEntries(entries)
       const posts: HugoDocument[] = []

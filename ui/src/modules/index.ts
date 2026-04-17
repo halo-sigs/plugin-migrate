@@ -1,8 +1,8 @@
 import atom from '@/assets/atom.svg'
-import typecho from '@/assets/typecho.png'
 import ghost from '@/assets/ghost.png'
 import hugo from '@/assets/hugo.png'
 import rss from '@/assets/rss.svg'
+import typecho from '@/assets/typecho.png'
 import wordpress from '@/assets/wordpress.svg'
 import type { Provider } from '@/types'
 import { defineAsyncComponent } from 'vue'
@@ -11,7 +11,7 @@ import { defineAsyncComponent } from 'vue'
 export const providerItems: Provider[] = [
   {
     name: 'Halo',
-    icon: 'https://halo.run/logo',
+    icon: 'https://www.halo.run/logo',
     description: 'Halo 1.5 / 1.6 数据迁移',
     importComponent: defineAsyncComponent(() => import('./halo/HaloMigrateDataParser.vue')),
     options: {

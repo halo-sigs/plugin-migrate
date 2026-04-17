@@ -1,3 +1,4 @@
+import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
 import type {
   MigrateAttachment,
   MigrateCategory,
@@ -8,6 +9,8 @@ import type {
   MigrateSinglePage,
   MigrateTag
 } from '@/types'
+import { consoleApiClient } from '@halo-dev/api-client'
+import markdownit from 'markdown-it'
 import {
   type Attachment,
   phpUnserialize,
@@ -17,9 +20,6 @@ import {
   type TypechoMeta,
   type TypechoRelationship
 } from './typecho-data-parser'
-import markdownit from 'markdown-it'
-import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
-import { consoleApiClient } from '@halo-dev/api-client'
 
 interface useTypechoDataParserReturn {
   parse: () => Promise<MigrateData>

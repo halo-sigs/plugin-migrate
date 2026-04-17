@@ -1,16 +1,16 @@
 import type {
-  MigrateData,
-  MigratePost,
-  MigrateSinglePage,
-  MigrateMenu,
-  MigratePhoto,
-  MigrateLink,
   MigrateAttachment,
-  MigrateTag,
   MigrateCategory,
   MigrateComment,
+  MigrateData,
+  MigrateLink,
+  MigrateMenu,
+  MigrateMoment,
+  MigratePhoto,
+  MigratePost,
   MigrateReply,
-  MigrateMoment
+  MigrateSinglePage,
+  MigrateTag
 } from '@/types'
 import { arrayToTree } from 'performant-array-to-tree'
 

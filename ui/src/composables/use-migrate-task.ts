@@ -1,17 +1,11 @@
 import type {
   Counter,
   MigrateAttachment,
-  MigrateCategory,
   MigrateComment,
   MigrateData,
-  MigrateLink,
-  MigrateMenu,
-  MigrateMoment,
-  MigratePhoto,
-  MigratePost,
   MigrateReply,
-  MigrateSinglePage,
-  MigrateTag
+  MigrateTaskGroup,
+  MigrateTaskItem
 } from '@/types'
 import {
   axiosInstance,
@@ -21,529 +15,390 @@ import {
   type Category,
   type Comment,
   type Reply,
-  type Tag,
   type User
 } from '@halo-dev/api-client'
 import type { AxiosResponse } from 'axios'
 import { groupBy } from 'es-toolkit'
 
-export interface MigrateRequestTask<T> {
-  item: T
+function createTaskItem<T>(
+  id: string,
+  type: string,
+  label: string,
+  item: T,
   run: () => Promise<AxiosResponse<any, any>>
-}
-
-interface useMigrateTaskReturn {
-  createTagTasks: () => MigrateRequestTask<MigrateTag>[]
-  createCategoryTasks: () => MigrateRequestTask<MigrateCategory>[]
-  createPostTasks: () => MigrateRequestTask<Counter | MigratePost>[]
-  createSinglePageTasks: () => MigrateRequestTask<Counter | MigrateSinglePage>[]
-  createCommentAndReplyTasks: () => MigrateRequestTask<MigrateComment | MigrateReply>[]
-  createMenuTasks: () => MigrateRequestTask<string | MigrateMenu>[]
-  createMomentTasks: () => MigrateRequestTask<MigrateMoment>[]
-  createPhotoTasks: () => MigrateRequestTask<string | MigratePhoto>[]
-  createLinkTasks: () => MigrateRequestTask<string | MigrateLink>[]
-  createAttachmentTasks: (
-    relativePathFolder: string,
-    user: User,
-    typeToPolicyMap: Map<string, string>
-  ) => MigrateRequestTask<MigrateAttachment>[]
-}
-
-class TagTask implements MigrateRequestTask<MigrateTag> {
-  item: MigrateTag
-  constructor(item: MigrateTag) {
-    this.item = item
-  }
-
-  run() {
-    return coreApiClient.content.tag.createTag({
-      tag: this.item
-    })
+): MigrateTaskItem<T> {
+  return {
+    id,
+    type,
+    label,
+    item,
+    status: 'pending',
+    run,
+    retry: () => {}
   }
 }
 
-class CategoryTask implements MigrateRequestTask<MigrateCategory> {
-  item: MigrateCategory
-  constructor(item: MigrateCategory) {
-    this.item = item
-  }
-
-  run() {
-    return coreApiClient.content.category.createCategory({
-      category: this.item as Category
-    })
-  }
-}
-
-class CounterTask implements MigrateRequestTask<Counter> {
-  item: Counter
-  name: string
-  constructor(item: Counter, name: string) {
-    this.item = item
-    this.name = name
-  }
-
-  async run() {
-    return coreApiClient.metrics.counter.createCounter({
+function buildCounterTask(counter: Counter, name: string): MigrateTaskItem<Counter> {
+  return createTaskItem(`counter-${name}`, 'counter', '统计数据', counter, () =>
+    coreApiClient.metrics.counter.createCounter({
       counter: {
-        visit: this.item.visit || 0,
-        upvote: this.item.upvote || 0,
-        downvote: this.item.downvote || 0,
+        visit: counter.visit || 0,
+        upvote: counter.upvote || 0,
+        downvote: counter.downvote || 0,
         totalComment: 0,
-        approvedComment: this.item.approvedComment || 0,
+        approvedComment: counter.approvedComment || 0,
         apiVersion: 'metrics.halo.run/v1alpha1',
         kind: 'Counter',
-        metadata: {
-          name: this.name
-        }
+        metadata: { name }
       }
     })
-  }
+  )
 }
 
-class PostTask implements MigrateRequestTask<MigratePost> {
-  item: MigratePost
-  constructor(item: MigratePost) {
-    this.item = item
-  }
-
-  async run() {
-    return consoleApiClient.content.post.draftPost({
-      postRequest: this.item.postRequest
-    })
-  }
-}
-
-class SinglePageTask implements MigrateRequestTask<MigrateSinglePage> {
-  item: MigrateSinglePage
-  constructor(item: MigrateSinglePage) {
-    this.item = item
-  }
-
-  async run() {
-    return consoleApiClient.content.singlePage.draftSinglePage({
-      singlePageRequest: this.item.singlePageRequest
-    })
-  }
-}
-
-class CommentTask implements MigrateRequestTask<MigrateComment> {
-  item: MigrateComment
-  constructor(item: MigrateComment) {
-    this.item = item
-  }
-
-  async run() {
-    return coreApiClient.content.comment.createComment({
-      comment: this.item as Comment
-    })
-  }
-}
-
-class ReplyTask implements MigrateRequestTask<MigrateReply> {
-  item: MigrateReply
-  constructor(item: MigrateReply) {
-    this.item = item
-  }
-
-  async run() {
-    return coreApiClient.content.reply.createReply({
-      reply: this.item as Reply
-    })
-  }
-}
-
-class MenuTask implements MigrateRequestTask<string> {
-  item: string
-  menuName: string
-  items: string[]
-  constructor(item: string, menuName: string, items: string[]) {
-    this.item = item
-    this.menuName = menuName
-    this.items = items
-  }
-
-  run() {
-    return coreApiClient.menu.createMenu({
-      menu: {
-        kind: 'Menu',
-        apiVersion: 'v1alpha1',
-        metadata: {
-          name: this.item ? this.item : 'default'
-        },
-        spec: {
-          displayName: this.menuName ? this.menuName : '未分组',
-          menuItems: this.items
-        }
-      }
-    })
-  }
-}
-
-class MenuItemTask implements MigrateRequestTask<MigrateMenu> {
-  item: MigrateMenu
-  constructor(item: MigrateMenu) {
-    this.item = item
-  }
-
-  run() {
-    return coreApiClient.menuItem.createMenuItem({
-      menuItem: this.item.menu
-    })
-  }
-}
-
-class MomentTask implements MigrateRequestTask<MigrateMoment> {
-  item: MigrateMoment
-  constructor(item: MigrateMoment) {
-    this.item = item
-  }
-
-  run() {
-    return axiosInstance.post(`/apis/console.api.moment.halo.run/v1alpha1/moments`, this.item)
-  }
-}
-
-class PhotoGroupTask implements MigrateRequestTask<string> {
-  item: string
-  constructor(item: string) {
-    this.item = item
-  }
-
-  run() {
-    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/photogroups`, {
-      spec: {
-        displayName: this.item ? this.item : '未分组',
-        priority: 0
-      },
-      metadata: {
-        name: this.item ? this.item : 'default'
-      },
-      kind: 'PhotoGroup',
-      apiVersion: 'core.halo.run/v1alpha1'
-    })
-  }
-}
-
-class PhotoTask implements MigrateRequestTask<MigratePhoto> {
-  item: MigratePhoto
-  constructor(item: MigratePhoto) {
-    this.item = item
-  }
-
-  run() {
-    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/photos`, this.item)
-  }
-}
-
-class LinkGroupTask implements MigrateRequestTask<string> {
-  item: string
-  constructor(item: string) {
-    this.item = item
-  }
-
-  run() {
-    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/linkgroups`, {
-      spec: {
-        displayName: this.item ? this.item : '未分组',
-        priority: 0,
-        links: []
-      },
-      metadata: {
-        name: this.item ? this.item : 'default'
-      },
-      kind: 'LinkGroup',
-      apiVersion: 'core.halo.run/v1alpha1'
-    })
-  }
-}
-
-class LinkTask implements MigrateRequestTask<MigrateLink> {
-  item: MigrateLink
-  constructor(item: MigrateLink) {
-    this.item = item
-  }
-
-  run() {
-    return axiosInstance.post(`/apis/core.halo.run/v1alpha1/links`, this.item)
-  }
-}
-
-interface AttachmentTask extends MigrateRequestTask<MigrateAttachment> {
-  item: MigrateAttachment
-
-  run: () => Promise<AxiosResponse<any, any>>
-}
-
-class NoSupportAttachmentTask implements AttachmentTask {
-  item: MigrateAttachment
-  constructor(item: MigrateAttachment) {
-    this.item = item
-  }
-
-  run() {
-    return Promise.reject(new Error('尚未支持 【' + this.item.type + '】 类型的附件迁移'))
-  }
-}
-
-abstract class AbstractAttachmentTask implements AttachmentTask {
-  item: MigrateAttachment
-  policyName: string
-  ownerName: string
+function buildLocalAttachmentTask(
+  item: MigrateAttachment,
+  policyName: string,
+  ownerName: string,
   relativePathFolder: string
-  constructor(
-    item: MigrateAttachment,
-    policyName: string,
-    ownerName: string,
-    relativePathFolder: string
-  ) {
-    this.item = item
-    this.policyName = policyName
-    this.ownerName = ownerName
-    this.relativePathFolder = relativePathFolder
+): MigrateTaskItem<MigrateAttachment> {
+  let relativePath = item.path
+  if (item.path.startsWith('upload/')) {
+    relativePath = relativePath.replace('upload/', '')
   }
-
-  abstract buildModel(): Attachment
-
-  run() {
-    return coreApiClient.storage.attachment.createAttachment({
-      attachment: this.buildModel()
-    })
-  }
-}
-
-class LocalAttachmentTask extends AbstractAttachmentTask {
-  buildModel() {
-    let relativePath = this.item.path
-    if (this.item.path.startsWith('upload/')) {
-      relativePath = relativePath.replace('upload/', '')
-    }
-    return {
-      apiVersion: 'storage.halo.run/v1alpha1',
-      kind: 'Attachment',
-      metadata: {
-        name: this.item.id + '',
-        annotations: {
-          'storage.halo.run/local-relative-path': `${this.relativePathFolder}/${relativePath}`,
-          'storage.halo.run/uri': `/${this.item.path}`,
-          'storage.halo.run/suffix': `${this.item.suffix}`,
-          'storage.halo.run/width': `${this.item.width}`,
-          'storage.halo.run/height': `${this.item.height}`
-        }
-      },
-      spec: {
-        displayName: `${this.item.name}`,
-        groupName: `${this.item.groupName || ''}`,
-        ownerName: `${this.ownerName}`,
-        policyName: `${this.policyName}`,
-        mediaType: `${this.item.mediaType || ''}`,
-        size: Number.parseInt(`${this.item.size}`),
-        tags: this.item.tags
+  const attachment: Attachment = {
+    apiVersion: 'storage.halo.run/v1alpha1',
+    kind: 'Attachment',
+    metadata: {
+      name: String(item.id),
+      annotations: {
+        'storage.halo.run/local-relative-path': `${relativePathFolder}/${relativePath}`,
+        'storage.halo.run/uri': `/${item.path}`,
+        'storage.halo.run/suffix': `${item.suffix}`,
+        'storage.halo.run/width': `${item.width}`,
+        'storage.halo.run/height': `${item.height}`
       }
+    },
+    spec: {
+      displayName: `${item.name}`,
+      groupName: `${item.groupName || ''}`,
+      ownerName: `${ownerName}`,
+      policyName: `${policyName}`,
+      mediaType: `${item.mediaType || ''}`,
+      size: Number.parseInt(`${item.size}`),
+      tags: item.tags
     }
   }
+  return createTaskItem(String(item.id), 'attachment', item.name, item, () =>
+    coreApiClient.storage.attachment.createAttachment({ attachment })
+  )
 }
 
-class S3OSSAttachmentTask extends AbstractAttachmentTask {
-  buildModel() {
-    return {
-      apiVersion: 'storage.halo.run/v1alpha1',
-      kind: 'Attachment',
-      metadata: {
-        name: this.item.id + '',
-        annotations: {
-          's3os.plugin.halo.run/object-key': `${this.item.fileKey}`,
-          'storage.halo.run/external-link': `${this.item.path}`,
-          'storage.halo.run/suffix': `${this.item.suffix}`,
-          'storage.halo.run/width': `${this.item.width}`,
-          'storage.halo.run/height': `${this.item.height}`
-        }
-      },
-      spec: {
-        displayName: `${this.item.name}`,
-        groupName: `${this.item.groupName || ''}`,
-        ownerName: `${this.ownerName}`,
-        policyName: `${this.policyName}`,
-        mediaType: `${this.item.mediaType || ''}`,
-        size: Number.parseInt(`${this.item.size}`),
-        tags: this.item.tags
+function buildS3OSSAttachmentTask(
+  item: MigrateAttachment,
+  policyName: string,
+  ownerName: string
+): MigrateTaskItem<MigrateAttachment> {
+  const attachment: Attachment = {
+    apiVersion: 'storage.halo.run/v1alpha1',
+    kind: 'Attachment',
+    metadata: {
+      name: String(item.id),
+      annotations: {
+        's3os.plugin.halo.run/object-key': `${item.fileKey}`,
+        'storage.halo.run/external-link': `${item.path}`,
+        'storage.halo.run/suffix': `${item.suffix}`,
+        'storage.halo.run/width': `${item.width}`,
+        'storage.halo.run/height': `${item.height}`
       }
+    },
+    spec: {
+      displayName: `${item.name}`,
+      groupName: `${item.groupName || ''}`,
+      ownerName: `${ownerName}`,
+      policyName: `${policyName}`,
+      mediaType: `${item.mediaType || ''}`,
+      size: Number.parseInt(`${item.size}`),
+      tags: item.tags
     }
   }
+  return createTaskItem(String(item.id), 'attachment', item.name, item, () =>
+    coreApiClient.storage.attachment.createAttachment({ attachment })
+  )
 }
 
-export function useMigrateTask(data: MigrateData): useMigrateTaskReturn {
-  const createTagTasks = () => {
-    const tags = data.tags || []
-    return tags.map((tag) => new TagTask(tag))
-  }
+function buildNoSupportAttachmentTask(item: MigrateAttachment): MigrateTaskItem<MigrateAttachment> {
+  return createTaskItem(String(item.id), 'attachment', item.name, item, () =>
+    Promise.reject(new Error('尚未支持 【' + item.type + '】 类型的附件迁移'))
+  )
+}
 
-  const createCategoryTasks = () => {
-    const categories = data.categories || []
-    return categories.map((category) => new CategoryTask(category))
-  }
-
-  const createPostTasks = () => {
-    const posts = data.posts || []
-    const postTasks: PostTask[] = []
-    const postCounterTasks: CounterTask[] = []
-    posts.forEach((post) => {
-      postTasks.push(new PostTask(post))
-      if (post.counter) {
-        postCounterTasks.push(
-          new CounterTask(
-            post.counter,
-            `posts.content.halo.run/${post.postRequest.post.metadata.name}`
-          )
-        )
-      }
-    })
-    return [...postTasks, ...postCounterTasks]
-  }
-
-  const createSinglePageTasks = () => {
-    const pages = data.pages || []
-    const pageTasks: SinglePageTask[] = []
-    const pageCounterTasks: CounterTask[] = []
-    pages.forEach((page) => {
-      pageTasks.push(new SinglePageTask(page))
-      if (page.counter) {
-        pageCounterTasks.push(
-          new CounterTask(
-            page.counter,
-            `singlepages.content.halo.run/${page.singlePageRequest.page.metadata.name}`
-          )
-        )
-      }
-    })
-    return [...pageTasks, ...pageCounterTasks]
-  }
-
-  const createCommentAndReplyTasks = () => {
-    const comments = data.comments || []
-    const commentTask: (CommentTask | ReplyTask)[] = []
-
-    comments.forEach((comment: MigrateComment | MigrateReply) => {
-      if (comment instanceof Comment) {
-        commentTask.push(new CommentTask(comment as MigrateComment))
-      } else {
-        commentTask.push(new ReplyTask(comment as MigrateReply))
-      }
-    })
-    return commentTask
-  }
-
-  const createMenuTasks = () => {
-    const menus = data.menuItems || []
-    const groupedMenus = groupBy(menus, item => item.groupId)
-    const menuTask: MenuTask[] = []
-    Object.keys(groupedMenus).forEach((key) => {
-      const itemNames = groupedMenus[key].map((item) => item.menu.metadata.name)
-      const menuName = groupedMenus[key][0].groupName || key
-      menuTask.push(new MenuTask(key, menuName, itemNames))
-    })
-
-    const menuItemTasks: MenuItemTask[] = []
-    menus.forEach((item) => {
-      menuItemTasks.push(new MenuItemTask(item))
-    })
-    return [...menuTask, ...menuItemTasks]
-  }
-
-  const createMomentTasks = () => {
-    const moments = data.moments || []
-    return moments.map((moment) => new MomentTask(moment))
-  }
-
-  const createPhotoTasks = () => {
-    const photos = data.photos || []
-    const groupedPhotos = groupBy(photos, item => item.spec.groupName)
-    const photoGroupTasks: PhotoGroupTask[] = []
-    Object.keys(groupedPhotos).forEach((key) => {
-      photoGroupTasks.push(new PhotoGroupTask(key))
-    })
-
-    const photoTasks: PhotoTask[] = []
-    photos.forEach((item) => {
-      photoTasks.push(new PhotoTask(item))
-    })
-    return [...photoGroupTasks, ...photoTasks]
-  }
-
-  const createLinkTasks = () => {
-    const links = data.links || []
-    const groupedLinks = groupBy(links, item => item.spec.groupName || '')
-    const linkGroupTasks: LinkGroupTask[] = []
-    Object.keys(groupedLinks).forEach((key) => {
-      linkGroupTasks.push(new LinkGroupTask(key))
-    })
-
-    const linkTasks: LinkTask[] = []
-    links.forEach((item) => {
-      linkTasks.push(new LinkTask(item))
-    })
-    return [...linkGroupTasks, ...linkTasks]
-  }
-
-  function createAttachmentTasks(
-    relativePathFolder: string,
-    user?: User,
+export function useMigrateTask(
+  data: MigrateData,
+  options: {
+    relativePathFolder?: string
+    user?: User
     typeToPolicyMap?: Map<string, string>
-  ) {
-    const attachments = data.attachments || []
-    if (!user || !typeToPolicyMap || typeToPolicyMap.size === 0) {
-      return []
+  } = {}
+): MigrateTaskGroup[] {
+  const { relativePathFolder, user, typeToPolicyMap } = options
+
+  // Tags
+  const tagTasks = (data.tags || []).map((tag) =>
+    createTaskItem(
+      tag.metadata?.name || tag.spec?.displayName || 'unknown',
+      'tag',
+      tag.spec?.displayName || tag.metadata?.name || '未命名标签',
+      tag,
+      () => coreApiClient.content.tag.createTag({ tag })
+    )
+  )
+
+  // Categories
+  const categoryTasks = (data.categories || []).map((category) =>
+    createTaskItem(
+      category.metadata?.name || category.spec?.displayName || 'unknown',
+      'category',
+      category.spec?.displayName || category.metadata?.name || '未命名分类',
+      category,
+      () => coreApiClient.content.category.createCategory({ category: category as Category })
+    )
+  )
+
+  // Posts
+  const postTasks: MigrateTaskItem<any>[] = []
+  ;(data.posts || []).forEach((post) => {
+    postTasks.push(
+      createTaskItem(
+        post.postRequest.post?.metadata?.name || post.postRequest.post?.spec?.title || 'unknown',
+        'post',
+        post.postRequest.post?.spec?.title || post.postRequest.post?.metadata?.name || '未命名文章',
+        post,
+        () => consoleApiClient.content.post.draftPost({ postRequest: post.postRequest })
+      )
+    )
+    if (post.counter) {
+      postTasks.push(
+        buildCounterTask(
+          post.counter,
+          `posts.content.halo.run/${post.postRequest.post?.metadata?.name}`
+        )
+      )
     }
-    const typeGroupAttachments = groupBy(attachments, item => item.type)
+  })
 
-    let attachmentRequests: MigrateRequestTask<any>[] = []
-    const userName = user.metadata.name;
+  // Pages
+  const pageTasks: MigrateTaskItem<any>[] = []
+  ;(data.pages || []).forEach((page) => {
+    pageTasks.push(
+      createTaskItem(
+        page.singlePageRequest.page?.metadata?.name ||
+          page.singlePageRequest.page?.spec?.title ||
+          'unknown',
+        'page',
+        page.singlePageRequest.page?.spec?.title ||
+          page.singlePageRequest.page?.metadata?.name ||
+          '未命名页面',
+        page,
+        () =>
+          consoleApiClient.content.singlePage.draftSinglePage({
+            singlePageRequest: page.singlePageRequest
+          })
+      )
+    )
+    if (page.counter) {
+      pageTasks.push(
+        buildCounterTask(
+          page.counter,
+          `singlepages.content.halo.run/${page.singlePageRequest.page?.metadata?.name}`
+        )
+      )
+    }
+  })
 
-    Object.entries(typeGroupAttachments).forEach(([key, attachments]) => {
-      attachmentRequests = [
-        ...attachmentRequests,
-        ...attachments
-          .map((item) => {
-            switch (item.type) {
-              case 'LOCAL':
-                return new LocalAttachmentTask(
-                  item,
-                  typeToPolicyMap.get(item.type) || 'default-policy',
-                  userName,
-                  relativePathFolder
-                )
-              case 'ALIOSS':
-              case 'BAIDUBOS':
-              case 'TENCENTCOS':
-              case 'QINIUOSS':
-              case 'UPOSS':
-                return new S3OSSAttachmentTask(
-                  item,
-                  typeToPolicyMap.get(item.type) || 'default-policy',
-                  userName,
-                  relativePathFolder
-                )
-              default:
-                return new NoSupportAttachmentTask(item)
+  // Comments & Replies
+  const commentTasks: MigrateTaskItem<any>[] = []
+  ;(data.comments || []).forEach((comment) => {
+    const c = comment as any
+    const isComment =
+      (comment as MigrateComment).kind === 'Comment' || (c?.spec && 'comment' in c.spec)
+    if (isComment) {
+      commentTasks.push(
+        createTaskItem(
+          (comment as MigrateComment).metadata?.name || 'unknown',
+          'comment',
+          (comment as MigrateComment).spec?.owner?.displayName ||
+            (comment as MigrateComment).metadata?.name ||
+            '评论',
+          comment as MigrateComment,
+          () =>
+            coreApiClient.content.comment.createComment({
+              comment: comment as Comment
+            })
+        )
+      )
+    } else {
+      commentTasks.push(
+        createTaskItem(
+          (comment as MigrateReply).metadata?.name || 'unknown',
+          'reply',
+          (comment as MigrateReply).spec?.owner?.displayName ||
+            (comment as MigrateReply).metadata?.name ||
+            '回复',
+          comment as MigrateReply,
+          () =>
+            coreApiClient.content.reply.createReply({
+              reply: comment as Reply
+            })
+        )
+      )
+    }
+  })
+
+  // Menus
+  const menuTasks: MigrateTaskItem<any>[] = []
+  const menus = data.menuItems || []
+  const groupedMenus = groupBy(menus, (item) => item.groupId)
+  Object.entries(groupedMenus).forEach(([key, items]) => {
+    const itemNames = items.map((item) => item.menu.metadata?.name).filter(Boolean) as string[]
+    const menuName = items[0]?.groupName || key
+    menuTasks.push(
+      createTaskItem(
+        String(key || 'default'),
+        'menu',
+        menuName ? String(menuName) : '未分组',
+        String(key || 'default'),
+        () =>
+          coreApiClient.menu.createMenu({
+            menu: {
+              kind: 'Menu',
+              apiVersion: 'v1alpha1',
+              metadata: { name: key ? String(key) : 'default' },
+              spec: {
+                displayName: menuName ? String(menuName) : '未分组',
+                menuItems: itemNames
+              }
             }
           })
-          .filter((item) => item && item != undefined)
-      ]
-    });
+      )
+    )
+  })
+  menus.forEach((item) => {
+    menuTasks.push(
+      createTaskItem(
+        item.menu.metadata?.name || 'unknown',
+        'menuItem',
+        item.menu.spec?.displayName || item.menu.metadata?.name || '未命名菜单项',
+        item,
+        () => coreApiClient.menuItem.createMenuItem({ menuItem: item.menu })
+      )
+    )
+  })
 
-    return attachmentRequests
+  // Moments
+  const momentTasks = (data.moments || []).map((moment) =>
+    createTaskItem(
+      moment.metadata?.name || 'unknown',
+      'moment',
+      moment.metadata?.name || '日志',
+      moment,
+      () => axiosInstance.post('/apis/console.api.moment.halo.run/v1alpha1/moments', moment)
+    )
+  )
+
+  // Photos
+  const photoTasks: MigrateTaskItem<any>[] = []
+  const photos = data.photos || []
+  const groupedPhotos = groupBy(photos, (item) => item.spec?.groupName || '')
+  Object.keys(groupedPhotos).forEach((key) => {
+    photoTasks.push(
+      createTaskItem(key || 'default', 'photoGroup', key || '未分组', key || 'default', () =>
+        axiosInstance.post('/apis/core.halo.run/v1alpha1/photogroups', {
+          spec: { displayName: key || '未分组', priority: 0 },
+          metadata: { name: key || 'default' },
+          kind: 'PhotoGroup',
+          apiVersion: 'core.halo.run/v1alpha1'
+        })
+      )
+    )
+  })
+  photos.forEach((item) => {
+    photoTasks.push(
+      createTaskItem(
+        item.metadata?.name || 'unknown',
+        'photo',
+        item.spec?.displayName || item.metadata?.name || '未命名图片',
+        item,
+        () => axiosInstance.post('/apis/core.halo.run/v1alpha1/photos', item)
+      )
+    )
+  })
+
+  // Links
+  const linkTasks: MigrateTaskItem<any>[] = []
+  const links = data.links || []
+  const groupedLinks = groupBy(links, (item) => item.spec?.groupName || '')
+  Object.keys(groupedLinks).forEach((key) => {
+    linkTasks.push(
+      createTaskItem(key || 'default', 'linkGroup', key || '未分组', key || 'default', () =>
+        axiosInstance.post('/apis/core.halo.run/v1alpha1/linkgroups', {
+          spec: { displayName: key || '未分组', priority: 0, links: [] },
+          metadata: { name: key || 'default' },
+          kind: 'LinkGroup',
+          apiVersion: 'core.halo.run/v1alpha1'
+        })
+      )
+    )
+  })
+  links.forEach((item) => {
+    linkTasks.push(
+      createTaskItem(
+        item.metadata?.name || 'unknown',
+        'link',
+        item.spec?.displayName || item.metadata?.name || '未命名链接',
+        item,
+        () => axiosInstance.post('/apis/core.halo.run/v1alpha1/links', item)
+      )
+    )
+  })
+
+  // Attachments
+  const attachmentTasks: MigrateTaskItem<MigrateAttachment>[] = []
+  const attachments = data.attachments || []
+  if (user && typeToPolicyMap && typeToPolicyMap.size > 0) {
+    const userName = user.metadata?.name || ''
+    attachments.forEach((item) => {
+      const policyName = typeToPolicyMap.get(item.type) || 'default-policy'
+      switch (item.type) {
+        case 'LOCAL':
+          attachmentTasks.push(
+            buildLocalAttachmentTask(item, policyName, userName, relativePathFolder || '')
+          )
+          break
+        case 'ALIOSS':
+        case 'BAIDUBOS':
+        case 'TENCENTCOS':
+        case 'QINIUOSS':
+        case 'UPOSS':
+          attachmentTasks.push(buildS3OSSAttachmentTask(item, policyName, userName))
+          break
+        default:
+          attachmentTasks.push(buildNoSupportAttachmentTask(item))
+      }
+    })
   }
 
-  return {
-    createTagTasks,
-    createCategoryTasks,
-    createPostTasks,
-    createSinglePageTasks,
-    createCommentAndReplyTasks,
-    createMenuTasks,
-    createMomentTasks,
-    createPhotoTasks,
-    createLinkTasks,
-    createAttachmentTasks
-  }
+  const groups: MigrateTaskGroup[] = [
+    { key: 'tags', label: '标签', tasks: tagTasks },
+    { key: 'categories', label: '分类', tasks: categoryTasks },
+    { key: 'posts', label: '文章', tasks: postTasks },
+    { key: 'pages', label: '页面', tasks: pageTasks },
+    { key: 'comments', label: '评论及回复', tasks: commentTasks },
+    { key: 'menus', label: '菜单', tasks: menuTasks },
+    { key: 'moments', label: '日志', tasks: momentTasks },
+    { key: 'photos', label: '图库', tasks: photoTasks },
+    { key: 'links', label: '友情链接', tasks: linkTasks },
+    { key: 'attachments', label: '附件', tasks: attachmentTasks }
+  ].filter((g) => g.tasks.length > 0)
+
+  return groups
 }

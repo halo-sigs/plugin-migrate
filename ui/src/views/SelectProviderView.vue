@@ -44,7 +44,7 @@ const handleSelectProvider = (provider: Provider) => {
           >
           <span>选择平台</span>
         </div>
-        <div class=":uno: w-8 border-t border-gray-300 border-dashed" />
+        <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
         <div class=":uno: flex items-center gap-2">
           <span
             class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 font-medium"
@@ -52,7 +52,7 @@ const handleSelectProvider = (provider: Provider) => {
           >
           <span>上传数据</span>
         </div>
-        <div class=":uno: w-8 border-t border-gray-300 border-dashed" />
+        <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
         <div class=":uno: flex items-center gap-2">
           <span
             class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs text-gray-500 font-medium"

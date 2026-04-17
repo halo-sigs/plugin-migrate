@@ -288,7 +288,7 @@ onBeforeRouteLeave((to, from, next) => {
         >
         <span>选择平台</span>
       </div>
-      <div class=":uno: w-8 border-t border-gray-300 border-dashed" />
+      <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
       <div
         class=":uno: flex items-center gap-2 text-sm font-medium"
         :class="migrateData ? ':uno: text-gray-400' : ':uno: text-gray-900'"
@@ -300,7 +300,7 @@ onBeforeRouteLeave((to, from, next) => {
         >
         <span>上传数据</span>
       </div>
-      <div class=":uno: w-8 border-t border-gray-300 border-dashed" />
+      <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
       <div
         class=":uno: flex items-center gap-2 text-sm font-medium"
         :class="migrateData ? ':uno: text-indigo-600' : ':uno: text-gray-400'"

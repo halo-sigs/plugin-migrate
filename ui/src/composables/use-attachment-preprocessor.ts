@@ -117,6 +117,23 @@ export function useAttachmentPreprocessor() {
       }
     })
 
+    data.photos?.forEach((photo) => {
+      addUrl(photo.spec?.url)
+      addUrl(photo.spec?.cover)
+    })
+
+    data.tags?.forEach((tag) => {
+      addUrl(tag.spec?.cover)
+    })
+
+    data.categories?.forEach((category) => {
+      addUrl(category.spec?.cover)
+    })
+
+    data.links?.forEach((link) => {
+      addUrl(link.spec?.logo)
+    })
+
     return [...new Set(urls)]
   }
 
@@ -165,6 +182,33 @@ export function useAttachmentPreprocessor() {
       if (c) {
         c.raw = replaceInText(c.raw || '')
         c.html = replaceInText(c.html || '')
+      }
+    })
+
+    data.photos?.forEach((photo) => {
+      if (photo.spec?.url) {
+        photo.spec.url = replaceInText(photo.spec.url)
+      }
+      if (photo.spec?.cover) {
+        photo.spec.cover = replaceInText(photo.spec.cover)
+      }
+    })
+
+    data.tags?.forEach((tag) => {
+      if (tag.spec?.cover) {
+        tag.spec.cover = replaceInText(tag.spec.cover)
+      }
+    })
+
+    data.categories?.forEach((category) => {
+      if (category.spec?.cover) {
+        category.spec.cover = replaceInText(category.spec.cover)
+      }
+    })
+
+    data.links?.forEach((link) => {
+      if (link.spec?.logo) {
+        link.spec.logo = replaceInText(link.spec.logo)
       }
     })
   }

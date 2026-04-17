@@ -48,6 +48,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
             } as MigrateData)
           } catch (error) {
             console.error('解析失败:', error)
+            reject(error)
           }
         }
       }

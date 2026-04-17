@@ -1,6 +1,18 @@
 import type { MigrateData } from '@/types'
+import { replaceUrlsInMigrateData } from '@/utils/migrate-data-media'
 import { consoleApiClient } from '@halo-dev/api-client'
 import { ref } from 'vue'
+
+interface AttachmentUploadFailure {
+  url: string
+  reason: string
+}
+
+interface AttachmentProcessResult {
+  replacedCount: number
+  matchedCount: number
+  unmatchedCount: number
+}
 
 export function useAttachmentPreprocessor() {
   const isUploading = ref(false)
@@ -138,118 +150,77 @@ export function useAttachmentPreprocessor() {
     return [...new Set(urls)]
   }
 
-  function replaceUrlsInData(data: MigrateData, urlMap: Map<string, string>) {
-    const replaceInText = (text: string) => {
-      if (!text) return text
-      let result = text
-      urlMap.forEach((newUrl, oldUrl) => {
-        result = result.replaceAll(oldUrl, newUrl)
-      })
-      return result
-    }
-
-    data.posts?.forEach((post) => {
-      const content = post.postRequest.content
-      if (content) {
-        content.raw = replaceInText(content.raw || '')
-        content.content = replaceInText(content.content || '')
-      }
-      const cover = post.postRequest.post?.spec?.cover
-      if (cover) {
-        const newCover = replaceInText(cover)
-        if (newCover !== cover) {
-          post.postRequest.post.spec.cover = newCover
-        }
-      }
-    })
-
-    data.pages?.forEach((page) => {
-      const content = page.singlePageRequest.content
-      if (content) {
-        content.raw = replaceInText(content.raw || '')
-        content.content = replaceInText(content.content || '')
-      }
-      const cover = page.singlePageRequest.page?.spec?.cover
-      if (cover) {
-        const newCover = replaceInText(cover)
-        if (newCover !== cover) {
-          page.singlePageRequest.page.spec.cover = newCover
-        }
-      }
-    })
-
-    data.moments?.forEach((moment) => {
-      const c = moment.spec?.content
-      if (c) {
-        c.raw = replaceInText(c.raw || '')
-        c.html = replaceInText(c.html || '')
-      }
-    })
-
-    data.photos?.forEach((photo) => {
-      if (photo.spec?.url) {
-        photo.spec.url = replaceInText(photo.spec.url)
-      }
-      if (photo.spec?.cover) {
-        photo.spec.cover = replaceInText(photo.spec.cover)
-      }
-    })
-
-    data.tags?.forEach((tag) => {
-      if (tag.spec?.cover) {
-        tag.spec.cover = replaceInText(tag.spec.cover)
-      }
-    })
-
-    data.categories?.forEach((category) => {
-      if (category.spec?.cover) {
-        category.spec.cover = replaceInText(category.spec.cover)
-      }
-    })
-
-    data.links?.forEach((link) => {
-      if (link.spec?.logo) {
-        link.spec.logo = replaceInText(link.spec.logo)
-      }
-    })
-  }
-
-  async function process(data: MigrateData, files: FileList) {
+  async function process(data: MigrateData, files: FileList): Promise<AttachmentProcessResult> {
     isUploading.value = true
-    const urls = extractMediaUrls(data)
-    uploadProgress.value = { current: 0, total: urls.length }
-    const urlMap = new Map<string, string>()
-    const uploadedCache = new Map<string, string>()
 
-    for (const url of urls) {
-      const path = normalizeUrl(url)
-      const file = findMatchingFile(path, files)
-      if (file) {
-        const cacheKey = file.webkitRelativePath || file.name
-        let permalink = uploadedCache.get(cacheKey)
-        if (!permalink) {
-          const blob = await file.arrayBuffer()
-          const newFile = new File([blob], file.name, { type: file.type })
-          const res = await consoleApiClient.storage.attachment.uploadAttachmentForConsole({
-            file: newFile,
-            filename: newFile.name
-          })
-          permalink = res.data.status?.permalink
-          if (permalink) {
+    try {
+      const urls = extractMediaUrls(data)
+      uploadProgress.value = { current: 0, total: urls.length }
+
+      const urlMap = new Map<string, string>()
+      const uploadedCache = new Map<string, string>()
+      const failures: AttachmentUploadFailure[] = []
+      let matchedCount = 0
+
+      for (const url of urls) {
+        const path = normalizeUrl(url)
+        const file = findMatchingFile(path, files)
+
+        if (!file) {
+          uploadProgress.value.current++
+          continue
+        }
+
+        matchedCount++
+
+        try {
+          const cacheKey = file.webkitRelativePath || file.name
+          let permalink = uploadedCache.get(cacheKey)
+
+          if (!permalink) {
+            const blob = await file.arrayBuffer()
+            const newFile = new File([blob], file.name, { type: file.type })
+            const res = await consoleApiClient.storage.attachment.uploadAttachmentForConsole({
+              file: newFile,
+              filename: newFile.name
+            })
+
+            permalink = res.data.status?.permalink
+            if (!permalink) {
+              throw new Error('上传成功但未返回 permalink')
+            }
+
             uploadedCache.set(cacheKey, permalink)
           }
-        }
-        if (permalink) {
+
           urlMap.set(url, permalink)
           urlMap.set(path, permalink)
+        } catch (error) {
+          failures.push({
+            url,
+            reason: error instanceof Error ? error.message : String(error)
+          })
+        } finally {
+          uploadProgress.value.current++
         }
       }
-      uploadProgress.value.current++
-    }
 
-    replaceUrlsInData(data, urlMap)
-    isUploading.value = false
-    return { replacedCount: urlMap.size / 2 }
+      if (failures.length > 0) {
+        throw new Error(
+          `有 ${failures.length} 个附件上传失败，已停止替换内容中的附件链接。首个失败链接：${failures[0]?.url}`
+        )
+      }
+
+      replaceUrlsInMigrateData(data, urlMap)
+
+      return {
+        replacedCount: urlMap.size / 2,
+        matchedCount,
+        unmatchedCount: urls.length - matchedCount
+      }
+    } finally {
+      isUploading.value = false
+    }
   }
 
   return { process, isUploading, uploadProgress }

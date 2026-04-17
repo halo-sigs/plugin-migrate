@@ -3,7 +3,8 @@ import FileSelector from '@/components/FileSelector.vue'
 import type { MigrateAttachment, MigrateData } from '@/types'
 import { VAlert, VButton } from '@halo-dev/components'
 import { ref } from 'vue'
-import { uploadAttachment, useTypechoDataParser } from './use-typecho-data-parser'
+import { migrateTypechoAttachments } from './use-typecho-attachment-migrator'
+import { useTypechoDataParser } from './use-typecho-data-parser'
 
 defineProps<{
   data: MigrateData
@@ -58,54 +59,15 @@ async function handleMigrateAttachments() {
 
   migrationStatus.value = 'migrating'
 
-  for (let i = attachments.value.length - 1; i >= 0; i--) {
-    const attachment = attachments.value[i]
-    const oldUrl = attachmentBaseURL.value + attachment.path
-    try {
-      console.log(`正在上传附件: ${attachment.name} 从 ${oldUrl}`)
-      const res = await uploadAttachment(attachment.name, oldUrl)
-      const newUrl = res.data.metadata.annotations?.['storage.halo.run/uri'] ?? ''
-      console.log(`附件 ${attachment.name} 上传成功，新地址: ${newUrl}`)
+  const result = await migrateTypechoAttachments(
+    migrateData.value,
+    attachments.value,
+    attachmentBaseURL.value
+  )
 
-      // 替换文章中的附件地址
-      migrateData.value.posts?.forEach((post) => {
-        if (post.postRequest.content?.raw?.includes(oldUrl)) {
-          post.postRequest.content.raw = post.postRequest.content.raw.replaceAll(oldUrl, newUrl)
-          console.log(`文章 [${post.postRequest.post.spec.title}] raw 内容中的附件地址已替换`)
-        }
-        if (post.postRequest.content?.content?.includes(oldUrl)) {
-          post.postRequest.content.content = post.postRequest.content.content.replaceAll(
-            oldUrl,
-            newUrl
-          )
-          console.log(`文章 [${post.postRequest.post.spec.title}] content 内容中的附件地址已替换`)
-        }
-      })
-
-      // 替换页面中的附件地址
-      migrateData.value.pages?.forEach((page) => {
-        if (page.singlePageRequest.content?.raw?.includes(oldUrl)) {
-          page.singlePageRequest.content.raw = page.singlePageRequest.content.raw.replaceAll(
-            oldUrl,
-            newUrl
-          )
-          console.log(`页面 [${page.singlePageRequest.page.spec.title}] raw 内容中的附件地址已替换`)
-        }
-        if (page.singlePageRequest.content?.content?.includes(oldUrl)) {
-          page.singlePageRequest.content.content =
-            page.singlePageRequest.content.content.replaceAll(oldUrl, newUrl)
-          console.log(
-            `页面 [${page.singlePageRequest.page.spec.title}] content 内容中的附件地址已替换`
-          )
-        }
-      })
-      attachments.value.splice(i, 1)
-    } catch (error) {
-      console.error(`附件 ${attachment.name} 上传失败:`, error)
-    }
-  }
-  console.log('所有附件处理完成')
-  emit('update:data', migrateData.value)
+  migrateData.value = result.data
+  attachments.value = result.failedAttachments
+  emit('update:data', result.data)
   migrationStatus.value = 'completed'
 }
 </script>

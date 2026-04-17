@@ -1,4 +1,5 @@
 import { useAttachmentPreprocessor } from '@/composables/use-attachment-preprocessor'
+import { useBeforeUnloadGuard } from '@/composables/use-before-unload-guard'
 import type {
   LocalAttachmentStrategy,
   MigrateData,
@@ -12,6 +13,7 @@ import { computed, ref, watch, type Ref } from 'vue'
 
 export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
   const attachmentPreprocessor = useAttachmentPreprocessor()
+  const beforeUnloadGuard = useBeforeUnloadGuard()
   const importLoading = ref(false)
   const isImportStarted = ref(false)
 
@@ -82,11 +84,7 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
 
     importLoading.value = true
     isImportStarted.value = true
-    window.onbeforeunload = function (event: BeforeUnloadEvent) {
-      event.preventDefault()
-      event.returnValue = ''
-      return '数据正在导入中，请勿关闭或刷新此页面。'
-    }
+    beforeUnloadGuard.enable()
 
     const tasksToRun = [...pendingTasks.value, ...failedTasks.value]
     tasksToRun.forEach((task) => {
@@ -103,7 +101,7 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
     await taskQueue.drained()
 
     importLoading.value = false
-    window.onbeforeunload = null
+    beforeUnloadGuard.disable()
 
     if (failedTasks.value.length === 0) {
       Dialog.success({ title: '导入完成' })

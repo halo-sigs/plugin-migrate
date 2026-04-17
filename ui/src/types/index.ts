@@ -26,6 +26,8 @@ export interface Provider {
 
 export type LocalAttachmentStrategy = 'upload' | 'manual'
 
+export type AttachmentPolicyConfig = Partial<Record<AttachmentType, string>>
+
 export interface AttachmentHandlerDescriptions {
   localUploadTitle?: string
   localUploadDescription?: string
@@ -85,10 +87,12 @@ export interface MigrateSinglePage {
 }
 
 export interface MigrateComment extends Comment {
+  kind: 'Comment'
   refType: 'Post' | 'SinglePage' | 'Moment'
 }
 
 export interface MigrateReply extends Reply {
+  kind: 'Reply'
   refType: 'Post' | 'SinglePage' | 'Moment'
 }
 
@@ -208,7 +212,7 @@ export interface MigrateTaskGroup {
 
 export interface AttachmentPreparationResult {
   data: MigrateData
-  typeToPolicyMap: Map<string, string>
+  attachmentPolicies: AttachmentPolicyConfig
   selectedFolderFiles: FileList | null
   localStrategy: LocalAttachmentStrategy | null
 }

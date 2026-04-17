@@ -1,5 +1,6 @@
 import { useMigrateTask } from '@/composables/use-migrate-task'
 import type {
+  AttachmentPolicyConfig,
   AttachmentPreparationResult,
   LocalAttachmentStrategy,
   MigrateData,
@@ -23,7 +24,7 @@ export function useMigratePreparation(
 ) {
   const parsedData = ref<MigrateData>()
   const preparedData = ref<MigrateData>()
-  const policyMap = ref<Map<string, string>>(new Map())
+  const attachmentPolicies = ref<AttachmentPolicyConfig>({})
   const selectedFolderFiles = ref<FileList | null>(null)
   const localStrategy = ref<LocalAttachmentStrategy | null>(null)
   const taskGroups = ref<MigrateTaskGroup[]>([])
@@ -49,12 +50,12 @@ export function useMigratePreparation(
   })
 
   watch(
-    [
-      preparedData,
-      () => JSON.stringify(Array.from(policyMap.value.entries())),
-      () => activeProvider.value?.options?.attachmentFolderPath,
-      currentUser
-    ],
+    () => ({
+      preparedData: preparedData.value,
+      attachmentPolicies: attachmentPolicies.value,
+      attachmentFolderPath: activeProvider.value?.options?.attachmentFolderPath,
+      currentUser: currentUser.value
+    }),
     () => {
       if (!preparedData.value) {
         taskGroups.value = []
@@ -64,14 +65,15 @@ export function useMigratePreparation(
       taskGroups.value = useMigrateTask(preparedData.value, {
         relativePathFolder: activeProvider.value?.options?.attachmentFolderPath,
         user: currentUser.value,
-        typeToPolicyMap: policyMap.value
+        attachmentPolicies: attachmentPolicies.value
       })
-    }
+    },
+    { deep: true }
   )
 
   function resetPreparationState() {
     preparedData.value = undefined
-    policyMap.value = new Map()
+    attachmentPolicies.value = {}
     selectedFolderFiles.value = null
     localStrategy.value = null
     taskGroups.value = []
@@ -89,7 +91,7 @@ export function useMigratePreparation(
     }
 
     preparedData.value = result?.data || parsedData.value
-    policyMap.value = result?.typeToPolicyMap || new Map()
+    attachmentPolicies.value = result?.attachmentPolicies || {}
     selectedFolderFiles.value = result?.selectedFolderFiles || null
     localStrategy.value = result?.localStrategy || null
     showTasks.value = true
@@ -103,7 +105,7 @@ export function useMigratePreparation(
   return {
     parsedData,
     preparedData,
-    policyMap,
+    attachmentPolicies,
     selectedFolderFiles,
     localStrategy,
     taskGroups,

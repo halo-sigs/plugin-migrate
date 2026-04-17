@@ -1,9 +1,15 @@
 import type {
+  AttachmentPolicyConfig,
   Counter,
   MigrateAttachment,
   MigrateComment,
   MigrateData,
+  MigrateLink,
+  MigrateMenu,
+  MigratePhoto,
+  MigratePost,
   MigrateReply,
+  MigrateSinglePage,
   MigrateTaskGroup,
   MigrateTaskItem
 } from '@/types'
@@ -20,12 +26,14 @@ import {
 import type { AxiosResponse } from 'axios'
 import { groupBy } from 'es-toolkit'
 
+type TaskResponse = AxiosResponse<unknown, unknown>
+
 function createTaskItem<T>(
   id: string,
   type: string,
   label: string,
   item: T,
-  run: () => Promise<AxiosResponse<any, any>>
+  run: () => Promise<TaskResponse>
 ): MigrateTaskItem<T> {
   return {
     id,
@@ -132,15 +140,19 @@ function buildNoSupportAttachmentTask(item: MigrateAttachment): MigrateTaskItem<
   )
 }
 
+function isMigrateComment(item: MigrateComment | MigrateReply): item is MigrateComment {
+  return item.kind === 'Comment'
+}
+
 export function useMigrateTask(
   data: MigrateData,
   options: {
     relativePathFolder?: string
     user?: User
-    typeToPolicyMap?: Map<string, string>
+    attachmentPolicies?: AttachmentPolicyConfig
   } = {}
 ): MigrateTaskGroup[] {
-  const { relativePathFolder, user, typeToPolicyMap } = options
+  const { relativePathFolder, user, attachmentPolicies } = options
 
   // Tags
   const tagTasks = (data.tags || []).map((tag) =>
@@ -165,7 +177,7 @@ export function useMigrateTask(
   )
 
   // Posts
-  const postTasks: MigrateTaskItem<any>[] = []
+  const postTasks: MigrateTaskItem<MigratePost | Counter>[] = []
   ;(data.posts || []).forEach((post) => {
     postTasks.push(
       createTaskItem(
@@ -187,7 +199,7 @@ export function useMigrateTask(
   })
 
   // Pages
-  const pageTasks: MigrateTaskItem<any>[] = []
+  const pageTasks: MigrateTaskItem<MigrateSinglePage | Counter>[] = []
   ;(data.pages || []).forEach((page) => {
     pageTasks.push(
       createTaskItem(
@@ -216,20 +228,15 @@ export function useMigrateTask(
   })
 
   // Comments & Replies
-  const commentTasks: MigrateTaskItem<any>[] = []
+  const commentTasks: MigrateTaskItem<MigrateComment | MigrateReply>[] = []
   ;(data.comments || []).forEach((comment) => {
-    const c = comment as any
-    const isComment =
-      (comment as MigrateComment).kind === 'Comment' || (c?.spec && 'comment' in c.spec)
-    if (isComment) {
+    if (isMigrateComment(comment)) {
       commentTasks.push(
         createTaskItem(
-          (comment as MigrateComment).metadata?.name || 'unknown',
+          comment.metadata?.name || 'unknown',
           'comment',
-          (comment as MigrateComment).spec?.owner?.displayName ||
-            (comment as MigrateComment).metadata?.name ||
-            '评论',
-          comment as MigrateComment,
+          comment.spec?.owner?.displayName || comment.metadata?.name || '评论',
+          comment,
           () =>
             coreApiClient.content.comment.createComment({
               comment: comment as Comment
@@ -239,12 +246,10 @@ export function useMigrateTask(
     } else {
       commentTasks.push(
         createTaskItem(
-          (comment as MigrateReply).metadata?.name || 'unknown',
+          comment.metadata?.name || 'unknown',
           'reply',
-          (comment as MigrateReply).spec?.owner?.displayName ||
-            (comment as MigrateReply).metadata?.name ||
-            '回复',
-          comment as MigrateReply,
+          comment.spec?.owner?.displayName || comment.metadata?.name || '回复',
+          comment,
           () =>
             coreApiClient.content.reply.createReply({
               reply: comment as Reply
@@ -255,7 +260,7 @@ export function useMigrateTask(
   })
 
   // Menus
-  const menuTasks: MigrateTaskItem<any>[] = []
+  const menuTasks: MigrateTaskItem<MigrateMenu | string>[] = []
   const menus = data.menuItems || []
   const groupedMenus = groupBy(menus, (item) => item.groupId)
   Object.entries(groupedMenus).forEach(([key, items]) => {
@@ -306,7 +311,7 @@ export function useMigrateTask(
   )
 
   // Photos
-  const photoTasks: MigrateTaskItem<any>[] = []
+  const photoTasks: MigrateTaskItem<MigratePhoto | string>[] = []
   const photos = data.photos || []
   const groupedPhotos = groupBy(photos, (item) => item.spec?.groupName || '')
   Object.keys(groupedPhotos).forEach((key) => {
@@ -334,7 +339,7 @@ export function useMigrateTask(
   })
 
   // Links
-  const linkTasks: MigrateTaskItem<any>[] = []
+  const linkTasks: MigrateTaskItem<MigrateLink | string>[] = []
   const links = data.links || []
   const groupedLinks = groupBy(links, (item) => item.spec?.groupName || '')
   Object.keys(groupedLinks).forEach((key) => {
@@ -364,10 +369,10 @@ export function useMigrateTask(
   // Attachments
   const attachmentTasks: MigrateTaskItem<MigrateAttachment>[] = []
   const attachments = data.attachments || []
-  if (user && typeToPolicyMap && typeToPolicyMap.size > 0) {
+  if (user && attachmentPolicies && Object.keys(attachmentPolicies).length > 0) {
     const userName = user.metadata?.name || ''
     attachments.forEach((item) => {
-      const policyName = typeToPolicyMap.get(item.type) || 'default-policy'
+      const policyName = attachmentPolicies[item.type] || 'default-policy'
       switch (item.type) {
         case 'LOCAL':
           attachmentTasks.push(

@@ -2,10 +2,12 @@
 import FileSelector from '@/components/FileSelector.vue'
 import type {
   AttachmentHandlerDescriptions,
+  AttachmentPolicyConfig,
   AttachmentPreparationResult,
   LocalAttachmentStrategy,
   MigrateData
 } from '@/types'
+import { cloneMigrateData } from '@/utils/migrate-data-media'
 import { coreApiClient, type Policy } from '@halo-dev/api-client'
 import { VAlert, VTag } from '@halo-dev/components'
 import { useQuery } from '@tanstack/vue-query'
@@ -53,6 +55,7 @@ const selectedFolderFiles = ref<FileList | null>(null)
 
 const policyOptions = ref<{ label: string; value: string; templateName: string }[]>([])
 const localPolicyOptions = ref<{ label: string; value: string; templateName: string }[]>([])
+const attachmentPolicies = ref<AttachmentPolicyConfig>({})
 
 useQuery({
   queryKey: ['attachment-policy-migrate'],
@@ -71,7 +74,6 @@ useQuery({
   enabled: computed(() => attachments.value.length > 0)
 })
 
-const typeToPolicyMap = ref<Map<string, string>>(new Map())
 const remotePolicySelections = ref<Record<string, string>>({})
 
 watch(
@@ -90,7 +92,7 @@ watch(
   () => remotePolicySelections.value,
   (selections) => {
     Object.entries(selections).forEach(([type, policyName]) => {
-      typeToPolicyMap.value.set(type, policyName)
+      attachmentPolicies.value[type as keyof AttachmentPolicyConfig] = policyName
     })
   },
   { deep: true }
@@ -100,9 +102,9 @@ watch(
   () => localStrategy.value,
   (strategy) => {
     if (strategy === 'manual' && localPolicyOptions.value.length > 0) {
-      typeToPolicyMap.value.set('LOCAL', localPolicyOptions.value[0]?.value)
+      attachmentPolicies.value.LOCAL = localPolicyOptions.value[0]?.value
     } else {
-      typeToPolicyMap.value.delete('LOCAL')
+      delete attachmentPolicies.value.LOCAL
     }
   }
 )
@@ -111,13 +113,13 @@ watch(
   () => localPolicyOptions.value,
   (options) => {
     if (localStrategy.value === 'manual' && options.length > 0) {
-      typeToPolicyMap.value.set('LOCAL', options[0]?.value)
+      attachmentPolicies.value.LOCAL = options[0]?.value
     }
   }
 )
 
 function getProcessedData(): MigrateData {
-  const result: MigrateData = JSON.parse(JSON.stringify(props.data))
+  const result = cloneMigrateData(props.data)
   if (hasLocal.value && localStrategy.value === 'upload') {
     result.attachments = (result.attachments || []).filter((a) => a.type !== 'LOCAL')
   }
@@ -127,7 +129,7 @@ function getProcessedData(): MigrateData {
 function getPreparationResult(): AttachmentPreparationResult {
   return {
     data: getProcessedData(),
-    typeToPolicyMap: new Map(typeToPolicyMap.value),
+    attachmentPolicies: { ...attachmentPolicies.value },
     selectedFolderFiles: selectedFolderFiles.value,
     localStrategy: localStrategy.value
   }
@@ -245,11 +247,11 @@ defineExpose({
         <p class=":uno: mb-2 text-xs text-gray-600">{{ descriptions.localManualHint }}</p>
         <FormKit
           v-if="localPolicyOptions.length"
-          :model-value="typeToPolicyMap.get('LOCAL')"
+          :model-value="attachmentPolicies.LOCAL"
           type="select"
           label="本地存储策略"
           :options="localPolicyOptions"
-          @update:model-value="(v: string) => typeToPolicyMap.set('LOCAL', v)"
+          @update:model-value="(v: string) => (attachmentPolicies.LOCAL = v)"
         />
         <VAlert v-else type="warning" title="警告" :closable="false">
           <template #description> 当前没有可用的本地存储策略，请先创建一个。 </template>

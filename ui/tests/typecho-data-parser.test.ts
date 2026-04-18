@@ -10,9 +10,11 @@ import {
   normalizeTypechoAttachmentPath,
   parseTypechoAttachment,
   parseTypechoAttachments,
-  parseTypechoComments
+  parseTypechoComments,
+  useTypechoDataParser
 } from '@/modules/typecho/use-typecho-data-parser'
 import { describe, expect, it } from '@rstest/core'
+import { createTypechoBackupFile } from './fixtures/provider-fixtures'
 
 function createUser(overrides: Partial<TypechoUser> = {}): TypechoUser {
   return {
@@ -236,5 +238,78 @@ describe('typecho parser helpers', () => {
         size: 12
       }
     ])
+  })
+})
+
+describe('useTypechoDataParser', () => {
+  it('parses users posts pages comments tags categories and attachments from a minimal backup file', async () => {
+    const data = await useTypechoDataParser(createTypechoBackupFile()).parse()
+
+    expect(data.users).toEqual([
+      expect.objectContaining({
+        id: 'typecho:7',
+        provider: 'typecho',
+        displayName: 'Typecho Admin',
+        email: 'admin@example.com'
+      })
+    ])
+    expect(data.posts?.[0]).toMatchObject({
+      ownerRef: { sourceId: 'typecho:7' },
+      postRequest: {
+        post: {
+          metadata: { name: 'post-1' },
+          spec: {
+            title: 'Typecho Post',
+            publish: true,
+            allowComment: true,
+            visible: 'PUBLIC',
+            categories: ['category-20'],
+            tags: ['tag-21']
+          }
+        }
+      }
+    })
+    expect(data.posts?.[0].postRequest.content.rawType).toBe('markdown')
+    expect(data.posts?.[0].postRequest.content.content).toContain(
+      '<img src="usr/uploads/2026/04/demo.png"'
+    )
+    expect(data.pages?.[0]).toMatchObject({
+      ownerRef: { sourceId: 'typecho:7' },
+      singlePageRequest: {
+        page: {
+          metadata: { name: 'page-2' },
+          spec: {
+            title: 'Typecho Page',
+            publish: false,
+            allowComment: false
+          }
+        }
+      }
+    })
+    expect(data.comments?.map((item) => item.kind)).toEqual(['Comment', 'Reply'])
+    expect(data.comments?.[0]).toMatchObject({
+      metadata: { name: 'comment-10' },
+      ownerRef: { sourceId: 'typecho:7' }
+    })
+    expect(data.comments?.[1]).toMatchObject({
+      kind: 'Reply',
+      spec: {
+        commentName: 'comment-10',
+        quoteReply: 'comment-10'
+      }
+    })
+    expect(data.tags?.[0]).toMatchObject({
+      metadata: { name: 'tag-21' },
+      spec: { displayName: 'Tips', slug: 'tips' }
+    })
+    expect(data.categories?.[0]).toMatchObject({
+      metadata: { name: 'category-20' },
+      spec: { displayName: 'Tech', slug: 'tech' }
+    })
+    expect(data.attachments?.[0]).toMatchObject({
+      id: 'attachment-3',
+      path: 'usr/uploads/2026/04/demo.png',
+      type: 'LOCAL'
+    })
   })
 })

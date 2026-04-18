@@ -1,8 +1,10 @@
 import {
   createWordPressAttachmentResolver,
-  sanitizeWordPressHtml
+  sanitizeWordPressHtml,
+  useWordPressDataParser
 } from '@/modules/wordpress/use-wordpress-data-parser'
 import { describe, expect, it } from '@rstest/core'
+import { createWordPressWxrFile } from './fixtures/provider-fixtures'
 
 function createAttachmentItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -183,5 +185,83 @@ describe('wordpress parser helpers', () => {
     expect(sanitized).toContain(
       '<a href="https://video.example.com/watch/abc">https://video.example.com/watch/abc</a>'
     )
+  })
+})
+
+describe('useWordPressDataParser', () => {
+  it('parses users posts pages comments tags categories and attachments from a minimal wxr file', async () => {
+    const data = await useWordPressDataParser(createWordPressWxrFile()).parse()
+
+    expect(data.users).toEqual([
+      expect.objectContaining({
+        id: 'wordpress:7',
+        provider: 'wordpress',
+        displayName: 'WP Admin',
+        email: 'admin@example.com'
+      })
+    ])
+    expect(data.posts?.[0]).toMatchObject({
+      ownerRef: { sourceId: 'wordpress:7' },
+      postRequest: {
+        post: {
+          metadata: { name: '100' },
+          spec: {
+            title: 'WordPress Post',
+            slug: 'wordpress-post',
+            publish: true,
+            pinned: true,
+            allowComment: true,
+            categories: ['3'],
+            tags: ['5'],
+            cover: 'https://example.com/wp-content/uploads/2026/04/cover.jpg'
+          }
+        }
+      }
+    })
+    expect(data.posts?.[0].postRequest.content.raw).toContain(
+      'https://example.com/wp-content/uploads/2026/04/cover.jpg'
+    )
+    expect(data.pages?.[0]).toMatchObject({
+      ownerRef: { sourceId: 'wordpress:7' },
+      singlePageRequest: {
+        page: {
+          metadata: { name: '101' },
+          spec: {
+            title: 'WordPress Page',
+            slug: 'wordpress-page',
+            publish: false,
+            allowComment: false
+          }
+        }
+      }
+    })
+    expect(data.comments?.map((item) => item.kind)).toEqual(['Comment', 'Reply'])
+    expect(data.comments?.[0]).toMatchObject({
+      ownerRef: { sourceId: 'wordpress:7' },
+      spec: {
+        subjectRef: { name: '100', kind: 'Post' }
+      }
+    })
+    expect(data.comments?.[1]).toMatchObject({
+      kind: 'Reply',
+      spec: {
+        commentName: '501',
+        quoteReply: '501'
+      }
+    })
+    expect(data.tags?.[0]).toMatchObject({
+      metadata: { name: '5' },
+      spec: { displayName: 'Tips', slug: 'tips' }
+    })
+    expect(data.categories?.[0]).toMatchObject({
+      metadata: { name: '3' },
+      spec: { displayName: 'Notes', slug: 'notes' }
+    })
+    expect(data.attachments?.[0]).toMatchObject({
+      id: '200',
+      name: 'Attachment',
+      path: 'wp-content/uploads/2026/04/cover.jpg',
+      type: 'LOCAL'
+    })
   })
 })

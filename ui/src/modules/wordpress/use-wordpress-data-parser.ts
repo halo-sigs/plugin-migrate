@@ -1196,10 +1196,12 @@ function getImageAspectRatio(img: HTMLImageElement) {
 }
 
 function copyAttribute(source: Element, target: Element, name: string) {
-  const value = source.getAttribute(name)
-  if (value) {
-    target.setAttribute(name, value)
+  if (!source.hasAttribute(name)) {
+    return
   }
+
+  const value = source.getAttribute(name)
+  target.setAttribute(name, value ?? '')
 }
 
 function createNormalizedImageContent(

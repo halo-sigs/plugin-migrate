@@ -1,10 +1,16 @@
-import type { TypechoComment, TypechoUser } from '@/modules/typecho/typecho-data-parser'
+import type {
+  TypechoComment,
+  TypechoContent,
+  TypechoUser
+} from '@/modules/typecho/typecho-data-parser'
 import {
   createCommentOwner,
   createTypechoCommentOwnerRef,
   createTypechoUserMap,
   normalizeTypechoAttachmentPath,
-  parseTypechoAttachment
+  parseTypechoAttachment,
+  parseTypechoAttachments,
+  parseTypechoComments
 } from '@/modules/typecho/use-typecho-data-parser'
 import { describe, expect, it } from '@rstest/core'
 
@@ -40,6 +46,29 @@ function createComment(overrides: Partial<TypechoComment> = {}): TypechoComment 
     text: 'hello',
     type: 'comment',
     status: 'approved',
+    parent: '0',
+    ...overrides
+  }
+}
+
+function createContent(overrides: Partial<TypechoContent> = {}): TypechoContent {
+  return {
+    cid: '9',
+    title: 'Demo Post',
+    slug: 'demo-post',
+    created: '1710000000',
+    modified: '1710000000',
+    text: 'content',
+    order: '0',
+    authorId: '7',
+    template: null,
+    type: 'post',
+    status: 'publish',
+    password: null,
+    commentsNum: '0',
+    allowComment: '1',
+    allowPing: '1',
+    allowFeed: '1',
     parent: '0',
     ...overrides
   }
@@ -110,5 +139,102 @@ describe('typecho parser helpers', () => {
         website: 'https://example.com'
       }
     })
+  })
+
+  it('builds comment and reply records with the root comment reference', () => {
+    const user = createUser()
+    const records = parseTypechoComments(
+      [createContent()],
+      [
+        createComment({ coid: '100', cid: '9', authorId: '7', author: 'Ryan' }),
+        createComment({
+          coid: '101',
+          cid: '9',
+          parent: '100',
+          authorId: '7',
+          author: 'Ryan reply'
+        }),
+        createComment({
+          coid: '102',
+          cid: '9',
+          parent: '101',
+          authorId: '7',
+          author: 'Nested reply'
+        })
+      ],
+      [user]
+    )
+
+    expect(records).toHaveLength(3)
+    expect(records[0]).toMatchObject({
+      kind: 'Comment',
+      metadata: { name: 'comment-100' },
+      refType: 'Post',
+      ownerRef: { sourceId: 'typecho:7' },
+      spec: {
+        subjectRef: {
+          kind: 'Post',
+          name: 'post-9'
+        }
+      }
+    })
+    expect(records[1]).toMatchObject({
+      kind: 'Reply',
+      metadata: { name: 'comment-101' },
+      spec: {
+        commentName: 'comment-100',
+        quoteReply: 'comment-100'
+      }
+    })
+    expect(records[2]).toMatchObject({
+      kind: 'Reply',
+      metadata: { name: 'comment-102' },
+      spec: {
+        commentName: 'comment-100',
+        quoteReply: 'comment-101'
+      }
+    })
+  })
+
+  it('skips comments whose content cannot be found and keeps parsing later comments', () => {
+    const records = parseTypechoComments(
+      [createContent({ cid: '9' }), createContent({ cid: '10', type: 'page' })],
+      [
+        createComment({ coid: '1', cid: 'missing' }),
+        createComment({ coid: '2', cid: '10', authorId: '7' })
+      ],
+      [createUser()]
+    )
+
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({
+      kind: 'Comment',
+      refType: 'SinglePage',
+      metadata: { name: 'comment-2' }
+    })
+  })
+
+  it('builds local attachment records from attachment contents', () => {
+    const attachments = parseTypechoAttachments([
+      createContent({
+        cid: '20',
+        type: 'attachment',
+        title: 'Original Title',
+        text: '{"name":"demo.png","path":"/usr/uploads/2026/04/demo.png","size":"12","type":"image","mime":"image/png"}'
+      })
+    ])
+
+    expect(attachments).toEqual([
+      {
+        id: 'attachment-20',
+        name: 'demo.png',
+        path: 'usr/uploads/2026/04/demo.png',
+        type: 'LOCAL',
+        height: 0,
+        width: 0,
+        mediaType: 'image/png',
+        size: 12
+      }
+    ])
   })
 })

@@ -43,6 +43,7 @@ layout: page
       title: 'Hello Halo',
       slug: undefined,
       excerpt: 'Summary from description',
+      cover: undefined,
       categories: ['Notes'],
       tags: ['demo', 'markdown'],
       publishTime: '2026-04-18T02:00:00.000Z',
@@ -79,6 +80,7 @@ Json body
     expect(
       normalizeMarkdownMetadata({
         Title: 'Loose Keys',
+        Thumbnail: '/images/cover.png',
         Categories: ['Docs', 'Guide'],
         Tag: 'halo',
         CreatedAt: '2026-04-18',
@@ -88,6 +90,7 @@ Json body
       title: 'Loose Keys',
       slug: undefined,
       excerpt: undefined,
+      cover: '/images/cover.png',
       categories: ['Docs', 'Guide'],
       tags: ['halo'],
       publishTime: '2026-04-18T00:00:00.000Z',
@@ -139,6 +142,7 @@ describe('markdown data parser', () => {
 title: Hello Markdown
 slug: hello-markdown
 excerpt: Custom excerpt
+cover: ../images/post-cover.png
 categories:
   - Notes
 tags:
@@ -163,6 +167,7 @@ title = "About"
 layout = "page"
 draft = true
 category = "Pages"
+feature_image = "../images/page-cover.png"
 +++
 
 About body
@@ -205,12 +210,15 @@ Title only
     expect(data.attachments?.map((item) => item.path)).toEqual([
       'content/files/manual.pdf',
       'content/images/cover.png',
-      'content/posts/images/inline.png'
+      'content/images/post-cover.png',
+      'content/posts/images/inline.png',
+      'images/page-cover.png'
     ])
 
     const post = data.posts?.find((item) => item.postRequest.post.spec.slug === 'hello-markdown')
     expect(post?.postRequest.post.spec.publish).toBe(true)
     expect(post?.postRequest.post.spec.publishTime).toBe('2026-04-18T04:00:00.000Z')
+    expect(post?.postRequest.post.spec.cover).toBe('../images/post-cover.png')
     expect(post?.postRequest.post.spec.excerpt).toEqual({
       autoGenerate: false,
       raw: 'Custom excerpt'
@@ -229,6 +237,7 @@ Title only
     const page = data.pages?.[0]
     expect(page?.singlePageRequest.page.spec.title).toBe('About')
     expect(page?.singlePageRequest.page.spec.publish).toBe(false)
+    expect(page?.singlePageRequest.page.spec.cover).toBe('../images/page-cover.png')
   })
 
   it('fails with file name when frontmatter is invalid', async () => {

@@ -5,6 +5,7 @@ export interface NormalizedMarkdownMetadata {
   title?: string
   slug?: string
   excerpt?: string
+  cover?: string
   categories: string[]
   tags: string[]
   publishTime?: string
@@ -51,6 +52,14 @@ export function normalizeMarkdownMetadata(
   const title = getStringValue(keyMap, attributes, ['title'])
   const slug = getStringValue(keyMap, attributes, ['slug'])
   const excerpt = getStringValue(keyMap, attributes, ['excerpt', 'description', 'summary'])
+  const cover = getStringValue(keyMap, attributes, [
+    'cover',
+    'thumbnail',
+    'feature_image',
+    'featured_image',
+    'featureImage',
+    'featuredImage'
+  ])
   const publishTime = getDateValue(keyMap, attributes, [
     'date',
     'publishDate',
@@ -63,6 +72,7 @@ export function normalizeMarkdownMetadata(
     title,
     slug,
     excerpt,
+    cover,
     categories: getStringListValue(keyMap, attributes, ['categories', 'category']),
     tags: getStringListValue(keyMap, attributes, ['tags', 'tag']),
     publishTime,

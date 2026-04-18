@@ -1,4 +1,9 @@
-import { extractMarkdownAttachments } from '@/modules/markdown/markdown-attachments'
+import {
+  extractMarkdownAttachments,
+  isLocalAttachmentReference,
+  normalizeAttachmentReference,
+  resolveMarkdownAttachmentPath
+} from '@/modules/markdown/markdown-attachments'
 import {
   parseMarkdownFrontmatter,
   type NormalizedMarkdownMetadata
@@ -98,7 +103,7 @@ async function parseMarkdownFile(file: File): Promise<ParsedMarkdownDocument> {
       body,
       html: markdownRenderer.render(body),
       metadata: parsed.metadata,
-      attachments: extractMarkdownAttachments(body, filePath, createRandomId)
+      attachments: extractDocumentAttachments(body, filePath, parsed.metadata.cover)
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
@@ -171,6 +176,7 @@ function createPost(
         spec: {
           title: document.title,
           slug: document.slug,
+          cover: document.metadata.cover,
           publishTime: document.metadata.publishTime,
           publish: document.metadata.publish,
           deleted: false,
@@ -208,6 +214,7 @@ function createPage(document: ParsedMarkdownDocument): MigrateSinglePage {
         spec: {
           title: document.title,
           slug: document.slug,
+          cover: document.metadata.cover,
           template: '',
           publish: document.metadata.publish,
           publishTime: document.metadata.publishTime,
@@ -260,6 +267,37 @@ function dedupeAttachments(attachments: MigrateAttachment[]) {
       return true
     })
     .sort((left, right) => left.path.localeCompare(right.path))
+}
+
+function extractDocumentAttachments(body: string, filePath: string, cover?: string) {
+  const attachments = extractMarkdownAttachments(body, filePath, createRandomId)
+  const coverAttachment = createCoverAttachment(cover, filePath)
+
+  if (coverAttachment) {
+    attachments.push(coverAttachment)
+  }
+
+  return attachments
+}
+
+function createCoverAttachment(cover: string | undefined, filePath: string) {
+  const normalizedCover = normalizeAttachmentReference(cover || '')
+  if (!normalizedCover || !isLocalAttachmentReference(normalizedCover)) {
+    return undefined
+  }
+
+  const path = resolveMarkdownAttachmentPath(normalizedCover, filePath)
+  if (!path) {
+    return undefined
+  }
+
+  return {
+    id: createRandomId(),
+    name: path.split('/').pop() || 'attachment',
+    path,
+    url: normalizedCover,
+    type: 'LOCAL'
+  } satisfies MigrateAttachment
 }
 
 function getFilePath(file: File) {

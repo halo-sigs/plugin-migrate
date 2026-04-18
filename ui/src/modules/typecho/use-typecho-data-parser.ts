@@ -1,4 +1,4 @@
-import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
+import MarkdownItIdPlugin from '@/modules/markdown/markdown-it-id'
 import type {
   MigrateAttachment,
   MigrateCategory,

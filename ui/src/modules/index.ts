@@ -90,12 +90,22 @@ export const providerItems: Provider[] = [
     importComponent: defineAsyncComponent(() => import('./atom/AtomMigrateDataParser.vue'))
   },
   {
-    name: 'Hugo',
+    name: 'Markdown',
     icon: hugo,
-    description: '从 HUGO 静态博客生成器迁移',
-    importComponent: defineAsyncComponent(() => import('./hugo/HugoMigrateDataParser.vue')),
+    description: '从 Markdown 静态博客内容迁移（Hugo / Hexo 等）',
+    importComponent: defineAsyncComponent(() => import('./markdown/MarkdownMigrateDataParser.vue')),
     options: {
-      attachmentFolderPath: 'migrate-from-hugo'
+      attachmentFolderPath: 'migrate-from-markdown',
+      attachmentHandlerDescriptions: {
+        localUploadTitle: '上传到 Halo',
+        localUploadDescription: '选择本地附件目录，自动上传并替换链接',
+        localUploadHint:
+          '请选择包含 Markdown 引用资源的目录，系统会根据正文中的相对路径、绝对路径或常见附件路径尽量匹配文件并上传。',
+        localManualTitle: '手动迁移',
+        localManualDescription: '保留原始附件路径，自行迁移附件目录',
+        localManualHint:
+          '系统只会创建附件记录，不会上传文件。你需要自行迁移原始附件目录，并确保文章中的本地资源路径仍然可访问。'
+      }
     }
   }
 ]

@@ -33,6 +33,8 @@ const emit = defineEmits<{
       @file-change="(files) => emit('fileChange', files)"
     />
 
+    <slot name="extra-selectors" />
+
     <div v-if="parsing" class=":uno: text-sm text-gray-600">
       {{ parsingText || '正在解析数据...' }}
     </div>

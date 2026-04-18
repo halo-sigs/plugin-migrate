@@ -11,7 +11,7 @@ import type Token from 'markdown-it/lib/token.mjs'
  * Example:
  * ```ts
  * import markdownit from "markdown-it";
- * import MarkdownItIdPlugin from "@/modules/hugo/markdown-it-id";
+ * import MarkdownItIdPlugin from "@/modules/markdown/markdown-it-id";
  *
  * markdownit().use(MarkdownItIdPlugin)
  * ```

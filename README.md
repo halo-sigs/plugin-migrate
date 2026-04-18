@@ -9,7 +9,7 @@
 1. Halo 1.5 / 1.6
 2. [WordPress](https://wordpress.org/)
 3. RSS / Atom 订阅链接
-4. [Hugo](https://gohugo.io/)
+4. Markdown（Hugo / Hexo / 其他 Markdown + Front Matter 静态博客）
 5. [Ghost](https://ghost.org/)
 6. [Typecho](https://github.com/typecho/typecho)
 

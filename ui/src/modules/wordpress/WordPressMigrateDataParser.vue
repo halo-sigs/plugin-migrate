@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import FileSelector from '@/components/FileSelector.vue'
+import MigrateSourceUploadCard from '@/components/MigrateSourceUploadCard.vue'
 import type { MigrateData } from '@/types'
-import { Toast, VAlert } from '@halo-dev/components'
+import { ref } from 'vue'
 import { useWordPressDataParser } from './use-wordpress-data-parser'
 defineProps<{
   data: MigrateData
@@ -11,7 +11,10 @@ const emit = defineEmits<{
   (event: 'update:data', value: MigrateData): void
 }>()
 
+const parseError = ref<string>()
+
 const handleFileChange = (files: FileList) => {
+  parseError.value = undefined
   const file = files.item(0)
   if (!file) {
     return
@@ -21,13 +24,14 @@ const handleFileChange = (files: FileList) => {
     .then((data) => {
       emit('update:data', data)
     })
-    .catch((error: any) => {
-      Toast.error(error)
+    .catch((error: unknown) => {
+      parseError.value = error instanceof Error ? error.message : String(error)
       console.error(error)
     })
 }
 
 const reset = () => {
+  parseError.value = undefined
   emit('update:data', {} as MigrateData)
 }
 
@@ -36,15 +40,13 @@ defineExpose({
 })
 </script>
 <template>
-  <div>
-    <VAlert title="迁移提示" type="info" :closable="false" class=":uno: mb-3">
-      <template #description>
-        请选择从 WordPress 后台【工具 &rarr; 导出】中下载的 WXR 文件（.xml）。
-      </template>
-    </VAlert>
-    <FileSelector
-      :options="{ accept: '.xml', multiple: false }"
-      @fileChange="handleFileChange"
-    ></FileSelector>
-  </div>
+  <MigrateSourceUploadCard
+    :file-options="{ accept: '.xml', multiple: false }"
+    :parse-error="parseError"
+    @file-change="handleFileChange"
+  >
+    <template #description>
+      请选择从 WordPress 后台【工具 &rarr; 导出】中下载的 WXR 文件（.xml）。
+    </template>
+  </MigrateSourceUploadCard>
 </template>

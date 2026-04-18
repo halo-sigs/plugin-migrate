@@ -4,6 +4,7 @@ import MigrateTaskDashboard from '@/components/MigrateTaskDashboard.vue'
 import { useMigratePreparation } from '@/composables/use-migrate-preparation'
 import { useMigrateTaskRunner } from '@/composables/use-migrate-task-runner'
 import { getProviderByName } from '@/modules'
+import { getMissingHaloPlugins } from '@/modules/halo/halo-required-plugins'
 import type {
   AttachmentHandlerExpose,
   MigrateTaskItem,
@@ -11,7 +12,7 @@ import type {
   ProviderParserExpose
 } from '@/types'
 import { consoleApiClient, type PluginList, type User } from '@halo-dev/api-client'
-import { Dialog, VButton, VEmpty, VPageHeader } from '@halo-dev/components'
+import { Dialog, VAlert, VButton, VPageHeader } from '@halo-dev/components'
 import { computed, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone'
@@ -48,6 +49,14 @@ const providerData = computed({
   }
 })
 
+const missingHaloPlugins = computed(() => {
+  if (activeProvider.value?.name !== 'Halo 1.x') {
+    return []
+  }
+
+  return getMissingHaloPlugins(parsedData.value, activatedPluginNames.value)
+})
+
 watch(
   () => route.query.provider,
   (providerName) => {
@@ -81,11 +90,6 @@ onMounted(async () => {
   const userDetailResponse = await consoleApiClient.user.getCurrentUserDetail()
   currentUser.value = userDetailResponse.data.user
 })
-
-const handleResetData = () => {
-  providerComponentRef.value?.reset?.()
-  resetAll()
-}
 
 const handleUnifiedNextStep = () => {
   if (!parsedData.value) {
@@ -222,6 +226,12 @@ onBeforeRouteLeave((to, from, next) => {
       </div>
 
       <div class=":uno: space-y-5">
+        <component
+          :is="activeProvider?.importComponent"
+          ref="providerComponentRef"
+          v-model:data="providerData"
+        />
+
         <div
           v-if="parsedData && dataSummaryItems.length > 0"
           class=":uno: border border-gray-200 rounded-lg bg-white p-4"
@@ -239,12 +249,31 @@ onBeforeRouteLeave((to, from, next) => {
           </div>
         </div>
 
-        <component
-          :is="activeProvider?.importComponent"
-          ref="providerComponentRef"
-          v-model:data="providerData"
-          :activatedPluginNames="activatedPluginNames"
-        />
+        <VAlert
+          v-if="missingHaloPlugins.length > 0"
+          type="warning"
+          title="缺少必要插件"
+          :closable="false"
+          class=":uno: sheet"
+        >
+          <template #description>
+            <div class=":uno: text-sm space-y-1">
+              <p>检测到以下数据，但对应插件尚未安装或启用，请先安装后再继续迁移：</p>
+              <ul class=":uno: list-disc list-inside space-y-1">
+                <li v-for="plugin in missingHaloPlugins" :key="plugin.key">
+                  {{ plugin.name }}
+                  <a
+                    :href="plugin.storeUrl"
+                    target="_blank"
+                    class=":uno: text-indigo-600 hover:underline"
+                  >
+                    前往安装
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </VAlert>
 
         <div v-if="parsedData?.attachments && parsedData.attachments.length > 0">
           <h3 class=":uno: mb-2 text-sm text-gray-900 font-semibold">附件存储策略</h3>
@@ -256,15 +285,15 @@ onBeforeRouteLeave((to, from, next) => {
           />
         </div>
 
-        <div v-if="parsedData" class=":uno: flex items-center justify-between pt-2">
-          <VButton type="secondary" size="sm" @click="handleResetData"> 重新选择文件 </VButton>
+        <div class=":uno: flex items-center justify-end pt-2">
           <VButton
             type="primary"
             :disabled="
               !!(
-                parsedData.attachments?.length &&
-                attachmentHandlerRef &&
-                !attachmentHandlerRef.canConfirm()
+                !parsedData ||
+                (parsedData.attachments?.length &&
+                  attachmentHandlerRef &&
+                  !attachmentHandlerRef.canConfirm())
               )
             "
             @click="handleUnifiedNextStep"
@@ -319,13 +348,6 @@ onBeforeRouteLeave((to, from, next) => {
         :loading="importLoading"
         @retry="handleRetryTask"
       />
-    </div>
-
-    <div
-      v-if="!parsedData"
-      class=":uno: mx-auto max-w-3xl w-full flex flex-1 flex-col items-center justify-center rounded-xl bg-white p-10 shadow-sm ring-1 ring-gray-200"
-    >
-      <VEmpty title="等待数据导入" description="请在上方的数据导入区域上传迁移文件" />
     </div>
   </div>
 </template>

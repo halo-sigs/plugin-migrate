@@ -10,8 +10,10 @@ import type {
   MigratePost,
   MigrateReply,
   MigrateSinglePage,
+  MigrateSourceUser,
   MigrateTag
 } from '@/types'
+import { createEmailCommentOwner, createSourceUserId } from '@/utils/migrate-user'
 import { arrayToTree } from 'performant-array-to-tree'
 
 interface useHaloDataParserReturn {
@@ -43,6 +45,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     return {
       tags: parseTags(data.tags),
       categories: parseCategories(data.categories),
+      users: parseUsers(data.users),
       posts: parsePosts(data),
       pages: parseSinglePages(data),
       comments: parseComments(data),
@@ -157,6 +160,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             rawType: 'markdown'
           }
         },
+        ownerRef: resolveHaloOwnerRef(post),
         counter: {
           visit: post.visits,
           upvote: post.likes
@@ -211,6 +215,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             rawType: 'markdown'
           }
         },
+        ownerRef: resolveHaloOwnerRef(sheet),
         counter: {
           visit: sheet.visits,
           upvote: sheet.likes
@@ -273,6 +278,23 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     return [...postComments, ...sheetComments, ...journalComments]
   }
 
+  const parseUsers = (users?: any[]): MigrateSourceUser[] => {
+    return (
+      users?.map((user) => ({
+        id: createSourceUserId('halo', resolveHaloUserRawId(user)),
+        provider: 'halo',
+        displayName:
+          user.nickname || user.displayName || user.screenName || user.username || user.email,
+        email: user.email,
+        username: user.username || user.name,
+        avatar: user.avatar || user.avatarUrl,
+        bio: user.description || user.bio,
+        website: user.website || user.url,
+        role: user.role || user.roles?.[0]
+      })) ?? []
+    )
+  }
+
   const createCommentOrReply = (
     commentsTree: Comment[],
     subjectRef: { kind: string; group: string; version: string }
@@ -302,6 +324,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     comment: Comment,
     subjectRef: { kind: string; group: string; version: string }
   ): MigrateComment => {
+    const sourceId = resolveHaloCommentOwnerSourceId(comment)
     return {
       refType: subjectRef.kind as 'Post' | 'SinglePage' | 'Moment',
       kind: 'Comment',
@@ -309,15 +332,15 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
       spec: {
         raw: comment.content,
         content: comment.content,
-        owner: {
-          kind: 'Email',
-          name: comment.email,
+        owner: createEmailCommentOwner({
+          email: comment.email,
           displayName: comment.author,
-          annotations: {
-            avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-            website: comment.authorUrl
-          }
-        },
+          website: comment.authorUrl,
+          avatar: comment.gravatarMd5
+            ? `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`
+            : undefined,
+          sourceId
+        }),
         userAgent: comment.userAgent,
         ipAddress: comment.ipAddress,
         priority: 0,
@@ -335,7 +358,8 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
       },
       metadata: {
         name: comment.id + ''
-      }
+      },
+      ownerRef: sourceId ? { sourceId } : undefined
     }
   }
 
@@ -344,6 +368,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     commentName: number | undefined,
     refType: 'Post' | 'SinglePage' | 'Moment'
   ): MigrateReply => {
+    const sourceId = resolveHaloCommentOwnerSourceId(comment)
     return {
       refType: refType,
       kind: 'Reply',
@@ -354,15 +379,15 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
       spec: {
         raw: comment.content,
         content: comment.content,
-        owner: {
-          kind: 'Email',
-          name: comment.email,
+        owner: createEmailCommentOwner({
+          email: comment.email,
           displayName: comment.author,
-          annotations: {
-            avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-            website: comment.authorUrl
-          }
-        },
+          website: comment.authorUrl,
+          avatar: comment.gravatarMd5
+            ? `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`
+            : undefined,
+          sourceId
+        }),
         userAgent: comment.userAgent,
         ipAddress: comment.ipAddress,
         priority: 0,
@@ -375,7 +400,8 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
         commentName: commentName + '',
         quoteReply: comment.parentId + ''
       },
-      status: {}
+      status: {},
+      ownerRef: sourceId ? { sourceId } : undefined
     }
   }
 
@@ -684,4 +710,30 @@ interface Attachment {
     | 'TENCENTCOS'
     | 'HUAWEIOBS'
     | 'MINIO'
+}
+
+function resolveHaloUserRawId(user: Record<string, any>) {
+  return String(user.id || user.userId || user.uid || user.username || user.email)
+}
+
+function resolveHaloOwnerRef(entity: Record<string, any>) {
+  const ownerId = entity.userId || entity.ownerId || entity.authorId
+
+  if (!ownerId) {
+    return undefined
+  }
+
+  return {
+    sourceId: createSourceUserId('halo', ownerId)
+  }
+}
+
+function resolveHaloCommentOwnerSourceId(comment: Record<string, any>) {
+  const ownerId = comment.userId || comment.ownerId || comment.authorId
+
+  if (!ownerId) {
+    return undefined
+  }
+
+  return createSourceUserId('halo', ownerId)
 }

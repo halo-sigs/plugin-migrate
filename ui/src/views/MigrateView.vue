@@ -120,7 +120,8 @@ const handleImport = async () => {
   await runImport({
     data: preparedData.value,
     attachmentFiles: selectedFolderFiles.value,
-    localStrategy: localStrategy.value
+    localStrategy: localStrategy.value,
+    currentUser: currentUser.value
   })
 }
 

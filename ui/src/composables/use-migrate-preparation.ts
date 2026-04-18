@@ -36,6 +36,7 @@ export function useMigratePreparation(
     }
 
     return [
+      { key: 'users', label: '用户', count: parsedData.value.users?.length || 0 },
       { key: 'tags', label: '标签', count: parsedData.value.tags?.length || 0 },
       { key: 'categories', label: '分类', count: parsedData.value.categories?.length || 0 },
       { key: 'posts', label: '文章', count: parsedData.value.posts?.length || 0 },

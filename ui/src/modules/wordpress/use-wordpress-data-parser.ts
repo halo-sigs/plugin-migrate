@@ -4,8 +4,12 @@ import type {
   MigrateComment,
   MigrateData,
   MigrateMenu,
-  MigrateReply
+  MigratePost,
+  MigrateReply,
+  MigrateSinglePage,
+  MigrateSourceUser
 } from '@/types'
+import { createEmailCommentOwner, createSourceUserId } from '@/utils/migrate-user'
 import type { Ref } from '@halo-dev/api-client'
 import { XMLParser } from 'fast-xml-parser'
 
@@ -43,6 +47,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         try {
           const result = parser.parse(xmlData, true)
           const channel = result.rss.channel as Channel
+          const rawAuthors = ensureArray(channel['wp:author'])
 
           const {
             ['wp:tag']: rawTags,
@@ -61,9 +66,10 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
           })
 
           resolve({
-            posts: parsePosts(posts, rawTags, rawCategories, attachments),
-            pages: parsePages(pages, attachments),
-            comments: parseComments(channel.item),
+            users: parseUsers(rawAuthors),
+            posts: parsePosts(posts, rawTags, rawCategories, attachments, rawAuthors),
+            pages: parsePages(pages, attachments, rawAuthors),
+            comments: parseComments(channel.item, rawAuthors),
             tags: parseTags(rawTags),
             categories: parseCategories(rawCategories),
             // 菜单
@@ -110,8 +116,15 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     return { posts, pages, attachments, navMenuItems, others }
   }
 
-  const parsePosts = (posts: Item[], tags: Tag[], categories: Category[], attachments: Item[]) => {
+  const parsePosts = (
+    posts: Item[],
+    tags: Tag[],
+    categories: Category[],
+    attachments: Item[],
+    authors: Author[]
+  ): MigratePost[] => {
     const attachmentUrlMap = createAttachmentUrlMap(attachments)
+    const authorByLogin = createWordPressAuthorByLoginMap(authors)
 
     return posts?.map((post: Item) => {
       const cleanedHtml = sanitizeWordPressHtml(post['content:encoded'])
@@ -185,13 +198,19 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
             content: cleanedHtml,
             rawType: 'HTML'
           }
-        }
+        },
+        ownerRef: resolveWordPressOwnerRef(post, authorByLogin)
       }
     })
   }
 
-  const parsePages = (pages: Item[], attachments: Item[]) => {
+  const parsePages = (
+    pages: Item[],
+    attachments: Item[],
+    authors: Author[]
+  ): MigrateSinglePage[] => {
     const attachmentUrlMap = createAttachmentUrlMap(attachments)
+    const authorByLogin = createWordPressAuthorByLoginMap(authors)
 
     return pages?.map((page: Item) => {
       const cleanedHtml = sanitizeWordPressHtml(page['content:encoded'])
@@ -231,20 +250,22 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
             content: cleanedHtml,
             rawType: 'HTML'
           }
-        }
+        },
+        ownerRef: resolveWordPressOwnerRef(page, authorByLogin)
       }
     })
   }
 
-  const parseComments = (items: Item[]): (MigrateComment | MigrateReply)[] => {
+  const parseComments = (items: Item[], authors: Author[]): (MigrateComment | MigrateReply)[] => {
     const comments: (MigrateComment | MigrateReply)[] = []
+    const authorById = createWordPressAuthorByIdMap(authors)
     items?.forEach((item) => {
       const refType = item['wp:post_type'] == 'post' ? 'Post' : 'SinglePage'
       item['wp:comment']?.forEach((comment) => {
         if (comment['wp:comment_parent'] === 0) {
-          comments.push(createComment(comment, item, refType))
+          comments.push(createComment(comment, item, refType, authorById))
         } else {
-          comments.push(createReply(comment, refType))
+          comments.push(createReply(comment, refType, authorById))
         }
       })
     })
@@ -254,8 +275,10 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   const createComment = (
     comment: Comment,
     item: Item,
-    refType: 'Post' | 'SinglePage'
+    refType: 'Post' | 'SinglePage',
+    authorById: Map<number, Author>
   ): MigrateComment => {
+    const fallbackAuthor = authorById.get(comment['wp:comment_user_id'])
     return {
       refType: refType,
       kind: 'Comment',
@@ -263,14 +286,15 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
       spec: {
         raw: comment['wp:comment_content'],
         content: comment['wp:comment_content'],
-        owner: {
-          kind: 'Email',
-          name: comment['wp:comment_author_email'],
-          displayName: comment['wp:comment_author'] + '',
-          annotations: {
-            website: comment['wp:comment_author_url']
-          }
-        },
+        owner: createEmailCommentOwner({
+          email: comment['wp:comment_author_email'] || fallbackAuthor?.['wp:author_email'],
+          displayName: comment['wp:comment_author'] || fallbackAuthor?.['wp:author_display_name'],
+          website: comment['wp:comment_author_url'],
+          sourceId:
+            comment['wp:comment_user_id'] > 0
+              ? createSourceUserId('wordpress', comment['wp:comment_user_id'])
+              : undefined
+        }),
         ipAddress: comment['wp:comment_author_IP'],
         priority: 0,
         top: false,
@@ -289,11 +313,20 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
       },
       metadata: {
         name: comment['wp:comment_id'] + ''
-      }
+      },
+      ownerRef:
+        comment['wp:comment_user_id'] > 0
+          ? { sourceId: createSourceUserId('wordpress', comment['wp:comment_user_id']) }
+          : undefined
     }
   }
 
-  const createReply = (reply: Comment, refType: 'Post' | 'SinglePage'): MigrateReply => {
+  const createReply = (
+    reply: Comment,
+    refType: 'Post' | 'SinglePage',
+    authorById: Map<number, Author>
+  ): MigrateReply => {
+    const fallbackAuthor = authorById.get(reply['wp:comment_user_id'])
     return {
       refType: refType,
       kind: 'Reply',
@@ -304,14 +337,15 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
       spec: {
         raw: reply['wp:comment_content'],
         content: reply['wp:comment_content'],
-        owner: {
-          kind: 'Email',
-          name: reply['wp:comment_author_email'],
-          displayName: reply['wp:comment_author'] + '',
-          annotations: {
-            website: reply['wp:comment_author_url']
-          }
-        },
+        owner: createEmailCommentOwner({
+          email: reply['wp:comment_author_email'] || fallbackAuthor?.['wp:author_email'],
+          displayName: reply['wp:comment_author'] || fallbackAuthor?.['wp:author_display_name'],
+          website: reply['wp:comment_author_url'],
+          sourceId:
+            reply['wp:comment_user_id'] > 0
+              ? createSourceUserId('wordpress', reply['wp:comment_user_id'])
+              : undefined
+        }),
         ipAddress: reply['wp:comment_author_IP'],
         priority: 0,
         top: false,
@@ -323,8 +357,22 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         commentName: reply['wp:comment_parent'] + '',
         quoteReply: reply['wp:comment_parent'] + ''
       },
-      status: {}
+      status: {},
+      ownerRef:
+        reply['wp:comment_user_id'] > 0
+          ? { sourceId: createSourceUserId('wordpress', reply['wp:comment_user_id']) }
+          : undefined
     }
+  }
+
+  const parseUsers = (authors: Author[]): MigrateSourceUser[] => {
+    return authors?.map((author) => ({
+      id: createSourceUserId('wordpress', author['wp:author_id']),
+      provider: 'wordpress',
+      displayName: author['wp:author_display_name'] || author['wp:author_login'],
+      email: author['wp:author_email'],
+      username: author['wp:author_login']
+    }))
   }
 
   const parseTags = (tags: Tag[]) => {
@@ -532,6 +580,42 @@ function resolveFeaturedImageUrl(item: Item, attachmentUrlMap: Map<string, strin
 
 function resolveAttachmentUrl(attachment: Item) {
   return attachment['wp:attachment_url'] || attachment.guid?.value || undefined
+}
+
+function ensureArray<T>(value?: T | T[] | null): T[] {
+  if (!value) {
+    return []
+  }
+
+  return Array.isArray(value) ? value : [value]
+}
+
+function createWordPressAuthorByLoginMap(authors: Author[]) {
+  return (authors || []).reduce((map, author) => {
+    if (author['wp:author_login']) {
+      map.set(author['wp:author_login'], author)
+    }
+    return map
+  }, new Map<string, Author>())
+}
+
+function createWordPressAuthorByIdMap(authors: Author[]) {
+  return (authors || []).reduce((map, author) => {
+    map.set(author['wp:author_id'], author)
+    return map
+  }, new Map<number, Author>())
+}
+
+function resolveWordPressOwnerRef(item: Item, authorByLogin: Map<string, Author>) {
+  const author = authorByLogin.get(item['dc:creator'])
+
+  if (!author) {
+    return undefined
+  }
+
+  return {
+    sourceId: createSourceUserId('wordpress', author['wp:author_id'])
+  }
 }
 
 function sanitizeWordPressHtml(html?: string): string {

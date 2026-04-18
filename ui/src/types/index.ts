@@ -48,6 +48,8 @@ export interface MigrateData {
 
   categories?: MigrateCategory[]
 
+  users?: MigrateSourceUser[]
+
   posts?: MigratePost[]
 
   pages?: MigrateSinglePage[]
@@ -76,24 +78,45 @@ export interface Counter {
   approvedComment?: number
 }
 
+export interface MigrateSourceUser {
+  id: string
+  provider: string
+  displayName: string
+  email?: string
+  username?: string
+  slug?: string
+  avatar?: string
+  bio?: string
+  website?: string
+  role?: string
+}
+
+export interface MigrateUserRef {
+  sourceId: string
+}
+
 export interface MigratePost {
   postRequest: PostRequest
   counter?: Counter
+  ownerRef?: MigrateUserRef
 }
 
 export interface MigrateSinglePage {
   singlePageRequest: SinglePageRequest
   counter?: Counter
+  ownerRef?: MigrateUserRef
 }
 
 export interface MigrateComment extends Comment {
   kind: 'Comment'
   refType: 'Post' | 'SinglePage' | 'Moment'
+  ownerRef?: MigrateUserRef
 }
 
 export interface MigrateReply extends Reply {
   kind: 'Reply'
   refType: 'Post' | 'SinglePage' | 'Moment'
+  ownerRef?: MigrateUserRef
 }
 
 export type AttachmentType =

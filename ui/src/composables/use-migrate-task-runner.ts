@@ -1,11 +1,13 @@
 import { useAttachmentPreprocessor } from '@/composables/use-attachment-preprocessor'
 import { useBeforeUnloadGuard } from '@/composables/use-before-unload-guard'
+import { useUserPreprocessor } from '@/composables/use-user-preprocessor'
 import type {
   LocalAttachmentStrategy,
   MigrateData,
   MigrateTaskGroup,
   MigrateTaskItem
 } from '@/types'
+import type { User } from '@halo-dev/api-client'
 import { Dialog } from '@halo-dev/components'
 import type { queueAsPromised } from 'fastq'
 import * as fastq from 'fastq'
@@ -14,6 +16,7 @@ import { computed, ref, watch, type Ref } from 'vue'
 export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
   const attachmentPreprocessor = useAttachmentPreprocessor()
   const beforeUnloadGuard = useBeforeUnloadGuard()
+  const userPreprocessor = useUserPreprocessor()
   const importLoading = ref(false)
   const isImportStarted = ref(false)
 
@@ -61,8 +64,9 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
     data?: MigrateData
     attachmentFiles?: FileList | null
     localStrategy?: LocalAttachmentStrategy | null
+    currentUser?: User
   }) {
-    const { data, attachmentFiles, localStrategy } = options
+    const { data, attachmentFiles, localStrategy, currentUser } = options
 
     if (!data) {
       return
@@ -75,6 +79,10 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
       })
       return
     }
+
+    importLoading.value = true
+    await userPreprocessor.process(data, currentUser)
+    importLoading.value = false
 
     if (localStrategy === 'upload' && attachmentFiles && attachmentFiles.length > 0) {
       importLoading.value = true

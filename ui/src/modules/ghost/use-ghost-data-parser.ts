@@ -3,9 +3,11 @@ import type {
   MigrateData,
   MigratePost,
   MigrateSinglePage,
+  MigrateSourceUser,
   MigrateTag
 } from '@/types'
-import type { Post, PostsTag, Root, Tag } from './types'
+import { createSourceUserId } from '@/utils/migrate-user'
+import type { Post, PostsAuthor, PostsTag, Root, Tag, User } from './types'
 
 interface useGhostDataParserReturn {
   parse: () => Promise<MigrateData>
@@ -24,11 +26,12 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
         }
 
         try {
-          const { posts, tags, posts_tags } = ghostDBData
+          const { posts, tags, posts_tags, users, posts_authors } = ghostDBData
 
           resolve({
-            posts: parsePosts(posts, posts_tags),
-            pages: parsePages(posts),
+            users: parseUsers(users),
+            posts: parsePosts(posts, posts_tags, posts_authors),
+            pages: parsePages(posts, posts_authors),
             tags: parseTags(tags),
             attachments: extractAttachments(posts, tags)
           })
@@ -61,7 +64,11 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
     })
   }
 
-  function parsePosts(rawPosts: Post[], rawPostsTags: PostsTag[]): MigratePost[] {
+  function parsePosts(
+    rawPosts: Post[],
+    rawPostsTags: PostsTag[],
+    rawPostsAuthors: PostsAuthor[]
+  ): MigratePost[] {
     return rawPosts
       .filter((rawPost) => rawPost.type === 'post')
       .map((rawPost) => {
@@ -107,12 +114,13 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
               content: cleanedHtml,
               rawType: 'HTML'
             }
-          }
+          },
+          ownerRef: resolveGhostOwnerRef(rawPost.id, rawPostsAuthors)
         }
       })
   }
 
-  function parsePages(rawPosts: Post[]): MigrateSinglePage[] {
+  function parsePages(rawPosts: Post[], rawPostsAuthors: PostsAuthor[]): MigrateSinglePage[] {
     return rawPosts
       .filter((rawPost) => rawPost.type === 'page')
       .map((rawPost) => {
@@ -151,9 +159,23 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
               rawType: 'HTML'
             }
           },
-          counter: {}
+          counter: {},
+          ownerRef: resolveGhostOwnerRef(rawPost.id, rawPostsAuthors)
         } as MigrateSinglePage
       })
+  }
+
+  function parseUsers(rawUsers: User[]): MigrateSourceUser[] {
+    return rawUsers.map((user) => ({
+      id: createSourceUserId('ghost', user.id),
+      provider: 'ghost',
+      displayName: user.name || user.slug || user.email,
+      email: user.email,
+      username: user.slug,
+      avatar: user.profile_image,
+      bio: user.bio || undefined,
+      website: user.website || undefined
+    }))
   }
 
   function extractAttachments(rawPosts: Post[], rawTags: Tag[]): MigrateAttachment[] {
@@ -191,6 +213,20 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
 
   return {
     parse
+  }
+}
+
+function resolveGhostOwnerRef(postId: string, rawPostsAuthors: PostsAuthor[]) {
+  const relation = rawPostsAuthors
+    .filter((item) => item.post_id === postId)
+    .sort((a, b) => a.sort_order - b.sort_order)[0]
+
+  if (!relation) {
+    return undefined
+  }
+
+  return {
+    sourceId: createSourceUserId('ghost', relation.author_id)
   }
 }
 

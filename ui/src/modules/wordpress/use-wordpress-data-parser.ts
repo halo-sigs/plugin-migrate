@@ -112,6 +112,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
   const parsePosts = (posts: Item[], tags: Tag[], categories: Category[], attachments: Item[]) => {
     return posts?.map((post: Item) => {
+      const cleanedHtml = sanitizeWordPressHtml(post['content:encoded'])
       const publish =
         post['wp:status'] === 'publish' ||
         post['wp:postmeta']?.find((meta) => meta['wp:meta_key'] === '_wp_trash_meta_status')?.[
@@ -189,8 +190,8 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
             }
           },
           content: {
-            raw: post['content:encoded'],
-            content: post['content:encoded'],
+            raw: cleanedHtml,
+            content: cleanedHtml,
             rawType: 'HTML'
           }
         }
@@ -200,6 +201,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
   const parsePages = (pages: Item[]) => {
     return pages?.map((page: Item) => {
+      const cleanedHtml = sanitizeWordPressHtml(page['content:encoded'])
       const publish =
         page['wp:status'] === 'publish' ||
         page['wp:postmeta']?.find((meta) => meta['wp:meta_key'] === '_wp_trash_meta_status')?.[
@@ -231,8 +233,8 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
             }
           },
           content: {
-            raw: page['content:encoded'],
-            content: page['content:encoded'],
+            raw: cleanedHtml,
+            content: cleanedHtml,
             rawType: 'HTML'
           }
         }
@@ -509,6 +511,126 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
   return {
     parse
+  }
+}
+
+function sanitizeWordPressHtml(html?: string): string {
+  if (!html) {
+    return ''
+  }
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+
+  transformWordPressGalleryBlocks(doc)
+
+  doc.querySelectorAll('img, source').forEach((element) => {
+    element.removeAttribute('srcset')
+    element.removeAttribute('sizes')
+  })
+
+  return doc.body.innerHTML
+}
+
+function transformWordPressGalleryBlocks(doc: Document) {
+  doc.querySelectorAll('figure.wp-block-gallery').forEach((galleryFigure) => {
+    const imageItems = Array.from(galleryFigure.querySelectorAll(':scope > figure.wp-block-image'))
+    if (imageItems.length === 0) {
+      return
+    }
+
+    const groupSize = getWordPressGalleryGroupSize(galleryFigure, imageItems.length)
+    const gallery = doc.createElement('div')
+    gallery.setAttribute('data-type', 'gallery')
+    gallery.setAttribute('data-group-size', String(groupSize))
+    gallery.setAttribute('data-layout', 'auto')
+    gallery.setAttribute('data-gap', '8')
+
+    const galleryGrid = doc.createElement('div')
+    galleryGrid.setAttribute('style', 'display: grid; gap: 8px;')
+
+    chunkArray(imageItems, groupSize).forEach((groupItems) => {
+      const group = doc.createElement('div')
+      group.setAttribute('data-type', 'gallery-group')
+      group.setAttribute(
+        'style',
+        'display: flex; flex-direction: row; justify-content: center; gap: 8px;'
+      )
+
+      groupItems.forEach((item) => {
+        const img = item.querySelector('img')
+        if (!img) {
+          return
+        }
+
+        const ratio = getImageAspectRatio(img)
+        const imageWrapper = doc.createElement('div')
+        imageWrapper.setAttribute('style', `flex: ${ratio} 1 0%;`)
+        imageWrapper.setAttribute('data-aspect-ratio', String(ratio))
+
+        const nextImg = doc.createElement('img')
+        copyAttribute(img, nextImg, 'src')
+        copyAttribute(img, nextImg, 'alt')
+        copyAttribute(img, nextImg, 'width')
+        copyAttribute(img, nextImg, 'height')
+        nextImg.setAttribute('data-type', 'gallery-image')
+        nextImg.setAttribute('style', 'width: 100%; height: 100%; margin: 0; object-fit: cover;')
+
+        imageWrapper.append(nextImg)
+        group.append(imageWrapper)
+      })
+
+      if (group.childElementCount > 0) {
+        galleryGrid.append(group)
+      }
+    })
+
+    if (galleryGrid.childElementCount === 0) {
+      return
+    }
+
+    gallery.append(galleryGrid)
+    galleryFigure.replaceWith(gallery)
+  })
+}
+
+function getWordPressGalleryGroupSize(galleryFigure: Element, imageCount: number) {
+  const columnsClass = Array.from(galleryFigure.classList).find((className) =>
+    /^columns-\d+$/.test(className)
+  )
+  const columns = columnsClass ? Number(columnsClass.replace('columns-', '')) : NaN
+
+  if (Number.isFinite(columns) && columns > 0) {
+    return Math.min(columns, imageCount)
+  }
+
+  return Math.min(3, imageCount)
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+
+  return chunks
+}
+
+function getImageAspectRatio(img: HTMLImageElement) {
+  const width = Number(img.getAttribute('width'))
+  const height = Number(img.getAttribute('height'))
+
+  if (!Number.isFinite(width) || !Number.isFinite(height) || height <= 0) {
+    return 1
+  }
+
+  return width / height
+}
+
+function copyAttribute(source: Element, target: Element, name: string) {
+  const value = source.getAttribute(name)
+  if (value) {
+    target.setAttribute(name, value)
   }
 }
 

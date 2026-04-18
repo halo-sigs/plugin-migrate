@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import FileSelector from '@/components/FileSelector.vue'
-import type { MigrateAttachment, MigrateData } from '@/types'
-import { VAlert, VButton } from '@halo-dev/components'
+import type { MigrateData } from '@/types'
+import { VAlert } from '@halo-dev/components'
 import { ref } from 'vue'
-import { migrateTypechoAttachments } from './use-typecho-attachment-migrator'
 import { useTypechoDataParser } from './use-typecho-data-parser'
 
 defineProps<{
@@ -14,19 +13,9 @@ const emit = defineEmits<{
   (event: 'update:data', value: MigrateData): void
 }>()
 
-const migrateData = ref<MigrateData>()
-const isMigrateAttachments = ref<boolean>(false)
-const attachmentBaseURL = ref<string>('https://')
-const migrationStatus = ref<'idle' | 'migrating' | 'completed'>('idle')
-const attachments = ref<MigrateAttachment[]>([])
 const parseError = ref<string>()
 
 const reset = () => {
-  migrateData.value = undefined
-  attachments.value = []
-  migrationStatus.value = 'idle'
-  attachmentBaseURL.value = 'https://'
-  isMigrateAttachments.value = false
   parseError.value = undefined
   emit('update:data', {} as MigrateData)
 }
@@ -36,7 +25,6 @@ defineExpose({
 })
 
 const handleFileChange = (files: FileList) => {
-  migrationStatus.value = 'idle'
   parseError.value = undefined
   const file = files.item(0)
   if (!file) {
@@ -46,34 +34,12 @@ const handleFileChange = (files: FileList) => {
     .parse()
     .then((data) => {
       parseError.value = undefined
-      migrateData.value = data
-      attachments.value = data.attachments ?? []
-      migrateData.value.attachments = []
-      emit('update:data', migrateData.value)
+      emit('update:data', data)
     })
     .catch((error: unknown) => {
       parseError.value = error instanceof Error ? error.message : String(error)
       console.error(error)
     })
-}
-
-async function handleMigrateAttachments() {
-  if (!attachments?.value.length || !migrateData.value) {
-    return
-  }
-
-  migrationStatus.value = 'migrating'
-
-  const result = await migrateTypechoAttachments(
-    migrateData.value,
-    attachments.value,
-    attachmentBaseURL.value
-  )
-
-  migrateData.value = result.data
-  attachments.value = result.failedAttachments
-  emit('update:data', result.data)
-  migrationStatus.value = 'completed'
 }
 </script>
 <template>
@@ -87,6 +53,7 @@ async function handleMigrateAttachments() {
             由于平台之间的差异性，目前仅支持迁移<b>文章</b>、<b>分类</b>、<b>标签</b>、<b>页面</b>、<b>评论</b>、<b>附件</b>数据，其它
             数据（包括主题模板、网站设置，用户等）无法迁移。
           </li>
+          <li>附件会在下一步统一使用本地目录上传或手动迁移策略处理。</li>
           <li>迁移完成后，不建议立即删除 Typecho 的备份文件，可以先检查数据是否完整。</li>
         </ul>
       </template>
@@ -98,88 +65,6 @@ async function handleMigrateAttachments() {
     <VAlert v-if="parseError" title="解析失败" type="error" :closable="false" class=":uno: sheet">
       <template #description>
         {{ parseError }}
-      </template>
-    </VAlert>
-    <FormKit
-      v-if="attachments.length"
-      v-model="isMigrateAttachments"
-      type="checkbox"
-      label="迁移附件"
-      name="isMigrateAttachments"
-    />
-    <div v-if="isMigrateAttachments && attachments.length">
-      <FormKit
-        v-model="attachmentBaseURL"
-        type="text"
-        label="原博客地址"
-        name="attachmentBaseURL"
-        placeholder="请输入原博客地址（用于附件迁移）"
-        :classes="{ outer: '!mb-0 flex-1' }"
-      />
-      <VButton
-        :loading="migrationStatus === 'migrating'"
-        :disabled="migrationStatus === 'migrating'"
-        @click="handleMigrateAttachments"
-        >开始迁移附件</VButton
-      >
-    </div>
-    <VAlert
-      v-if="migrationStatus === 'migrating'"
-      title="正在迁移附件"
-      type="info"
-      :closable="false"
-      class=":uno: sheet"
-    >
-      <template #description> 正在迁移附件，请不要刷新页面。 </template>
-    </VAlert>
-    <VAlert
-      v-if="migrationStatus === 'completed' && !attachments.length"
-      title="迁移完成"
-      type="success"
-      :closable="true"
-      class=":uno: sheet"
-    >
-      <template #description> 所有附件迁移完成。 </template>
-    </VAlert>
-    <VAlert
-      v-if="migrationStatus === 'completed' && attachments.length"
-      title="部分附件迁移失败"
-      type="warning"
-      :closable="true"
-      class=":uno: sheet"
-    >
-      <template #description>
-        有
-        {{ attachments.length }}
-        个附件迁移失败。请检查下方“待附件列表”中的链接是否可以正常访问，并确认原博客地址填写正确。
-      </template>
-    </VAlert>
-    <div
-      v-if="isMigrateAttachments && attachments.length"
-      class=":uno: border rounded p-4 space-y-2"
-    >
-      <span class=":uno: font-bold">待附件列表</span>
-      <ul class=":uno: max-h-64 list-disc list-inside overflow-y-auto">
-        <li v-for="attachment in attachments" :key="attachment.id">
-          {{ attachmentBaseURL + attachment.path }}
-        </li>
-      </ul>
-    </div>
-    <VAlert
-      v-if="isMigrateAttachments && attachments.length"
-      title="附件迁移说明"
-      type="info"
-      :closable="false"
-      class=":uno: sheet"
-    >
-      <template #description>
-        <ol class=":uno: ml-2 list-disc list-inside space-y-1">
-          <li>附件迁移需要保证原博客地址能够访问。</li>
-          <li>填写原博客地址, 访问附件列表中的地址, 如果能够成功访问则填写正确。</li>
-          <li>
-            迁移附件的同时会对文章/页面的内容进行扫描, 如果发现有引用附件的情况会自动进行替换。
-          </li>
-        </ol>
       </template>
     </VAlert>
   </div>

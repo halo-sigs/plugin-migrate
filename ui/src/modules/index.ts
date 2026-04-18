@@ -62,7 +62,20 @@ export const providerItems: Provider[] = [
     name: 'Typecho',
     icon: typecho,
     description: '从 Typecho 博客平台迁移',
-    importComponent: defineAsyncComponent(() => import('./typecho/TypechoMigrateDataParser.vue'))
+    importComponent: defineAsyncComponent(() => import('./typecho/TypechoMigrateDataParser.vue')),
+    options: {
+      attachmentFolderPath: 'migrate-from-typecho',
+      attachmentHandlerDescriptions: {
+        localUploadTitle: '上传到 Halo',
+        localUploadDescription: '选择 Typecho 附件目录，自动上传并替换链接',
+        localUploadHint:
+          '请选择 Typecho 站点根目录、usr 目录或其中包含 uploads 的任意目录，系统会根据 usr/uploads 路径尽量匹配本地文件并上传。',
+        localManualTitle: '手动迁移',
+        localManualDescription: '保留 Typecho 原始附件路径，自行迁移 usr/uploads 目录',
+        localManualHint:
+          '系统只会创建附件记录，不会上传文件。你需要自行迁移 Typecho 的 usr/uploads 目录，并确保文章中引用的原始附件路径仍然可访问。'
+      }
+    }
   },
   {
     name: 'RSS',

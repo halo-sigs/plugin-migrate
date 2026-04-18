@@ -11,7 +11,6 @@ import type {
   MigrateTag
 } from '@/types'
 import { createEmailCommentOwner, createSourceUserId } from '@/utils/migrate-user'
-import { consoleApiClient } from '@halo-dev/api-client'
 import markdownit from 'markdown-it'
 import {
   type Attachment,
@@ -242,6 +241,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
   ): (MigrateComment | MigrateReply)[] => {
     const data: (MigrateComment | MigrateReply)[] = []
     const userMap = createTypechoUserMap(users)
+    const contentMap = createTypechoContentMap(contents)
     const findRootComment = (comment: TypechoComment): TypechoComment => {
       if (comment.parent === '0') {
         return comment
@@ -253,11 +253,11 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       return comment
     }
     for (const comment of comments ?? []) {
-      const content = contents?.find((c) => c.cid === comment.cid)
+      const content = contentMap.get(comment.cid)
       if (!content) {
-        break
+        continue
       }
-      const refType = content?.type == 'post' ? 'Post' : 'SinglePage'
+      const refType = content.type == 'post' ? 'Post' : 'SinglePage'
       if (comment.parent === '0') {
         data.push(createComment(comment, content, refType, userMap))
       } else {
@@ -277,7 +277,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
           return {
             id: `attachment-${content.cid}`,
             name: attachment.name || content.title || `attachment-${content.cid}`,
-            path: attachment.path,
+            path: normalizeTypechoAttachmentPath(attachment.path),
             type: 'LOCAL',
             height: 0,
             width: 0,
@@ -294,10 +294,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
     refType: 'Post' | 'SinglePage',
     userMap: Map<string, TypechoUser>
   ): MigrateComment => {
-    const sourceId =
-      comment.authorId !== '0' && comment.authorId !== ''
-        ? createSourceUserId('typecho', comment.authorId)
-        : undefined
+    const ownerRef = createTypechoCommentOwnerRef(comment, userMap)
     return {
       refType: refType,
       kind: 'Comment',
@@ -307,10 +304,12 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         content: comment.text,
         owner: createCommentOwner(comment, userMap),
         ipAddress: comment.ip,
+        userAgent: comment.agent,
         priority: 0,
         top: false,
         allowNotification: true,
         approved: comment.status === 'approved',
+        approvedTime: new Date(Number(comment.created) * 1000).toISOString(),
         creationTime: new Date(Number(comment.created) * 1000).toISOString(),
         hidden: false,
         subjectRef: {
@@ -323,7 +322,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       metadata: {
         name: `comment-${comment.coid}`
       },
-      ownerRef: sourceId ? { sourceId } : undefined
+      ownerRef
     } satisfies MigrateComment
   }
 
@@ -333,10 +332,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
     commentName: string,
     userMap: Map<string, TypechoUser>
   ): MigrateReply => {
-    const sourceId =
-      reply.authorId !== '0' && reply.authorId !== ''
-        ? createSourceUserId('typecho', reply.authorId)
-        : undefined
+    const ownerRef = createTypechoCommentOwnerRef(reply, userMap)
     return {
       refType: refType,
       kind: 'Reply',
@@ -349,33 +345,25 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
         content: reply.text,
         owner: createCommentOwner(reply, userMap),
         ipAddress: reply.ip,
+        userAgent: reply.agent,
         priority: 0,
         top: false,
         allowNotification: true,
         approved: reply.status === 'approved',
+        approvedTime: new Date(Number(reply.created) * 1000).toISOString(),
         creationTime: new Date(Number(reply.created) * 1000).toISOString(),
         hidden: false,
         commentName: commentName,
         quoteReply: `comment-${reply.parent}`
       },
       status: {},
-      ownerRef: sourceId ? { sourceId } : undefined
+      ownerRef
     } satisfies MigrateReply
   }
 
   return {
     parse
   }
-}
-
-export async function uploadAttachment(name: string, url: string) {
-  return await consoleApiClient.storage.attachment.externalTransferAttachment({
-    uploadFromUrlRequest: {
-      filename: name,
-      policyName: 'default-policy',
-      url: url
-    }
-  })
 }
 
 function parseTypechoAttachment(raw: string): Attachment {
@@ -412,6 +400,10 @@ function normalizeTypechoAttachment(attachment: Partial<Attachment>): Attachment
   }
 }
 
+function normalizeTypechoAttachmentPath(path: string) {
+  return path.trim().replace(/^\/+/, '')
+}
+
 function createTypechoUserMap(users?: TypechoUser[]) {
   return (users || []).reduce((map, user) => {
     map.set(user.uid, user)
@@ -419,19 +411,46 @@ function createTypechoUserMap(users?: TypechoUser[]) {
   }, new Map<string, TypechoUser>())
 }
 
+function createTypechoContentMap(contents?: TypechoContent[]) {
+  return (contents || []).reduce((map, content) => {
+    map.set(content.cid, content)
+    return map
+  }, new Map<string, TypechoContent>())
+}
+
+function getTypechoCommentAuthorUser(comment: TypechoComment, userMap: Map<string, TypechoUser>) {
+  if (!comment.authorId || comment.authorId === '0') {
+    return undefined
+  }
+
+  return userMap.get(comment.authorId)
+}
+
+function createTypechoCommentOwnerRef(
+  comment: TypechoComment,
+  userMap: Map<string, TypechoUser>
+): MigrateComment['ownerRef'] {
+  const sourceUser = getTypechoCommentAuthorUser(comment, userMap)
+
+  if (!sourceUser) {
+    return undefined
+  }
+
+  return {
+    sourceId: createSourceUserId('typecho', sourceUser.uid)
+  }
+}
+
 function createCommentOwner(
   comment: TypechoComment,
   userMap: Map<string, TypechoUser>
 ): MigrateComment['spec']['owner'] {
-  const sourceUser = userMap.get(comment.authorId)
+  const sourceUser = getTypechoCommentAuthorUser(comment, userMap)
 
   return createEmailCommentOwner({
     email: comment.mail || sourceUser?.mail,
     displayName: comment.author || sourceUser?.screenName || sourceUser?.name,
     website: comment.url || sourceUser?.url,
-    sourceId:
-      comment.authorId && comment.authorId !== '0'
-        ? createSourceUserId('typecho', comment.authorId)
-        : undefined
+    sourceId: sourceUser ? createSourceUserId('typecho', sourceUser.uid) : undefined
   })
 }

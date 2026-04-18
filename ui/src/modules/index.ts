@@ -10,7 +10,7 @@ import { defineAsyncComponent } from 'vue'
 // 新增的迁移数据来源，需要在此处进行注册
 export const providerItems: Provider[] = [
   {
-    name: 'Halo',
+    name: 'Halo 1.x',
     icon: 'https://www.halo.run/logo',
     description: 'Halo 1.5 / 1.6 数据迁移',
     importComponent: defineAsyncComponent(() => import('./halo/HaloMigrateDataParser.vue')),
@@ -40,27 +40,6 @@ export const providerItems: Provider[] = [
     }
   },
   {
-    name: 'RSS',
-    icon: rss,
-    description: '基于 RSS 订阅文件的数据迁移',
-    importComponent: defineAsyncComponent(() => import('./rss/RssMigrateDataParser.vue'))
-  },
-  {
-    name: 'Atom Feed',
-    icon: atom,
-    description: '基于 Atom Feed 订阅文件的数据迁移',
-    importComponent: defineAsyncComponent(() => import('./atom/AtomMigrateDataParser.vue'))
-  },
-  {
-    name: 'Hugo',
-    icon: hugo,
-    description: '从 HUGO 静态博客生成器迁移',
-    importComponent: defineAsyncComponent(() => import('./hugo/HugoMigrateDataParser.vue')),
-    options: {
-      attachmentFolderPath: 'migrate-from-hugo'
-    }
-  },
-  {
     name: 'Ghost',
     icon: ghost,
     description: '从 Ghost 博客平台迁移',
@@ -84,6 +63,27 @@ export const providerItems: Provider[] = [
     icon: typecho,
     description: '从 Typecho 博客平台迁移',
     importComponent: defineAsyncComponent(() => import('./typecho/TypechoMigrateDataParser.vue'))
+  },
+  {
+    name: 'RSS',
+    icon: rss,
+    description: '基于 RSS 订阅文件的数据迁移',
+    importComponent: defineAsyncComponent(() => import('./rss/RssMigrateDataParser.vue'))
+  },
+  {
+    name: 'Atom Feed',
+    icon: atom,
+    description: '基于 Atom Feed 订阅文件的数据迁移',
+    importComponent: defineAsyncComponent(() => import('./atom/AtomMigrateDataParser.vue'))
+  },
+  {
+    name: 'Hugo',
+    icon: hugo,
+    description: '从 HUGO 静态博客生成器迁移',
+    importComponent: defineAsyncComponent(() => import('./hugo/HugoMigrateDataParser.vue')),
+    options: {
+      attachmentFolderPath: 'migrate-from-hugo'
+    }
   }
 ]
 

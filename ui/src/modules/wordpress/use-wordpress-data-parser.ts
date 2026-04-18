@@ -62,7 +62,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
           resolve({
             posts: parsePosts(posts, rawTags, rawCategories, attachments),
-            pages: parsePages(pages),
+            pages: parsePages(pages, attachments),
             comments: parseComments(channel.item),
             tags: parseTags(rawTags),
             categories: parseCategories(rawCategories),
@@ -111,6 +111,8 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   }
 
   const parsePosts = (posts: Item[], tags: Tag[], categories: Category[], attachments: Item[]) => {
+    const attachmentUrlMap = createAttachmentUrlMap(attachments)
+
     return posts?.map((post: Item) => {
       const cleanedHtml = sanitizeWordPressHtml(post['content:encoded'])
       const publish =
@@ -146,18 +148,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         })
         .map((category: Category) => category['wp:term_id'] + '')
 
-      const thumbnail = post['wp:postmeta']
-        ?.filter((meta) => {
-          if (meta['wp:meta_key'] === '') {
-            return true
-          }
-        })
-        .map((meta) => {
-          const attachment = attachments.find((attachment) => {
-            return attachment['wp:post_id'] === Number(meta['wp:meta_value'])
-          })
-          return attachment?.['wp:attachment_url']
-        })[0]
+      const thumbnail = resolveFeaturedImageUrl(post, attachmentUrlMap)
 
       const excerpt = post['excerpt:encoded']
 
@@ -199,7 +190,9 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     })
   }
 
-  const parsePages = (pages: Item[]) => {
+  const parsePages = (pages: Item[], attachments: Item[]) => {
+    const attachmentUrlMap = createAttachmentUrlMap(attachments)
+
     return pages?.map((page: Item) => {
       const cleanedHtml = sanitizeWordPressHtml(page['content:encoded'])
       const publish =
@@ -220,6 +213,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
               allowComment: page['wp:comment_status'] === 'open',
               visible: 'PUBLIC',
               priority: 0,
+              cover: resolveFeaturedImageUrl(page, attachmentUrlMap),
               excerpt: {
                 autoGenerate: false,
                 raw: page['excerpt:encoded']
@@ -512,6 +506,32 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   return {
     parse
   }
+}
+
+function createAttachmentUrlMap(attachments: Item[]) {
+  return attachments.reduce((map, attachment) => {
+    const url = resolveAttachmentUrl(attachment)
+    if (url) {
+      map.set(String(attachment['wp:post_id']), url)
+    }
+    return map
+  }, new Map<string, string>())
+}
+
+function resolveFeaturedImageUrl(item: Item, attachmentUrlMap: Map<string, string>) {
+  const thumbnailId = item['wp:postmeta']?.find(
+    (meta) => meta['wp:meta_key'] === '_thumbnail_id'
+  )?.['wp:meta_value']
+
+  if (!thumbnailId) {
+    return undefined
+  }
+
+  return attachmentUrlMap.get(String(thumbnailId))
+}
+
+function resolveAttachmentUrl(attachment: Item) {
+  return attachment['wp:attachment_url'] || attachment.guid?.value || undefined
 }
 
 function sanitizeWordPressHtml(html?: string): string {

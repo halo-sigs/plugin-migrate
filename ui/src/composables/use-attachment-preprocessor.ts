@@ -14,86 +14,86 @@ interface AttachmentProcessResult {
   unmatchedCount: number
 }
 
+export function normalizeUrl(url: string): string {
+  const ghostPlaceholderPath = url.replace(/^__GHOST_URL__\/?/, '')
+  if (ghostPlaceholderPath !== url) {
+    return normalizePath(ghostPlaceholderPath)
+  }
+
+  try {
+    const u = new URL(url)
+    return normalizePath(u.pathname)
+  } catch {
+    return normalizePath(url)
+  }
+}
+
+export function normalizePath(path: string): string {
+  const withoutQuery = path
+    .split(/[?#]/)[0]
+    .replace(/\\/g, '/')
+    .replace(/^\.\/+/, '')
+  const decodedPath = decodePath(withoutQuery)
+
+  return decodedPath
+    .replace(/^\/+/, '')
+    .replace(/^content\/images\/size\/w\d+\//, 'content/images/')
+}
+
+export function findMatchingFile(path: string, files: FileList): File | undefined {
+  const normalizedPath = normalizePath(path)
+  // 精确匹配
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    const comparablePaths = getComparableFilePaths(file)
+    if (comparablePaths.includes(normalizedPath)) return file
+  }
+  // 后缀匹配（兼容用户选择不同层级根目录）
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    const comparablePaths = getComparableFilePaths(file)
+    if (comparablePaths.some((candidate) => normalizedPath.endsWith(candidate))) return file
+  }
+  // basename fallback（处理 WordPress 缩略图变体，如 image-1024x526.jpg 匹配到原图 image.jpg）
+  const pathBasename = normalizedPath.split('/').pop()
+  if (pathBasename) {
+    const baseWithoutSize = pathBasename.replace(/-\d+x\d+(?=\.[^.]+$)/, '')
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const basename = (file.webkitRelativePath || file.name).split('/').pop()
+      if (!basename) continue
+      if (basename === pathBasename) return file
+      if (basename.replace(/-\d+x\d+(?=\.[^.]+$)/, '') === baseWithoutSize) return file
+    }
+  }
+  return undefined
+}
+
+function decodePath(path: string): string {
+  try {
+    return decodeURI(path)
+  } catch {
+    return path
+  }
+}
+
+function getComparableFilePaths(file: File): string[] {
+  const normalized = normalizePath(file.webkitRelativePath || file.name)
+  const comparable = new Set<string>([normalized])
+  const firstSlashIndex = normalized.indexOf('/')
+
+  // 浏览器目录选择通常会把所选根目录名带进 webkitRelativePath，
+  // 这里额外兼容一次“去掉首段目录”的比较，便于直接选择站点根目录。
+  if (firstSlashIndex !== -1) {
+    comparable.add(normalized.slice(firstSlashIndex + 1))
+  }
+
+  return [...comparable].filter(Boolean)
+}
+
 export function useAttachmentPreprocessor() {
   const isUploading = ref(false)
   const uploadProgress = ref({ current: 0, total: 0 })
-
-  function normalizeUrl(url: string): string {
-    const ghostPlaceholderPath = url.replace(/^__GHOST_URL__\/?/, '')
-    if (ghostPlaceholderPath !== url) {
-      return normalizePath(ghostPlaceholderPath)
-    }
-
-    try {
-      const u = new URL(url)
-      return normalizePath(u.pathname)
-    } catch {
-      return normalizePath(url)
-    }
-  }
-
-  function normalizePath(path: string): string {
-    const withoutQuery = path
-      .split(/[?#]/)[0]
-      .replace(/\\/g, '/')
-      .replace(/^\.\/+/, '')
-    const decodedPath = decodePath(withoutQuery)
-
-    return decodedPath
-      .replace(/^\/+/, '')
-      .replace(/^content\/images\/size\/w\d+\//, 'content/images/')
-  }
-
-  function findMatchingFile(path: string, files: FileList): File | undefined {
-    const normalizedPath = normalizePath(path)
-    // 精确匹配
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const comparablePaths = getComparableFilePaths(file)
-      if (comparablePaths.includes(normalizedPath)) return file
-    }
-    // 后缀匹配（兼容用户选择不同层级根目录）
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const comparablePaths = getComparableFilePaths(file)
-      if (comparablePaths.some((candidate) => normalizedPath.endsWith(candidate))) return file
-    }
-    // basename fallback（处理 WordPress 缩略图变体，如 image-1024x526.jpg 匹配到原图 image.jpg）
-    const pathBasename = normalizedPath.split('/').pop()
-    if (pathBasename) {
-      const baseWithoutSize = pathBasename.replace(/-\d+x\d+(?=\.[^.]+$)/, '')
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const basename = (file.webkitRelativePath || file.name).split('/').pop()
-        if (!basename) continue
-        if (basename === pathBasename) return file
-        if (basename.replace(/-\d+x\d+(?=\.[^.]+$)/, '') === baseWithoutSize) return file
-      }
-    }
-    return undefined
-  }
-
-  function decodePath(path: string): string {
-    try {
-      return decodeURI(path)
-    } catch {
-      return path
-    }
-  }
-
-  function getComparableFilePaths(file: File): string[] {
-    const normalized = normalizePath(file.webkitRelativePath || file.name)
-    const comparable = new Set<string>([normalized])
-    const firstSlashIndex = normalized.indexOf('/')
-
-    // 浏览器目录选择通常会把所选根目录名带进 webkitRelativePath，
-    // 这里额外兼容一次“去掉首段目录”的比较，便于直接选择站点根目录。
-    if (firstSlashIndex !== -1) {
-      comparable.add(normalized.slice(firstSlashIndex + 1))
-    }
-
-    return [...comparable].filter(Boolean)
-  }
 
   function extractMediaUrls(data: MigrateData): string[] {
     const urls: string[] = []

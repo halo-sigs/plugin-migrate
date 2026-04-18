@@ -366,7 +366,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
   }
 }
 
-function parseTypechoAttachment(raw: string): Attachment {
+export function parseTypechoAttachment(raw: string): Attachment {
   const normalized = raw.trim()
 
   if (!normalized) {
@@ -400,11 +400,11 @@ function normalizeTypechoAttachment(attachment: Partial<Attachment>): Attachment
   }
 }
 
-function normalizeTypechoAttachmentPath(path: string) {
+export function normalizeTypechoAttachmentPath(path: string) {
   return path.trim().replace(/^\/+/, '')
 }
 
-function createTypechoUserMap(users?: TypechoUser[]) {
+export function createTypechoUserMap(users?: TypechoUser[]) {
   return (users || []).reduce((map, user) => {
     map.set(user.uid, user)
     return map
@@ -426,7 +426,7 @@ function getTypechoCommentAuthorUser(comment: TypechoComment, userMap: Map<strin
   return userMap.get(comment.authorId)
 }
 
-function createTypechoCommentOwnerRef(
+export function createTypechoCommentOwnerRef(
   comment: TypechoComment,
   userMap: Map<string, TypechoUser>
 ): MigrateComment['ownerRef'] {
@@ -441,7 +441,7 @@ function createTypechoCommentOwnerRef(
   }
 }
 
-function createCommentOwner(
+export function createCommentOwner(
   comment: TypechoComment,
   userMap: Map<string, TypechoUser>
 ): MigrateComment['spec']['owner'] {

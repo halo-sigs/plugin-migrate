@@ -547,7 +547,9 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   }
 }
 
-function createWordPressAttachmentResolver(attachments: Item[]): WordPressAttachmentResolver {
+export function createWordPressAttachmentResolver(
+  attachments: Item[]
+): WordPressAttachmentResolver {
   const byId = new Map<string, string>()
   const byUrl = new Map<string, string>()
   const assetsById = new Map<string, WordPressAttachmentAsset>()
@@ -804,7 +806,7 @@ function resolveWordPressOwnerRef(item: Item, authorByLogin: Map<string, Author>
   }
 }
 
-function sanitizeWordPressHtml(
+export function sanitizeWordPressHtml(
   html?: string,
   attachmentResolver?: WordPressAttachmentResolver
 ): string {

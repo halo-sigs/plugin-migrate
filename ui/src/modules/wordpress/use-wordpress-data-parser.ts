@@ -625,7 +625,14 @@ function sanitizeWordPressHtml(html?: string): string {
 
   const doc = new DOMParser().parseFromString(html, 'text/html')
 
+  removeWordPressBlockComments(doc)
   transformWordPressGalleryBlocks(doc)
+  transformWordPressImageBlocks(doc)
+  transformWordPressCoverBlocks(doc)
+  transformWordPressFileBlocks(doc)
+  transformWordPressMediaBlocks(doc, 'figure.wp-block-video', 'video')
+  transformWordPressMediaBlocks(doc, 'figure.wp-block-audio', 'audio')
+  transformWordPressEmbedBlocks(doc)
 
   doc.querySelectorAll('img, source').forEach((element) => {
     element.removeAttribute('srcset')
@@ -633,6 +640,19 @@ function sanitizeWordPressHtml(html?: string): string {
   })
 
   return doc.body.innerHTML
+}
+
+function removeWordPressBlockComments(doc: Document) {
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_COMMENT)
+  const commentsToRemove: globalThis.Comment[] = []
+
+  let currentNode = walker.nextNode()
+  while (currentNode) {
+    commentsToRemove.push(currentNode as globalThis.Comment)
+    currentNode = walker.nextNode()
+  }
+
+  commentsToRemove.forEach((comment) => comment.parentNode?.removeChild(comment))
 }
 
 function transformWordPressGalleryBlocks(doc: Document) {
@@ -670,16 +690,27 @@ function transformWordPressGalleryBlocks(doc: Document) {
         const imageWrapper = doc.createElement('div')
         imageWrapper.setAttribute('style', `flex: ${ratio} 1 0%;`)
         imageWrapper.setAttribute('data-aspect-ratio', String(ratio))
+        const caption = item.querySelector(':scope > figcaption')
 
-        const nextImg = doc.createElement('img')
-        copyAttribute(img, nextImg, 'src')
-        copyAttribute(img, nextImg, 'alt')
-        copyAttribute(img, nextImg, 'width')
-        copyAttribute(img, nextImg, 'height')
+        const nextImageContent = createNormalizedImageContent(doc, img, {
+          imageStyle: 'width: 100%; height: 100%; margin: 0; object-fit: cover;'
+        })
+        const nextImg =
+          nextImageContent.querySelector('img') ||
+          (nextImageContent.tagName === 'IMG' ? nextImageContent : null)
+
+        if (!nextImg) {
+          return
+        }
+
         nextImg.setAttribute('data-type', 'gallery-image')
-        nextImg.setAttribute('style', 'width: 100%; height: 100%; margin: 0; object-fit: cover;')
 
-        imageWrapper.append(nextImg)
+        imageWrapper.append(nextImageContent)
+
+        if (caption) {
+          imageWrapper.append(createNormalizedCaption(caption))
+        }
+
         group.append(imageWrapper)
       })
 
@@ -694,6 +725,168 @@ function transformWordPressGalleryBlocks(doc: Document) {
 
     gallery.append(galleryGrid)
     galleryFigure.replaceWith(gallery)
+  })
+}
+
+function transformWordPressImageBlocks(doc: Document) {
+  doc.querySelectorAll('figure.wp-block-image').forEach((figure) => {
+    if (figure.closest('figure.wp-block-gallery')) {
+      return
+    }
+
+    const img = figure.querySelector(':scope > img, :scope > a > img')
+    if (!img) {
+      return
+    }
+
+    const nextFigure = doc.createElement('figure')
+    const figureStyle = figure.getAttribute('style')
+    if (figureStyle) {
+      nextFigure.setAttribute('style', figureStyle)
+    }
+
+    nextFigure.append(createNormalizedImageContent(doc, img))
+
+    const caption = figure.querySelector(':scope > figcaption')
+    if (caption) {
+      nextFigure.append(createNormalizedCaption(caption))
+    }
+
+    figure.replaceWith(nextFigure)
+  })
+}
+
+function transformWordPressCoverBlocks(doc: Document) {
+  doc.querySelectorAll('.wp-block-cover').forEach((cover) => {
+    const container = doc.createElement('div')
+    container.setAttribute('data-type', 'cover')
+
+    const coverStyle = cover.getAttribute('style')
+    if (coverStyle) {
+      container.setAttribute('style', coverStyle)
+    }
+
+    const image = cover.querySelector(':scope > img.wp-block-cover__image-background')
+    if (image) {
+      const mediaWrapper = doc.createElement('p')
+      mediaWrapper.append(createNormalizedImageContent(doc, image))
+      container.append(mediaWrapper)
+    }
+
+    const video = cover.querySelector(':scope > video.wp-block-cover__video-background')
+    if (video) {
+      const mediaFigure = doc.createElement('figure')
+      mediaFigure.append(createNormalizedMediaElement(doc, video))
+      container.append(mediaFigure)
+    }
+
+    const overlay = cover.querySelector(':scope > .wp-block-cover__background')
+    if (overlay?.getAttribute('style')) {
+      const overlayBlock = doc.createElement('div')
+      overlayBlock.setAttribute('style', overlay.getAttribute('style') || '')
+      container.append(overlayBlock)
+    }
+
+    const inner = cover.querySelector(':scope > .wp-block-cover__inner-container')
+    if (inner) {
+      const content = doc.createElement('div')
+      moveChildNodes(inner, content)
+      if (content.innerHTML.trim()) {
+        container.append(content)
+      }
+    }
+
+    if (!container.innerHTML.trim()) {
+      return
+    }
+
+    cover.replaceWith(container)
+  })
+}
+
+function transformWordPressFileBlocks(doc: Document) {
+  doc.querySelectorAll('.wp-block-file').forEach((fileBlock) => {
+    const links = Array.from(fileBlock.querySelectorAll(':scope > a[href]'))
+    if (links.length === 0) {
+      return
+    }
+
+    const paragraph = doc.createElement('p')
+
+    links.forEach((link, index) => {
+      if (index > 0) {
+        paragraph.append(doc.createTextNode(' '))
+      }
+
+      paragraph.append(createNormalizedLink(link))
+    })
+
+    fileBlock.replaceWith(paragraph)
+  })
+}
+
+function transformWordPressMediaBlocks(
+  doc: Document,
+  selector: string,
+  tagName: 'video' | 'audio'
+) {
+  doc.querySelectorAll(selector).forEach((figure) => {
+    const media = figure.querySelector(`:scope > ${tagName}, :scope > div > ${tagName}`)
+    if (!media) {
+      return
+    }
+
+    const nextFigure = doc.createElement('figure')
+    nextFigure.append(createNormalizedMediaElement(doc, media))
+
+    const caption = figure.querySelector(':scope > figcaption')
+    if (caption) {
+      nextFigure.append(createNormalizedCaption(caption))
+    }
+
+    figure.replaceWith(nextFigure)
+  })
+}
+
+function transformWordPressEmbedBlocks(doc: Document) {
+  doc.querySelectorAll('figure.wp-block-embed, div.wp-block-embed').forEach((embedBlock) => {
+    const iframe = embedBlock.querySelector('iframe')
+    const caption = embedBlock.querySelector(':scope > figcaption')
+
+    if (iframe) {
+      const wrapper = doc.createElement('div')
+      wrapper.append(createNormalizedIframe(doc, iframe))
+
+      if (caption) {
+        wrapper.append(createNormalizedCaption(caption))
+      }
+
+      embedBlock.replaceWith(wrapper)
+      return
+    }
+
+    const urlText =
+      embedBlock.querySelector('.wp-block-embed__wrapper')?.textContent?.trim() ||
+      embedBlock.textContent?.trim()
+
+    if (!urlText) {
+      return
+    }
+
+    const paragraph = doc.createElement('p')
+    const link = doc.createElement('a')
+    link.setAttribute('href', urlText)
+    link.textContent = urlText
+    paragraph.append(link)
+
+    if (caption) {
+      const wrapper = doc.createElement('div')
+      wrapper.append(paragraph, createNormalizedCaption(caption))
+      embedBlock.replaceWith(wrapper)
+      return
+    }
+
+    embedBlock.replaceWith(paragraph)
   })
 }
 
@@ -736,6 +929,97 @@ function copyAttribute(source: Element, target: Element, name: string) {
   if (value) {
     target.setAttribute(name, value)
   }
+}
+
+function createNormalizedImageContent(
+  doc: Document,
+  img: Element,
+  options?: {
+    imageStyle?: string
+  }
+) {
+  const nextImg = doc.createElement('img')
+  copyAttribute(img, nextImg, 'src')
+  copyAttribute(img, nextImg, 'alt')
+  copyAttribute(img, nextImg, 'width')
+  copyAttribute(img, nextImg, 'height')
+
+  const sourceStyle = img.getAttribute('style')
+  if (sourceStyle || options?.imageStyle) {
+    nextImg.setAttribute('style', [sourceStyle, options?.imageStyle].filter(Boolean).join('; '))
+  }
+
+  const link = img.closest('a')
+  if (!link) {
+    return nextImg
+  }
+
+  const nextLink = createNormalizedLink(link)
+  nextLink.textContent = ''
+  nextLink.append(nextImg)
+
+  return nextLink
+}
+
+function createNormalizedMediaElement(doc: Document, media: Element) {
+  const nextMedia = doc.createElement(media.tagName.toLowerCase())
+  ;[
+    'src',
+    'poster',
+    'preload',
+    'autoplay',
+    'controls',
+    'controlslist',
+    'loop',
+    'muted',
+    'playsinline'
+  ].forEach((name) => copyAttribute(media, nextMedia, name))
+
+  Array.from(media.querySelectorAll(':scope > source')).forEach((source) => {
+    const nextSource = doc.createElement('source')
+    copyAttribute(source, nextSource, 'src')
+    copyAttribute(source, nextSource, 'type')
+    nextMedia.append(nextSource)
+  })
+
+  return nextMedia
+}
+
+function createNormalizedIframe(doc: Document, iframe: Element) {
+  const nextIframe = doc.createElement('iframe')
+  ;[
+    'src',
+    'title',
+    'width',
+    'height',
+    'allow',
+    'allowfullscreen',
+    'loading',
+    'referrerpolicy'
+  ].forEach((name) => copyAttribute(iframe, nextIframe, name))
+
+  return nextIframe
+}
+
+function createNormalizedLink(link: Element) {
+  const doc = link.ownerDocument
+  const nextLink = doc.createElement('a')
+  ;['href', 'target', 'rel', 'download'].forEach((name) => copyAttribute(link, nextLink, name))
+  nextLink.textContent = link.textContent?.trim() || nextLink.getAttribute('href') || ''
+  return nextLink
+}
+
+function createNormalizedCaption(caption: Element) {
+  const doc = caption.ownerDocument
+  const nextCaption = doc.createElement('figcaption')
+  moveChildNodes(caption, nextCaption)
+  return nextCaption
+}
+
+function moveChildNodes(source: Element, target: Element) {
+  Array.from(source.childNodes).forEach((child) => {
+    target.append(child.cloneNode(true))
+  })
 }
 
 interface AttachmentMetadata {

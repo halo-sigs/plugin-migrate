@@ -19,20 +19,27 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
       const reader = new FileReader()
       reader.onload = (event) => {
         const ghostRawData = JSON.parse(event.target?.result as string) as Root
-        const ghostDBData = ghostRawData.db[0].data
+        const ghostDBData = ghostRawData.db?.[0]?.data
 
         if (!ghostDBData) {
           reject('Failed to parse data. No data found')
+          return
         }
 
         try {
-          const { posts, tags, posts_tags, users, posts_authors } = ghostDBData
+          const posts = ghostDBData.posts || []
+          const tags = ghostDBData.tags || []
+          const postsTags = ghostDBData.posts_tags || []
+          const users = ghostDBData.users || []
+          const postsAuthors = ghostDBData.posts_authors || []
+          const tagIds = new Set(tags.map((tag) => tag.id))
+          const userIds = new Set(users.map((user) => user.id))
 
           resolve({
             sourceProvider: 'ghost',
             users: parseUsers(users),
-            posts: parsePosts(posts, posts_tags, posts_authors),
-            pages: parsePages(posts, posts_authors),
+            posts: parsePosts(posts, postsTags, postsAuthors, tagIds, userIds),
+            pages: parsePages(posts, postsAuthors, userIds),
             tags: parseTags(tags),
             attachments: extractAttachments(posts, tags)
           })
@@ -47,14 +54,14 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
     })
   }
 
-  function parseTags(rawTags: Tag[]): MigrateTag[] {
+  function parseTags(rawTags: Tag[] = []): MigrateTag[] {
     return rawTags.map((rawTag) => {
       return {
         spec: {
           displayName: rawTag.name,
           slug: rawTag.slug,
           color: rawTag.accent_color,
-          cover: rawTag.feature_image
+          cover: normalizeOptionalString(rawTag.feature_image)
         },
         apiVersion: 'content.halo.run/v1alpha1',
         kind: 'Tag',
@@ -66,16 +73,19 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
   }
 
   function parsePosts(
-    rawPosts: Post[],
-    rawPostsTags: PostsTag[],
-    rawPostsAuthors: PostsAuthor[]
+    rawPosts: Post[] = [],
+    rawPostsTags: PostsTag[] = [],
+    rawPostsAuthors: PostsAuthor[] = [],
+    tagIds: ReadonlySet<string>,
+    userIds: ReadonlySet<string>
   ): MigratePost[] {
     return rawPosts
       .filter((rawPost) => rawPost.type === 'post')
       .map((rawPost) => {
-        const cleanedHtml = sanitizeGhostHtml(rawPost.html)
+        const cleanedHtml = createGhostContentHtml(rawPost)
         const postTagIds = rawPostsTags
           .filter((postTag) => postTag.post_id === rawPost.id)
+          .filter((postTag) => tagIds.has(postTag.tag_id))
           .map((postTag) => {
             return postTag.tag_id
           })
@@ -87,7 +97,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
                 title: rawPost.title,
                 slug: rawPost.slug,
                 template: '',
-                cover: rawPost.feature_image,
+                cover: normalizeOptionalString(rawPost.feature_image),
                 deleted: false,
                 publish: rawPost.status === 'published',
                 publishTime: rawPost.published_at,
@@ -113,16 +123,20 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
               rawType: 'HTML'
             }
           },
-          ownerRef: resolveGhostOwnerRef(rawPost.id, rawPostsAuthors)
+          ownerRef: resolveGhostOwnerRef(rawPost.id, rawPostsAuthors, userIds)
         }
       })
   }
 
-  function parsePages(rawPosts: Post[], rawPostsAuthors: PostsAuthor[]): MigrateSinglePage[] {
+  function parsePages(
+    rawPosts: Post[] = [],
+    rawPostsAuthors: PostsAuthor[] = [],
+    userIds: ReadonlySet<string>
+  ): MigrateSinglePage[] {
     return rawPosts
       .filter((rawPost) => rawPost.type === 'page')
       .map((rawPost) => {
-        const cleanedHtml = sanitizeGhostHtml(rawPost.html)
+        const cleanedHtml = createGhostContentHtml(rawPost)
         return {
           singlePageRequest: {
             page: {
@@ -130,7 +144,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
                 title: rawPost.title,
                 slug: rawPost.slug,
                 template: '',
-                cover: rawPost.feature_image,
+                cover: normalizeOptionalString(rawPost.feature_image),
                 deleted: false,
                 publish: rawPost.status === 'published',
                 publishTime: rawPost.published_at,
@@ -155,25 +169,25 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
             }
           },
           counter: {},
-          ownerRef: resolveGhostOwnerRef(rawPost.id, rawPostsAuthors)
+          ownerRef: resolveGhostOwnerRef(rawPost.id, rawPostsAuthors, userIds)
         } as MigrateSinglePage
       })
   }
 
-  function parseUsers(rawUsers: User[]): MigrateSourceUser[] {
+  function parseUsers(rawUsers: User[] = []): MigrateSourceUser[] {
     return rawUsers.map((user) => ({
       id: createSourceUserId('ghost', user.id),
       provider: 'ghost',
       displayName: user.name || user.slug || user.email,
       email: user.email,
       username: user.slug,
-      avatar: user.profile_image,
+      avatar: normalizeOptionalString(user.profile_image),
       bio: user.bio || undefined,
-      website: user.website || undefined
+      website: normalizeOptionalString(user.website)
     }))
   }
 
-  function extractAttachments(rawPosts: Post[], rawTags: Tag[]): MigrateAttachment[] {
+  function extractAttachments(rawPosts: Post[] = [], rawTags: Tag[] = []): MigrateAttachment[] {
     const attachments: MigrateAttachment[] = []
     const seenPaths = new Set<string>()
 
@@ -181,7 +195,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
       if (!isGhostLocalMediaUrl(url)) return
 
       const path = normalizeGhostMediaPath(url)
-      if (!path || seenPaths.has(path)) return
+      if (!path || seenPaths.has(path) || path.endsWith('/') || !path.split('/').pop()) return
 
       seenPaths.add(path)
 
@@ -196,7 +210,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
 
     rawPosts.forEach((post) => {
       addAttachment(post.feature_image)
-      extractMediaUrlsFromHtml(post.html).forEach(addAttachment)
+      extractMediaUrlsFromHtml(createGhostContentHtml(post)).forEach(addAttachment)
     })
 
     rawTags.forEach((tag) => {
@@ -211,9 +225,14 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
   }
 }
 
-function resolveGhostOwnerRef(postId: string, rawPostsAuthors: PostsAuthor[]) {
+function resolveGhostOwnerRef(
+  postId: string,
+  rawPostsAuthors: PostsAuthor[] = [],
+  userIds: ReadonlySet<string>
+) {
   const relation = rawPostsAuthors
     .filter((item) => item.post_id === postId)
+    .filter((item) => userIds.has(item.author_id))
     .sort((a, b) => a.sort_order - b.sort_order)[0]
 
   if (!relation) {
@@ -226,7 +245,7 @@ function resolveGhostOwnerRef(postId: string, rawPostsAuthors: PostsAuthor[]) {
 }
 
 function createGhostExcerpt(rawPost: Post) {
-  const excerpt = rawPost.custom_excerpt || rawPost.plaintext || ''
+  const excerpt = normalizeOptionalString(rawPost.custom_excerpt) || rawPost.plaintext || ''
   return {
     autoGenerate: !excerpt,
     raw: excerpt
@@ -237,6 +256,43 @@ function createGhostAnnotations(rawPost: Post) {
   return {
     'plugin-migrate.halo.run/ghost-visibility': rawPost.visibility
   }
+}
+
+function createGhostContentHtml(rawPost: Post) {
+  const html = normalizeOptionalString(rawPost.html)
+  if (html) {
+    return sanitizeGhostHtml(html)
+  }
+
+  return createPlaintextHtml(rawPost.plaintext)
+}
+
+function createPlaintextHtml(text?: string) {
+  const normalized = normalizeOptionalString(text)
+  if (!normalized) {
+    return ''
+  }
+
+  const doc = new DOMParser().parseFromString('', 'text/html')
+  const fragment = doc.createDocumentFragment()
+
+  normalized
+    .split(/\n{2,}/)
+    .map((section) => section.trim())
+    .filter(Boolean)
+    .forEach((section) => {
+      const paragraph = doc.createElement('p')
+      paragraph.textContent = section.replace(/\n/g, ' ')
+      fragment.append(paragraph)
+    })
+
+  doc.body.append(fragment)
+  return doc.body.innerHTML
+}
+
+function normalizeOptionalString(value?: string | null) {
+  const normalized = value?.trim()
+  return normalized ? normalized : undefined
 }
 
 function extractMediaUrlsFromHtml(html?: string): string[] {

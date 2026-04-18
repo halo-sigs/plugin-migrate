@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import FileSelector from '@/components/FileSelector.vue'
 import MigrateSourceUploadCard from '@/components/MigrateSourceUploadCard.vue'
 import type { MigrateData } from '@/types'
 import { ref } from 'vue'
@@ -37,15 +36,6 @@ async function parseSelectedFiles(files: File[]) {
   }
 }
 
-function handleFileChange(files: FileList) {
-  const file = files.item(0)
-  if (!file) {
-    return
-  }
-
-  void parseSelectedFiles([file])
-}
-
 function handleFolderChange(files: FileList) {
   void parseSelectedFiles(Array.from(files))
 }
@@ -63,15 +53,16 @@ defineExpose({
 
 <template>
   <MigrateSourceUploadCard
-    :file-options="{ accept: '.md,.markdown', multiple: false }"
-    button-text="选择 Markdown 文件"
+    folder
+    :file-options="{ multiple: true }"
+    button-text="选择 Markdown 目录"
     :parse-error="parseError"
     :parsing="parsing"
     parsing-text="正在解析 Markdown 数据..."
-    @file-change="handleFileChange"
+    @file-change="handleFolderChange"
   >
     <template #description>
-      请选择单个 Markdown 文件，或在下方选择包含 Markdown 文件的目录。
+      请选择包含 Markdown 文件的目录。
       <ul class=":uno: ml-2 mt-1 list-disc list-inside space-y-1">
         <li>适用于 Hugo、Hexo 以及其他基于 Markdown + Front Matter 的静态博客内容。</li>
         <li>
@@ -81,16 +72,8 @@ defineExpose({
           默认按文章导入，仅在 Front Matter 明确标记
           <code>type/layout/kind=page</code> 时导入为单页。
         </li>
-        <li>如果正文中引用了本地图片或附件，可在下一步额外选择附件目录进行上传和地址替换。</li>
+        <li>如果正文中引用了本地图片或附件，可在下一步选择附件目录自动上传并替换地址。</li>
       </ul>
-    </template>
-    <template #extra-selectors>
-      <FileSelector
-        folder
-        :options="{ multiple: true }"
-        button-text="选择 Markdown 目录"
-        @file-change="handleFolderChange"
-      />
     </template>
   </MigrateSourceUploadCard>
 </template>

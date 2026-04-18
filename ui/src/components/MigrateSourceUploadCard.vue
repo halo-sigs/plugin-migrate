@@ -5,6 +5,7 @@ import type { UseFileDialogOptions } from '@vueuse/core'
 
 defineProps<{
   fileOptions: UseFileDialogOptions
+  folder?: boolean
   buttonText?: string
   parseError?: string
   parsing?: boolean
@@ -28,6 +29,7 @@ const emit = defineEmits<{
     </VAlert>
 
     <FileSelector
+      :folder="folder"
       :options="fileOptions"
       :button-text="buttonText"
       @file-change="(files) => emit('fileChange', files)"

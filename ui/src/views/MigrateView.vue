@@ -282,6 +282,7 @@ onBeforeRouteLeave((to, from, next) => {
             :data="parsedData"
             :activatedPluginNames="activatedPluginNames"
             :descriptions="activeProvider?.options?.attachmentHandlerDescriptions"
+            :local-strategies="activeProvider?.options?.localAttachmentStrategies"
           />
         </div>
 

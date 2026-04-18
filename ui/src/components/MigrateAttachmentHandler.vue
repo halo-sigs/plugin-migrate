@@ -18,6 +18,7 @@ interface Props {
   data: MigrateData
   activatedPluginNames: string[]
   descriptions?: AttachmentHandlerDescriptions
+  localStrategies?: LocalAttachmentStrategy[]
 }
 
 const props = defineProps<Props>()
@@ -28,6 +29,13 @@ const attachmentTypes = computed(() => Object.keys(typeGroups.value))
 const hasLocal = computed(() => attachmentTypes.value.includes('LOCAL'))
 const hasRemote = computed(() => attachmentTypes.value.some((t) => t !== 'LOCAL'))
 const remoteTypes = computed(() => attachmentTypes.value.filter((t) => t !== 'LOCAL'))
+const defaultLocalStrategies: LocalAttachmentStrategy[] = ['upload', 'manual']
+const allowedLocalStrategies = computed<LocalAttachmentStrategy[]>(() => {
+  const strategies = props.localStrategies?.length ? props.localStrategies : defaultLocalStrategies
+  return strategies.filter((strategy, index, list) => list.indexOf(strategy) === index)
+})
+const allowLocalUpload = computed(() => allowedLocalStrategies.value.includes('upload'))
+const allowLocalManual = computed(() => allowedLocalStrategies.value.includes('manual'))
 const typeGroupCounts = computed(() => {
   const counts: Record<string, number> = {}
   Object.entries(typeGroups.value).forEach(([type, items]) => {
@@ -96,6 +104,26 @@ watch(
     })
   },
   { deep: true }
+)
+
+watch(
+  () => allowedLocalStrategies.value,
+  (strategies) => {
+    if (!hasLocal.value) {
+      localStrategy.value = null
+      return
+    }
+
+    if (strategies.length === 1) {
+      localStrategy.value = strategies[0]
+      return
+    }
+
+    if (localStrategy.value && !strategies.includes(localStrategy.value)) {
+      localStrategy.value = strategies[0] || null
+    }
+  },
+  { immediate: true }
 )
 
 watch(
@@ -170,8 +198,9 @@ defineExpose({
       </div>
 
       <!-- 方案选择 -->
-      <div class=":uno: flex gap-2">
+      <div v-if="allowLocalUpload || allowLocalManual" class=":uno: flex gap-2">
         <button
+          v-if="allowLocalUpload"
           type="button"
           class=":uno: flex flex-1 items-center gap-2 border rounded-md px-3 py-2 text-left text-sm transition-all"
           :class="
@@ -201,6 +230,7 @@ defineExpose({
         </button>
 
         <button
+          v-if="allowLocalManual"
           type="button"
           class=":uno: flex flex-1 items-center gap-2 border rounded-md px-3 py-2 text-left text-sm transition-all"
           :class="
@@ -231,7 +261,10 @@ defineExpose({
       </div>
 
       <!-- 上传方案详情 -->
-      <div v-if="localStrategy === 'upload'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
+      <div
+        v-if="allowLocalUpload && localStrategy === 'upload'"
+        class=":uno: mt-3 rounded-md bg-gray-50 p-3"
+      >
         <p class=":uno: mb-2 text-xs text-gray-600">{{ descriptions.localUploadHint }}</p>
 
         <div class=":uno: flex flex-wrap items-center gap-2">
@@ -243,7 +276,10 @@ defineExpose({
       </div>
 
       <!-- 手动迁移详情 -->
-      <div v-if="localStrategy === 'manual'" class=":uno: mt-3 rounded-md bg-gray-50 p-3">
+      <div
+        v-if="allowLocalManual && localStrategy === 'manual'"
+        class=":uno: mt-3 rounded-md bg-gray-50 p-3"
+      >
         <p class=":uno: mb-2 text-xs text-gray-600">{{ descriptions.localManualHint }}</p>
         <FormKit
           v-if="localPolicyOptions.length"

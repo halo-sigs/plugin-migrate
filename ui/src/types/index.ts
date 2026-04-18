@@ -14,6 +14,7 @@ import type { Component } from 'vue'
 export interface MigrationOption {
   attachmentFolderPath?: string
   attachmentHandlerDescriptions?: AttachmentHandlerDescriptions
+  localAttachmentStrategies?: LocalAttachmentStrategy[]
 }
 
 export interface Provider {

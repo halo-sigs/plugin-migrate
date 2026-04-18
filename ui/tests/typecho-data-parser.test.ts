@@ -239,6 +239,34 @@ describe('typecho parser helpers', () => {
       }
     ])
   })
+
+  it('skips invalid attachment records instead of failing the whole attachment list', () => {
+    const attachments = parseTypechoAttachments([
+      createContent({
+        cid: '20',
+        type: 'attachment',
+        text: 'not-supported'
+      }),
+      createContent({
+        cid: '21',
+        type: 'attachment',
+        text: '{"name":"demo.png","path":"/usr/uploads/2026/04/demo.png","size":"12","type":"image","mime":"image/png"}'
+      })
+    ])
+
+    expect(attachments).toEqual([
+      {
+        id: 'attachment-21',
+        name: 'demo.png',
+        path: 'usr/uploads/2026/04/demo.png',
+        type: 'LOCAL',
+        height: 0,
+        width: 0,
+        mediaType: 'image/png',
+        size: 12
+      }
+    ])
+  })
 })
 
 describe('useTypechoDataParser', () => {
@@ -260,6 +288,7 @@ describe('useTypechoDataParser', () => {
           metadata: { name: 'post-1' },
           spec: {
             title: 'Typecho Post',
+            slug: 'typecho-post',
             publish: true,
             allowComment: true,
             visible: 'PUBLIC',
@@ -280,8 +309,10 @@ describe('useTypechoDataParser', () => {
           metadata: { name: 'page-2' },
           spec: {
             title: 'Typecho Page',
+            slug: 'typecho-page',
             publish: false,
-            allowComment: false
+            allowComment: false,
+            visible: 'PRIVATE'
           }
         }
       }
@@ -311,5 +342,33 @@ describe('useTypechoDataParser', () => {
       path: 'usr/uploads/2026/04/demo.png',
       type: 'LOCAL'
     })
+  })
+
+  it('keeps parsing when a backup contains malformed attachment metadata', async () => {
+    const data = await useTypechoDataParser(
+      createTypechoBackupFile({
+        contents: [
+          createContent({
+            cid: '1',
+            title: 'Typecho Post',
+            slug: '',
+            text: 'Post body'
+          }),
+          createContent({
+            cid: '2',
+            title: 'Bad Attachment',
+            type: 'attachment',
+            text: 'not-supported',
+            status: 'publish',
+            allowComment: '0',
+            allowPing: '0',
+            allowFeed: '0'
+          })
+        ]
+      })
+    ).parse()
+
+    expect(data.posts?.[0].postRequest.post.spec.slug).toBe('typecho-post')
+    expect(data.attachments).toEqual([])
   })
 })

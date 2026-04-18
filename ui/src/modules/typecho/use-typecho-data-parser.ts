@@ -12,6 +12,7 @@ import type {
 } from '@/types'
 import { createEmailCommentOwner, createSourceUserId } from '@/utils/migrate-user'
 import markdownit from 'markdown-it'
+import { slugify } from 'transliteration'
 import {
   type Attachment,
   phpUnserialize,
@@ -82,7 +83,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
               post: {
                 spec: {
                   title: content.title,
-                  slug: content.title,
+                  slug: normalizeTypechoSlug(content.slug, content.title, `post-${content.cid}`),
                   deleted: false,
                   publish: content.status === 'publish',
                   publishTime: new Date(Number(content.created) * 1000).toISOString(),
@@ -189,13 +190,13 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
               page: {
                 spec: {
                   title: content.title,
-                  slug: content.slug,
+                  slug: normalizeTypechoSlug(content.slug, content.title, `page-${content.cid}`),
                   deleted: false,
                   publish: content.status === 'publish',
                   publishTime: new Date(Number(content.created) * 1000).toISOString(),
                   pinned: false,
                   allowComment: content.allowComment === '1',
-                  visible: 'PUBLIC',
+                  visible: content.status === 'publish' ? 'PUBLIC' : 'PRIVATE',
                   priority: 0,
                   excerpt: {
                     autoGenerate: true
@@ -281,20 +282,37 @@ export function parseTypechoAttachments(contents?: TypechoContent[]): MigrateAtt
   return (
     contents
       ?.filter((content) => content.type === 'attachment')
-      .map((content) => {
-        const attachment = parseTypechoAttachment(content.text)
-        return {
-          id: `attachment-${content.cid}`,
-          name: attachment.name || content.title || `attachment-${content.cid}`,
-          path: normalizeTypechoAttachmentPath(attachment.path),
-          type: 'LOCAL',
-          height: 0,
-          width: 0,
-          mediaType: attachment.mime,
-          size: attachment.size
+      .flatMap((content) => {
+        try {
+          const attachment = parseTypechoAttachment(content.text)
+          return [
+            {
+              id: `attachment-${content.cid}`,
+              name: attachment.name || content.title || `attachment-${content.cid}`,
+              path: normalizeTypechoAttachmentPath(attachment.path),
+              type: 'LOCAL',
+              height: 0,
+              width: 0,
+              mediaType: attachment.mime,
+              size: attachment.size
+            }
+          ]
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.warn(`Skip invalid Typecho attachment ${content.cid}: ${message}`)
+          return []
         }
       }) ?? []
   )
+}
+
+function normalizeTypechoSlug(value: string | undefined, title: string, fallback: string) {
+  const normalized = value?.trim()
+  if (normalized) {
+    return normalized
+  }
+
+  return slugify(title, { trim: true }) || fallback
 }
 
 function createTypechoComment(

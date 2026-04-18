@@ -111,8 +111,10 @@ export function createWordPressWxr() {
 </rss>`
 }
 
-export function createTypechoBackupFile() {
-  const rows = {
+type TypechoBackupRows = Record<string, Record<string, string | null>[]>
+
+export function createTypechoBackupFile(overrides: Partial<TypechoBackupRows> = {}) {
+  const rows: TypechoBackupRows = {
     contents: [
       {
         cid: '1',
@@ -246,7 +248,8 @@ export function createTypechoBackupFile() {
         group: 'administrator',
         authCode: null
       }
-    ]
+    ],
+    ...overrides
   }
 
   return new File([buildTypechoBackup(rows)], 'typecho-backup.dat', {

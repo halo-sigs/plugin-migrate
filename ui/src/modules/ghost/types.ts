@@ -15,7 +15,7 @@ export interface Data {
   offers: any[]
   posts: Post[]
   posts_authors: PostsAuthor[]
-  posts_meta: any[]
+  posts_meta: PostsMeta[]
   posts_products: PostsProduct[]
   posts_tags: PostsTag[]
   products: Product[]
@@ -107,6 +107,12 @@ export interface PostsAuthor {
   id: string
   post_id: string
   sort_order: number
+}
+
+export interface PostsMeta {
+  post_id: string
+  feature_image_alt?: string | null
+  feature_image_caption?: string | null
 }
 
 export interface PostsProduct {

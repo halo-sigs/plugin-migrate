@@ -29,6 +29,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
           const { posts, tags, posts_tags, users, posts_authors } = ghostDBData
 
           resolve({
+            sourceProvider: 'ghost',
             users: parseUsers(users),
             posts: parsePosts(posts, posts_tags, posts_authors),
             pages: parsePages(posts, posts_authors),
@@ -94,10 +95,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
                 allowComment: true,
                 visible: rawPost.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
                 priority: 0,
-                excerpt: {
-                  autoGenerate: !rawPost.plaintext,
-                  raw: rawPost.plaintext
-                },
+                excerpt: createGhostExcerpt(rawPost),
                 categories: [],
                 tags: postTagIds,
                 htmlMetas: []
@@ -106,7 +104,7 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
               kind: 'Post',
               metadata: {
                 name: rawPost.id,
-                annotations: {}
+                annotations: createGhostAnnotations(rawPost)
               }
             },
             content: {
@@ -140,17 +138,14 @@ export function useGhostDataParser(file: File): useGhostDataParserReturn {
                 allowComment: true,
                 visible: rawPost.visibility === 'public' ? 'PUBLIC' : 'PRIVATE',
                 priority: 0,
-                excerpt: {
-                  autoGenerate: !rawPost.plaintext,
-                  raw: rawPost.plaintext
-                },
+                excerpt: createGhostExcerpt(rawPost),
                 htmlMetas: []
               },
               apiVersion: 'content.halo.run/v1alpha1',
               kind: 'SinglePage',
               metadata: {
                 name: rawPost.id,
-                annotations: {}
+                annotations: createGhostAnnotations(rawPost)
               }
             },
             content: {
@@ -230,6 +225,20 @@ function resolveGhostOwnerRef(postId: string, rawPostsAuthors: PostsAuthor[]) {
   }
 }
 
+function createGhostExcerpt(rawPost: Post) {
+  const excerpt = rawPost.custom_excerpt || rawPost.plaintext || ''
+  return {
+    autoGenerate: !excerpt,
+    raw: excerpt
+  }
+}
+
+function createGhostAnnotations(rawPost: Post) {
+  return {
+    'plugin-migrate.halo.run/ghost-visibility': rawPost.visibility
+  }
+}
+
 function extractMediaUrlsFromHtml(html?: string): string[] {
   if (!html) {
     return []
@@ -255,7 +264,7 @@ function extractMediaUrlsFromHtml(html?: string): string[] {
   return urls
 }
 
-function sanitizeGhostHtml(html?: string): string {
+export function sanitizeGhostHtml(html?: string): string {
   if (!html) {
     return ''
   }
@@ -263,6 +272,10 @@ function sanitizeGhostHtml(html?: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html')
 
   transformGhostGalleryCards(doc)
+  transformGhostFileCards(doc)
+  transformGhostVideoCards(doc)
+  transformGhostAudioCards(doc)
+  transformGhostBookmarkCards(doc)
 
   doc.querySelectorAll('img, source').forEach((element) => {
     element.removeAttribute('srcset')
@@ -350,6 +363,154 @@ function transformGhostGalleryCards(doc: Document) {
   })
 }
 
+function transformGhostFileCards(doc: Document) {
+  doc.querySelectorAll('.kg-file-card').forEach((card) => {
+    const link = card.querySelector<HTMLAnchorElement>('.kg-file-card-container')
+    const href = link?.getAttribute('href')
+
+    if (!link || !href) {
+      return
+    }
+
+    const fragment = doc.createDocumentFragment()
+    fragment.append(
+      createParagraphWithLink(
+        doc,
+        href,
+        textContent(link.querySelector('.kg-file-card-title')) ||
+          textContent(link.querySelector('.kg-file-card-filename')) ||
+          href
+      )
+    )
+
+    const caption = textContent(link.querySelector('.kg-file-card-caption'))
+    if (caption) {
+      fragment.append(createParagraph(doc, caption))
+    }
+
+    const metadata = ['.kg-file-card-filename', '.kg-file-card-filesize']
+      .map((selector) => textContent(link.querySelector(selector)))
+      .filter(Boolean)
+      .join(' · ')
+    if (metadata) {
+      fragment.append(createParagraph(doc, metadata))
+    }
+
+    card.replaceWith(fragment)
+  })
+}
+
+function transformGhostVideoCards(doc: Document) {
+  doc.querySelectorAll('figure.kg-video-card').forEach((card) => {
+    const sourceVideo =
+      card.querySelector<HTMLVideoElement>('video') ||
+      card.querySelector<HTMLVideoElement>('.kg-video-container video')
+
+    if (!sourceVideo?.getAttribute('src')) {
+      return
+    }
+
+    const figure = doc.createElement('figure')
+    const video = doc.createElement('video')
+    copyAttribute(sourceVideo, video, 'src')
+    copyAttribute(sourceVideo, video, 'poster')
+    copyAttribute(sourceVideo, video, 'width')
+    copyAttribute(sourceVideo, video, 'height')
+    copyAttribute(sourceVideo, video, 'playsinline')
+    copyAttribute(sourceVideo, video, 'preload')
+    video.setAttribute('controls', '')
+    figure.append(video)
+
+    const caption = textContent(card.querySelector('figcaption'))
+    if (caption) {
+      figure.append(createParagraph(doc, caption))
+    }
+
+    card.replaceWith(figure)
+  })
+}
+
+function transformGhostAudioCards(doc: Document) {
+  doc.querySelectorAll('.kg-audio-card').forEach((card) => {
+    const sourceAudio = card.querySelector<HTMLAudioElement>('audio')
+    const src = sourceAudio?.getAttribute('src')
+
+    if (!sourceAudio || !src) {
+      return
+    }
+
+    const fragment = doc.createDocumentFragment()
+    const thumbnail = card.querySelector<HTMLImageElement>('.kg-audio-thumbnail')
+    if (thumbnail?.getAttribute('src')) {
+      const image = doc.createElement('img')
+      copyAttribute(thumbnail, image, 'src')
+      copyAttribute(thumbnail, image, 'alt')
+      fragment.append(image)
+    }
+
+    const audio = doc.createElement('audio')
+    copyAttribute(sourceAudio, audio, 'src')
+    copyAttribute(sourceAudio, audio, 'preload')
+    audio.setAttribute('controls', '')
+    fragment.append(audio)
+
+    const title = textContent(card.querySelector('.kg-audio-title'))
+    if (title) {
+      fragment.append(createParagraph(doc, title))
+    }
+
+    const caption = textContent(card.querySelector('.kg-audio-caption'))
+    if (caption) {
+      fragment.append(createParagraph(doc, caption))
+    }
+
+    card.replaceWith(fragment)
+  })
+}
+
+function transformGhostBookmarkCards(doc: Document) {
+  doc.querySelectorAll('figure.kg-bookmark-card').forEach((card) => {
+    const link = card.querySelector<HTMLAnchorElement>('.kg-bookmark-container')
+    const href = link?.getAttribute('href')
+
+    if (!link || !href) {
+      return
+    }
+
+    const fragment = doc.createDocumentFragment()
+    const thumbnail = link.querySelector<HTMLImageElement>('.kg-bookmark-thumbnail img')
+    if (thumbnail?.getAttribute('src')) {
+      const image = doc.createElement('img')
+      copyAttribute(thumbnail, image, 'src')
+      copyAttribute(thumbnail, image, 'alt')
+      fragment.append(image)
+    }
+
+    fragment.append(
+      createParagraphWithLink(
+        doc,
+        href,
+        textContent(link.querySelector('.kg-bookmark-title')) || href
+      )
+    )
+
+    const description = textContent(link.querySelector('.kg-bookmark-description'))
+    if (description) {
+      fragment.append(createParagraph(doc, description))
+    }
+
+    const metadata = ['.kg-bookmark-author', '.kg-bookmark-publisher']
+      .map((selector) => textContent(link.querySelector(selector)))
+      .filter(Boolean)
+      .join(' · ')
+    if (metadata) {
+      fragment.append(createParagraph(doc, metadata))
+    }
+
+    card.replaceWith(fragment)
+  })
+}
+
 function getImageAspectRatio(img: HTMLImageElement) {
   const width = Number(img.getAttribute('width'))
   const height = Number(img.getAttribute('height'))
@@ -363,9 +524,28 @@ function getImageAspectRatio(img: HTMLImageElement) {
 
 function copyAttribute(source: Element, target: Element, name: string) {
   const value = source.getAttribute(name)
-  if (value) {
+  if (value !== null) {
     target.setAttribute(name, value)
   }
+}
+
+function createParagraph(doc: Document, text: string) {
+  const paragraph = doc.createElement('p')
+  paragraph.textContent = text
+  return paragraph
+}
+
+function createParagraphWithLink(doc: Document, href: string, text: string) {
+  const paragraph = doc.createElement('p')
+  const link = doc.createElement('a')
+  link.setAttribute('href', href)
+  link.textContent = text
+  paragraph.append(link)
+  return paragraph
+}
+
+function textContent(element: Element | null | undefined) {
+  return element?.textContent?.trim() || ''
 }
 
 function isGhostLocalMediaUrl(url?: string | null): url is string {

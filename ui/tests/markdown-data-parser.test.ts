@@ -179,10 +179,26 @@ About body
       'content/posts/untitled.md'
     )
 
-    const data = await useMarkdownDataParser([postFile, pageFile, fallbackFile]).parse()
+    const chineseTitleFile = createMarkdownFile(
+      'hello-world.md',
+      `---
+title: 你好世界
+---
+
+Title only
+`,
+      'content/posts/hello-world.md'
+    )
+
+    const data = await useMarkdownDataParser([
+      postFile,
+      pageFile,
+      fallbackFile,
+      chineseTitleFile
+    ]).parse()
 
     expect(data.sourceProvider).toBe('markdown')
-    expect(data.posts).toHaveLength(2)
+    expect(data.posts).toHaveLength(3)
     expect(data.pages).toHaveLength(1)
     expect(data.categories).toHaveLength(2)
     expect(data.tags).toHaveLength(2)
@@ -204,6 +220,11 @@ About body
 
     const fallbackPost = data.posts?.find((item) => item.postRequest.post.spec.title === 'untitled')
     expect(fallbackPost?.postRequest.post.spec.slug).toBe('untitled')
+
+    const chineseTitlePost = data.posts?.find(
+      (item) => item.postRequest.post.spec.title === '你好世界'
+    )
+    expect(chineseTitlePost?.postRequest.post.spec.slug).toBe('hello-world')
 
     const page = data.pages?.[0]
     expect(page?.singlePageRequest.page.spec.title).toBe('About')

@@ -86,8 +86,9 @@ async function parseMarkdownFile(file: File): Promise<ParsedMarkdownDocument> {
   try {
     const content = await readFileContent(file)
     const parsed = parseMarkdownFrontmatter(content)
-    const title = parsed.metadata.title || getFileBaseName(file.name)
-    const slug = parsed.metadata.slug || generateSlug(title || getFileBaseName(file.name))
+    const fileBaseName = getFileBaseName(file.name)
+    const title = parsed.metadata.title || fileBaseName
+    const slug = parsed.metadata.slug || generateSlug(fileBaseName)
     const body = parsed.body
 
     return {

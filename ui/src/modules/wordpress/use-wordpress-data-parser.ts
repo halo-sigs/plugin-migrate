@@ -58,6 +58,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
           // 校验 wxr 版本 result.rss.channel["wp:wxr_version"]
           // 解析 item 数据，获取文章、页面、附件
           const { posts, pages, attachments, navMenuItems } = itemClassification(channel.item)
+          const attachmentResolver = createWordPressAttachmentResolver(attachments)
           const menuItems = parseMenuItems(rawTerms, navMenuItems)
           menuItems.map((item) => {
             if (menuChildrenMap.has(item.menu.metadata.name)) {
@@ -67,15 +68,15 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
           resolve({
             users: parseUsers(rawAuthors),
-            posts: parsePosts(posts, rawTags, rawCategories, attachments, rawAuthors),
-            pages: parsePages(pages, attachments, rawAuthors),
+            posts: parsePosts(posts, rawTags, rawCategories, attachmentResolver, rawAuthors),
+            pages: parsePages(pages, attachmentResolver, rawAuthors),
             comments: parseComments(channel.item, rawAuthors),
             tags: parseTags(rawTags),
             categories: parseCategories(rawCategories),
             // 菜单
             menuItems: menuItems,
             // 附件
-            attachments: parseAttachments(attachments)
+            attachments: parseAttachments(attachments, attachmentResolver)
           } as MigrateData)
         } catch (error) {
           reject('Failed to parse data. error -> ' + error)
@@ -120,14 +121,13 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     posts: Item[],
     tags: Tag[],
     categories: Category[],
-    attachments: Item[],
+    attachmentResolver: WordPressAttachmentResolver,
     authors: Author[]
   ): MigratePost[] => {
-    const attachmentUrlMap = createAttachmentUrlMap(attachments)
     const authorByLogin = createWordPressAuthorByLoginMap(authors)
 
     return posts?.map((post: Item) => {
-      const cleanedHtml = sanitizeWordPressHtml(post['content:encoded'])
+      const cleanedHtml = sanitizeWordPressHtml(post['content:encoded'], attachmentResolver)
       const publish =
         post['wp:status'] === 'publish' ||
         post['wp:postmeta']?.find((meta) => meta['wp:meta_key'] === '_wp_trash_meta_status')?.[
@@ -161,7 +161,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         })
         .map((category: Category) => category['wp:term_id'] + '')
 
-      const thumbnail = resolveFeaturedImageUrl(post, attachmentUrlMap)
+      const thumbnail = resolveFeaturedImageUrl(post, attachmentResolver)
 
       const excerpt = post['excerpt:encoded']
 
@@ -206,14 +206,13 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
   const parsePages = (
     pages: Item[],
-    attachments: Item[],
+    attachmentResolver: WordPressAttachmentResolver,
     authors: Author[]
   ): MigrateSinglePage[] => {
-    const attachmentUrlMap = createAttachmentUrlMap(attachments)
     const authorByLogin = createWordPressAuthorByLoginMap(authors)
 
     return pages?.map((page: Item) => {
-      const cleanedHtml = sanitizeWordPressHtml(page['content:encoded'])
+      const cleanedHtml = sanitizeWordPressHtml(page['content:encoded'], attachmentResolver)
       const publish =
         page['wp:status'] === 'publish' ||
         page['wp:postmeta']?.find((meta) => meta['wp:meta_key'] === '_wp_trash_meta_status')?.[
@@ -232,7 +231,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
               allowComment: page['wp:comment_status'] === 'open',
               visible: 'PUBLIC',
               priority: 0,
-              cover: resolveFeaturedImageUrl(page, attachmentUrlMap),
+              cover: resolveFeaturedImageUrl(page, attachmentResolver),
               excerpt: {
                 autoGenerate: false,
                 raw: page['excerpt:encoded']
@@ -510,24 +509,30 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
 
   const ATTACHMENT_PATH_PREFIX = 'wp-content/uploads/'
 
-  const parseAttachments = (attachments: Item[]) => {
+  const parseAttachments = (
+    attachments: Item[],
+    attachmentResolver: WordPressAttachmentResolver
+  ) => {
     return attachments?.map((attachment) => {
-      let path = ''
+      let attachedFile = ''
       let metadata: AttachmentMetadata = {} as AttachmentMetadata
       attachment['wp:postmeta']?.forEach((meta) => {
         if (meta['wp:meta_key'] === '_wp_attached_file') {
-          path = meta['wp:meta_value']
+          attachedFile = meta['wp:meta_value']
         }
-        // TODO 解析元数据
         if (meta['wp:meta_key'] === '_wp_attachment_metadata') {
-          metadata = extractImageMetadata(meta['wp:meta_value'])
+          metadata = extractWordPressAttachmentMetadata(meta['wp:meta_value'])
         }
       })
+
+      const resolvedAttachment = attachmentResolver.assetsById.get(String(attachment['wp:post_id']))
+      const relativePath = resolvedAttachment?.originalRelativePath || attachedFile
+
       return {
         id: attachment['wp:post_id'] + '',
         name: attachment.title,
-        path: ATTACHMENT_PATH_PREFIX + path,
-        url: attachment['wp:attachment_url'],
+        path: ATTACHMENT_PATH_PREFIX + relativePath,
+        url: resolvedAttachment?.originalUrl || attachment['wp:attachment_url'],
         type: 'LOCAL',
         height: metadata?.height,
         width: metadata?.width,
@@ -537,36 +542,38 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     })
   }
 
-  const extractImageMetadata = (metadataString: string): AttachmentMetadata => {
-    const widthMatch = metadataString.match(/"width";i:(\d+);/)
-    const heightMatch = metadataString.match(/"height";i:(\d+);/)
-    const filesizeMatch = metadataString.match(/"filesize";i:(\d+);/)
-    const mimeMatch = metadataString.match(/"mime[_-]type";s:(\d+):"([^"]+)";/)
-
-    return {
-      width: widthMatch ? parseInt(widthMatch[1]) : 0,
-      height: heightMatch ? parseInt(heightMatch[1]) : 0,
-      filesize: filesizeMatch ? parseInt(filesizeMatch[1]) : 0,
-      mimeType: mimeMatch ? mimeMatch[2] : ''
-    }
-  }
-
   return {
     parse
   }
 }
 
-function createAttachmentUrlMap(attachments: Item[]) {
-  return attachments.reduce((map, attachment) => {
-    const url = resolveAttachmentUrl(attachment)
-    if (url) {
-      map.set(String(attachment['wp:post_id']), url)
+function createWordPressAttachmentResolver(attachments: Item[]): WordPressAttachmentResolver {
+  const byId = new Map<string, string>()
+  const byUrl = new Map<string, string>()
+  const assetsById = new Map<string, WordPressAttachmentAsset>()
+
+  attachments.forEach((attachment) => {
+    const asset = resolveWordPressAttachmentAsset(attachment)
+    assetsById.set(asset.id, asset)
+
+    if (!asset.originalUrl) {
+      return
     }
-    return map
-  }, new Map<string, string>())
+
+    byId.set(asset.id, asset.originalUrl)
+
+    asset.aliases.forEach((alias) => {
+      const normalizedAlias = normalizeWordPressMediaLookup(alias)
+      if (normalizedAlias) {
+        byUrl.set(normalizedAlias, asset.originalUrl as string)
+      }
+    })
+  })
+
+  return { byId, byUrl, assetsById }
 }
 
-function resolveFeaturedImageUrl(item: Item, attachmentUrlMap: Map<string, string>) {
+function resolveFeaturedImageUrl(item: Item, attachmentResolver: WordPressAttachmentResolver) {
   const thumbnailId = item['wp:postmeta']?.find(
     (meta) => meta['wp:meta_key'] === '_thumbnail_id'
   )?.['wp:meta_value']
@@ -575,11 +582,190 @@ function resolveFeaturedImageUrl(item: Item, attachmentUrlMap: Map<string, strin
     return undefined
   }
 
-  return attachmentUrlMap.get(String(thumbnailId))
+  return attachmentResolver.byId.get(String(thumbnailId))
 }
 
 function resolveAttachmentUrl(attachment: Item) {
   return attachment['wp:attachment_url'] || attachment.guid?.value || undefined
+}
+
+function resolveWordPressAttachmentAsset(attachment: Item): WordPressAttachmentAsset {
+  let attachedFile = ''
+  let metadata: AttachmentMetadata | undefined
+
+  attachment['wp:postmeta']?.forEach((meta) => {
+    if (meta['wp:meta_key'] === '_wp_attached_file') {
+      attachedFile = meta['wp:meta_value']
+    }
+
+    if (meta['wp:meta_key'] === '_wp_attachment_metadata') {
+      metadata = extractWordPressAttachmentMetadata(meta['wp:meta_value'])
+    }
+  })
+
+  const sourceUrl = resolveAttachmentUrl(attachment)
+  const originalRelativePath = resolveWordPressOriginalRelativePath(metadata, attachedFile)
+  const originalUrl = resolveWordPressOriginalUrl(
+    sourceUrl,
+    attachedFile,
+    metadata,
+    originalRelativePath
+  )
+  const aliases = new Set<string>()
+
+  ;[
+    sourceUrl,
+    attachment.guid?.value,
+    originalUrl,
+    attachedFile,
+    metadata?.file,
+    originalRelativePath
+  ]
+    .filter(Boolean)
+    .forEach((value) => aliases.add(value as string))
+
+  const baseUrl = getWordPressMediaDirectoryUrl(originalUrl || sourceUrl)
+  metadata?.sizeFiles?.forEach((file) => {
+    const variantUrl = buildWordPressMediaUrl(baseUrl, file)
+    if (variantUrl) {
+      aliases.add(variantUrl)
+    }
+    aliases.add(file)
+  })
+
+  return {
+    id: String(attachment['wp:post_id']),
+    originalUrl,
+    originalRelativePath,
+    aliases: Array.from(aliases),
+    metadata
+  }
+}
+
+function extractWordPressAttachmentMetadata(metadataString: string): AttachmentMetadata {
+  const widthMatch = metadataString.match(/"width";i:(\d+);/)
+  const heightMatch = metadataString.match(/"height";i:(\d+);/)
+  const filesizeMatch = metadataString.match(/"filesize";i:(\d+);/)
+  const mimeMatch = metadataString.match(/"mime[_-]type";s:(\d+):"([^"]+)";/)
+  const fileMatches = Array.from(metadataString.matchAll(/s:4:"file";s:\d+:"([^"]+)";/g))
+  const originalImageMatch = metadataString.match(/"original_image";s:\d+:"([^"]+)";/)
+
+  return {
+    width: widthMatch ? parseInt(widthMatch[1]) : 0,
+    height: heightMatch ? parseInt(heightMatch[1]) : 0,
+    filesize: filesizeMatch ? parseInt(filesizeMatch[1]) : 0,
+    mimeType: mimeMatch ? mimeMatch[2] : '',
+    file: fileMatches[0]?.[1],
+    sizeFiles: fileMatches.slice(1).map((match) => match[1]),
+    originalImage: originalImageMatch?.[1]
+  }
+}
+
+function resolveWordPressOriginalRelativePath(
+  metadata?: AttachmentMetadata,
+  attachedFile?: string
+): string | undefined {
+  const metadataFile = metadata?.file || attachedFile
+  if (!metadataFile) {
+    return attachedFile || undefined
+  }
+
+  if (!metadata?.originalImage) {
+    return metadataFile
+  }
+
+  const segments = metadataFile.split('/')
+  segments[segments.length - 1] = metadata.originalImage
+  return segments.join('/')
+}
+
+function resolveWordPressOriginalUrl(
+  sourceUrl: string | undefined,
+  attachedFile: string | undefined,
+  metadata: AttachmentMetadata | undefined,
+  originalRelativePath: string | undefined
+) {
+  if (!sourceUrl) {
+    return undefined
+  }
+
+  const matchedBaseUrl = resolveWordPressMediaBaseUrl(sourceUrl, [
+    originalRelativePath,
+    attachedFile,
+    metadata?.file
+  ])
+
+  if (matchedBaseUrl && originalRelativePath) {
+    return buildWordPressMediaUrl(matchedBaseUrl, originalRelativePath) || sourceUrl
+  }
+
+  if (attachedFile && originalRelativePath) {
+    return (
+      replaceWordPressRelativePathInUrl(sourceUrl, attachedFile, originalRelativePath) || sourceUrl
+    )
+  }
+
+  return sourceUrl
+}
+
+function resolveWordPressMediaBaseUrl(sourceUrl: string, relativePaths: (string | undefined)[]) {
+  const cleanUrl = stripWordPressMediaUrlSuffix(sourceUrl)
+
+  for (const relativePath of relativePaths) {
+    if (!relativePath) {
+      continue
+    }
+
+    if (cleanUrl.endsWith(relativePath)) {
+      return cleanUrl.slice(0, cleanUrl.length - relativePath.length)
+    }
+  }
+
+  return undefined
+}
+
+function replaceWordPressRelativePathInUrl(
+  sourceUrl: string,
+  currentRelativePath: string,
+  nextRelativePath: string
+) {
+  const baseUrl = resolveWordPressMediaBaseUrl(sourceUrl, [currentRelativePath])
+  return baseUrl ? buildWordPressMediaUrl(baseUrl, nextRelativePath) : undefined
+}
+
+function buildWordPressMediaUrl(baseUrl: string | undefined, relativePath: string | undefined) {
+  if (!baseUrl || !relativePath) {
+    return undefined
+  }
+
+  return `${baseUrl}${relativePath.replace(/^\/+/, '')}`
+}
+
+function stripWordPressMediaUrlSuffix(url: string) {
+  return url.split(/[?#]/)[0]
+}
+
+function getWordPressMediaDirectoryUrl(url?: string) {
+  if (!url) {
+    return undefined
+  }
+
+  const cleanUrl = stripWordPressMediaUrlSuffix(url)
+  const lastSlashIndex = cleanUrl.lastIndexOf('/')
+  if (lastSlashIndex < 0) {
+    return undefined
+  }
+
+  return cleanUrl.slice(0, lastSlashIndex + 1)
+}
+
+function normalizeWordPressMediaLookup(value?: string) {
+  if (!value) {
+    return undefined
+  }
+
+  const trimmed = stripWordPressMediaUrlSuffix(value.trim())
+  return trimmed || undefined
 }
 
 function ensureArray<T>(value?: T | T[] | null): T[] {
@@ -618,7 +804,10 @@ function resolveWordPressOwnerRef(item: Item, authorByLogin: Map<string, Author>
   }
 }
 
-function sanitizeWordPressHtml(html?: string): string {
+function sanitizeWordPressHtml(
+  html?: string,
+  attachmentResolver?: WordPressAttachmentResolver
+): string {
   if (!html) {
     return ''
   }
@@ -633,6 +822,7 @@ function sanitizeWordPressHtml(html?: string): string {
   transformWordPressMediaBlocks(doc, 'figure.wp-block-video', 'video')
   transformWordPressMediaBlocks(doc, 'figure.wp-block-audio', 'audio')
   transformWordPressEmbedBlocks(doc)
+  normalizeWordPressMediaUrls(doc, attachmentResolver)
 
   doc.querySelectorAll('img, source').forEach((element) => {
     element.removeAttribute('srcset')
@@ -653,6 +843,85 @@ function removeWordPressBlockComments(doc: Document) {
   }
 
   commentsToRemove.forEach((comment) => comment.parentNode?.removeChild(comment))
+}
+
+function normalizeWordPressMediaUrls(
+  doc: Document,
+  attachmentResolver?: WordPressAttachmentResolver
+) {
+  if (!attachmentResolver) {
+    return
+  }
+
+  doc.querySelectorAll('img').forEach((img) => {
+    const resolvedUrl = resolveWordPressElementMediaUrl(img, attachmentResolver, 'src')
+    if (resolvedUrl) {
+      img.setAttribute('src', resolvedUrl)
+    }
+  })
+
+  doc.querySelectorAll('a').forEach((link) => {
+    const href = link.getAttribute('href')
+    const resolvedUrl = resolveWordPressMediaUrl(href, attachmentResolver)
+    if (resolvedUrl) {
+      link.setAttribute('href', resolvedUrl)
+    }
+  })
+
+  doc.querySelectorAll('video, audio').forEach((media) => {
+    const src = media.getAttribute('src')
+    const resolvedUrl = resolveWordPressMediaUrl(src, attachmentResolver)
+    if (resolvedUrl) {
+      media.setAttribute('src', resolvedUrl)
+    }
+
+    const poster = media.getAttribute('poster')
+    const resolvedPoster = resolveWordPressMediaUrl(poster, attachmentResolver)
+    if (resolvedPoster) {
+      media.setAttribute('poster', resolvedPoster)
+    }
+  })
+
+  doc.querySelectorAll('source').forEach((source) => {
+    const resolvedUrl = resolveWordPressMediaUrl(source.getAttribute('src'), attachmentResolver)
+    if (resolvedUrl) {
+      source.setAttribute('src', resolvedUrl)
+    }
+  })
+}
+
+function resolveWordPressElementMediaUrl(
+  element: Element,
+  attachmentResolver: WordPressAttachmentResolver,
+  attributeName: string
+) {
+  const attachmentId = extractWordPressAttachmentId(element)
+  if (attachmentId) {
+    const resolvedById = attachmentResolver.byId.get(attachmentId)
+    if (resolvedById) {
+      return resolvedById
+    }
+  }
+
+  return resolveWordPressMediaUrl(element.getAttribute(attributeName), attachmentResolver)
+}
+
+function resolveWordPressMediaUrl(
+  value: string | null | undefined,
+  attachmentResolver: WordPressAttachmentResolver
+) {
+  const normalizedValue = normalizeWordPressMediaLookup(value || undefined)
+  if (!normalizedValue) {
+    return undefined
+  }
+
+  return attachmentResolver.byUrl.get(normalizedValue)
+}
+
+function extractWordPressAttachmentId(element: Element) {
+  const className = element.getAttribute('class') || ''
+  const match = className.match(/(?:^|\s)wp-image-(\d+)(?:\s|$)/)
+  return match?.[1]
 }
 
 function transformWordPressGalleryBlocks(doc: Document) {
@@ -939,6 +1208,7 @@ function createNormalizedImageContent(
   }
 ) {
   const nextImg = doc.createElement('img')
+  copyAttribute(img, nextImg, 'class')
   copyAttribute(img, nextImg, 'src')
   copyAttribute(img, nextImg, 'alt')
   copyAttribute(img, nextImg, 'width')
@@ -1027,6 +1297,23 @@ interface AttachmentMetadata {
   height: number
   filesize: number
   mimeType: string
+  file?: string
+  sizeFiles?: string[]
+  originalImage?: string
+}
+
+interface WordPressAttachmentAsset {
+  id: string
+  originalUrl?: string
+  originalRelativePath?: string
+  aliases: string[]
+  metadata?: AttachmentMetadata
+}
+
+interface WordPressAttachmentResolver {
+  byId: Map<string, string>
+  byUrl: Map<string, string>
+  assetsById: Map<string, WordPressAttachmentAsset>
 }
 
 interface Category {

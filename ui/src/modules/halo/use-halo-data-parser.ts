@@ -43,9 +43,10 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const parseData = (data: any): MigrateData => {
     return {
+      sourceProvider: 'halo',
       tags: parseTags(data.tags),
       categories: parseCategories(data.categories),
-      users: parseUsers(data.users),
+      users: parseUsers(data.users || data.user),
       posts: parsePosts(data),
       pages: parseSinglePages(data),
       comments: parseComments(data),
@@ -160,7 +161,6 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             rawType: 'markdown'
           }
         },
-        ownerRef: resolveHaloOwnerRef(post),
         counter: {
           visit: post.visits,
           upvote: post.likes
@@ -215,7 +215,6 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
             rawType: 'markdown'
           }
         },
-        ownerRef: resolveHaloOwnerRef(sheet),
         counter: {
           visit: sheet.visits,
           upvote: sheet.likes
@@ -278,9 +277,11 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     return [...postComments, ...sheetComments, ...journalComments]
   }
 
-  const parseUsers = (users?: any[]): MigrateSourceUser[] => {
+  const parseUsers = (users?: Record<string, any> | Record<string, any>[]): MigrateSourceUser[] => {
+    const normalizedUsers = Array.isArray(users) ? users : users ? [users] : []
+
     return (
-      users?.map((user) => ({
+      normalizedUsers.map((user) => ({
         id: createSourceUserId('halo', resolveHaloUserRawId(user)),
         provider: 'halo',
         displayName:
@@ -324,7 +325,6 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     comment: Comment,
     subjectRef: { kind: string; group: string; version: string }
   ): MigrateComment => {
-    const sourceId = resolveHaloCommentOwnerSourceId(comment)
     return {
       refType: subjectRef.kind as 'Post' | 'SinglePage' | 'Moment',
       kind: 'Comment',
@@ -339,7 +339,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
           avatar: comment.gravatarMd5
             ? `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`
             : undefined,
-          sourceId
+          sourceId: comment.email || comment.author
         }),
         userAgent: comment.userAgent,
         ipAddress: comment.ipAddress,
@@ -358,8 +358,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
       },
       metadata: {
         name: comment.id + ''
-      },
-      ownerRef: sourceId ? { sourceId } : undefined
+      }
     }
   }
 
@@ -368,7 +367,6 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     commentName: number | undefined,
     refType: 'Post' | 'SinglePage' | 'Moment'
   ): MigrateReply => {
-    const sourceId = resolveHaloCommentOwnerSourceId(comment)
     return {
       refType: refType,
       kind: 'Reply',
@@ -386,7 +384,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
           avatar: comment.gravatarMd5
             ? `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`
             : undefined,
-          sourceId
+          sourceId: comment.email || comment.author
         }),
         userAgent: comment.userAgent,
         ipAddress: comment.ipAddress,
@@ -400,8 +398,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
         commentName: commentName + '',
         quoteReply: comment.parentId + ''
       },
-      status: {},
-      ownerRef: sourceId ? { sourceId } : undefined
+      status: {}
     }
   }
 
@@ -714,26 +711,4 @@ interface Attachment {
 
 function resolveHaloUserRawId(user: Record<string, any>) {
   return String(user.id || user.userId || user.uid || user.username || user.email)
-}
-
-function resolveHaloOwnerRef(entity: Record<string, any>) {
-  const ownerId = entity.userId || entity.ownerId || entity.authorId
-
-  if (!ownerId) {
-    return undefined
-  }
-
-  return {
-    sourceId: createSourceUserId('halo', ownerId)
-  }
-}
-
-function resolveHaloCommentOwnerSourceId(comment: Record<string, any>) {
-  const ownerId = comment.userId || comment.ownerId || comment.authorId
-
-  if (!ownerId) {
-    return undefined
-  }
-
-  return createSourceUserId('halo', ownerId)
 }

@@ -82,10 +82,51 @@ function applyResolvedUsers(
   })
 }
 
+function applyHaloOwnershipFallback(data: MigrateData, currentUser?: User) {
+  const currentUserName = currentUser?.metadata?.name
+  const currentUserDisplayName = currentUser?.spec?.displayName
+  const exportedUser = (data.users || []).find((user) => normalizeEmail(user.email))
+  const exportedEmail = normalizeEmail(exportedUser?.email)
+
+  if (currentUserName) {
+    data.posts?.forEach((post) => {
+      post.postRequest.post.spec.owner = currentUserName
+    })
+
+    data.pages?.forEach((page) => {
+      page.singlePageRequest.page.spec.owner = currentUserName
+    })
+  }
+
+  if (!currentUserName || !exportedEmail) {
+    return
+  }
+
+  data.comments?.forEach((comment) => {
+    if (comment.spec.owner.kind !== 'Email') {
+      return
+    }
+
+    if (normalizeEmail(comment.spec.owner.name) !== exportedEmail) {
+      return
+    }
+
+    comment.spec.owner = createUserOwner(
+      currentUserName,
+      currentUserDisplayName || exportedUser?.displayName || comment.spec.owner.displayName
+    )
+  })
+}
+
 export function useUserPreprocessor() {
   async function process(data: MigrateData, currentUser?: User) {
     const sourceUsers = new Map((data.users || []).map((user) => [user.id, user]))
     const fallbackOwnerName = currentUser?.metadata?.name
+
+    if (data.sourceProvider === 'halo') {
+      applyHaloOwnershipFallback(data, currentUser)
+      return
+    }
 
     if (sourceUsers.size === 0) {
       applyResolvedUsers(data, new Map(), sourceUsers, fallbackOwnerName)

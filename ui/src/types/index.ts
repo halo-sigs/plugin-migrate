@@ -44,6 +44,8 @@ export interface MigrateDataParser {
 }
 
 export interface MigrateData {
+  sourceProvider?: string
+
   tags?: MigrateTag[]
 
   categories?: MigrateCategory[]

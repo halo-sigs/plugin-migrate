@@ -33,25 +33,30 @@ export function useAttachmentPreprocessor() {
   }
 
   function normalizePath(path: string): string {
-    return path
+    const withoutQuery = path
       .split(/[?#]/)[0]
+      .replace(/\\/g, '/')
+      .replace(/^\.\/+/, '')
+    const decodedPath = decodePath(withoutQuery)
+
+    return decodedPath
       .replace(/^\/+/, '')
       .replace(/^content\/images\/size\/w\d+\//, 'content/images/')
   }
 
   function findMatchingFile(path: string, files: FileList): File | undefined {
-    const normalizedPath = path.startsWith('/') ? path.slice(1) : path
+    const normalizedPath = normalizePath(path)
     // 精确匹配
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      const rp = file.webkitRelativePath || file.name
-      if (rp === normalizedPath || rp === path) return file
+      const comparablePaths = getComparableFilePaths(file)
+      if (comparablePaths.includes(normalizedPath)) return file
     }
     // 后缀匹配（兼容用户选择不同层级根目录）
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
-      const rp = file.webkitRelativePath || file.name
-      if (path.endsWith(rp) || normalizedPath.endsWith(rp)) return file
+      const comparablePaths = getComparableFilePaths(file)
+      if (comparablePaths.some((candidate) => normalizedPath.endsWith(candidate))) return file
     }
     // basename fallback（处理 WordPress 缩略图变体，如 image-1024x526.jpg 匹配到原图 image.jpg）
     const pathBasename = normalizedPath.split('/').pop()
@@ -66,6 +71,28 @@ export function useAttachmentPreprocessor() {
       }
     }
     return undefined
+  }
+
+  function decodePath(path: string): string {
+    try {
+      return decodeURI(path)
+    } catch {
+      return path
+    }
+  }
+
+  function getComparableFilePaths(file: File): string[] {
+    const normalized = normalizePath(file.webkitRelativePath || file.name)
+    const comparable = new Set<string>([normalized])
+    const firstSlashIndex = normalized.indexOf('/')
+
+    // 浏览器目录选择通常会把所选根目录名带进 webkitRelativePath，
+    // 这里额外兼容一次“去掉首段目录”的比较，便于直接选择站点根目录。
+    if (firstSlashIndex !== -1) {
+      comparable.add(normalized.slice(firstSlashIndex + 1))
+    }
+
+    return [...comparable].filter(Boolean)
   }
 
   function extractMediaUrls(data: MigrateData): string[] {

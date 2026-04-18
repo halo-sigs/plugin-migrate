@@ -17,6 +17,8 @@ interface useWordPressDataParserReturn {
   parse: () => Promise<MigrateData>
 }
 
+const ATTACHMENT_PATH_PREFIX = 'wp-content/uploads/'
+
 export function useWordPressDataParser(file: File): useWordPressDataParserReturn {
   const menuChildrenMap = new Map<string, string[]>()
 
@@ -507,13 +509,11 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     )
   }
 
-  const ATTACHMENT_PATH_PREFIX = 'wp-content/uploads/'
-
   const parseAttachments = (
     attachments: Item[],
     attachmentResolver: WordPressAttachmentResolver
   ) => {
-    return attachments?.map((attachment) => {
+    return attachments?.flatMap((attachment) => {
       let attachedFile = ''
       let metadata: AttachmentMetadata = {} as AttachmentMetadata
       attachment['wp:postmeta']?.forEach((meta) => {
@@ -526,19 +526,31 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
       })
 
       const resolvedAttachment = attachmentResolver.assetsById.get(String(attachment['wp:post_id']))
-      const relativePath = resolvedAttachment?.originalRelativePath || attachedFile
+      const relativePath = resolveWordPressAttachmentPath(
+        resolvedAttachment?.originalRelativePath || attachedFile,
+        resolvedAttachment?.originalUrl || attachment['wp:attachment_url'] || attachment.guid?.value
+      )
 
-      return {
-        id: attachment['wp:post_id'] + '',
-        name: attachment.title,
-        path: ATTACHMENT_PATH_PREFIX + relativePath,
-        url: resolvedAttachment?.originalUrl || attachment['wp:attachment_url'],
-        type: 'LOCAL',
-        height: metadata?.height,
-        width: metadata?.width,
-        mediaType: metadata?.mimeType,
-        size: metadata?.filesize
-      } as MigrateAttachment
+      if (!relativePath) {
+        return []
+      }
+
+      return [
+        {
+          id: attachment['wp:post_id'] + '',
+          name:
+            attachment.title ||
+            relativePath.split('/').pop() ||
+            `attachment-${attachment['wp:post_id']}`,
+          path: ATTACHMENT_PATH_PREFIX + relativePath,
+          url: resolvedAttachment?.originalUrl || attachment['wp:attachment_url'],
+          type: 'LOCAL',
+          height: metadata?.height,
+          width: metadata?.width,
+          mediaType: metadata?.mimeType,
+          size: metadata?.filesize
+        } as MigrateAttachment
+      ]
     })
   }
 
@@ -768,6 +780,59 @@ function normalizeWordPressMediaLookup(value?: string) {
 
   const trimmed = stripWordPressMediaUrlSuffix(value.trim())
   return trimmed || undefined
+}
+
+function resolveWordPressAttachmentPath(relativePath?: string, sourceUrl?: string) {
+  const normalizedRelativePath = normalizeWordPressAttachmentRelativePath(relativePath)
+  if (normalizedRelativePath) {
+    return normalizedRelativePath
+  }
+
+  const normalizedSourcePath = extractWordPressAttachmentRelativePathFromUrl(sourceUrl)
+  if (normalizedSourcePath) {
+    return normalizedSourcePath
+  }
+
+  return undefined
+}
+
+function normalizeWordPressAttachmentRelativePath(relativePath?: string) {
+  if (!relativePath) {
+    return undefined
+  }
+
+  const trimmed = relativePath.trim().replace(/^\/+/, '')
+  if (!trimmed) {
+    return undefined
+  }
+
+  return trimmed.startsWith(ATTACHMENT_PATH_PREFIX)
+    ? trimmed.slice(ATTACHMENT_PATH_PREFIX.length)
+    : trimmed
+}
+
+function extractWordPressAttachmentRelativePathFromUrl(sourceUrl?: string) {
+  const normalizedUrl = normalizeWordPressMediaLookup(sourceUrl)
+  if (!normalizedUrl) {
+    return undefined
+  }
+
+  try {
+    const pathname = new URL(normalizedUrl).pathname.replace(/^\/+/, '')
+    return extractWordPressAttachmentRelativePathFromPath(pathname)
+  } catch {
+    return extractWordPressAttachmentRelativePathFromPath(normalizedUrl.replace(/^\/+/, ''))
+  }
+}
+
+function extractWordPressAttachmentRelativePathFromPath(path: string) {
+  const uploadPathIndex = path.indexOf(ATTACHMENT_PATH_PREFIX)
+  if (uploadPathIndex < 0) {
+    return undefined
+  }
+
+  const relativePath = path.slice(uploadPathIndex + ATTACHMENT_PATH_PREFIX.length)
+  return relativePath || undefined
 }
 
 function ensureArray<T>(value?: T | T[] | null): T[] {

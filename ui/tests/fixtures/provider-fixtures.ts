@@ -1,7 +1,7 @@
 import SparkMD5 from 'spark-md5'
 
-export function createWordPressWxrFile() {
-  return new File([createWordPressWxr()], 'wordpress-export.xml', { type: 'application/xml' })
+export function createWordPressWxrFile(content = createWordPressWxr()) {
+  return new File([content], 'wordpress-export.xml', { type: 'application/xml' })
 }
 
 export function createWordPressWxr() {

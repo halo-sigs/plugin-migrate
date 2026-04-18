@@ -4,7 +4,7 @@ import {
   useWordPressDataParser
 } from '@/modules/wordpress/use-wordpress-data-parser'
 import { describe, expect, it } from '@rstest/core'
-import { createWordPressWxrFile } from './fixtures/provider-fixtures'
+import { createWordPressWxr, createWordPressWxrFile } from './fixtures/provider-fixtures'
 
 function createAttachmentItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -186,6 +186,21 @@ describe('wordpress parser helpers', () => {
       '<a href="https://video.example.com/watch/abc">https://video.example.com/watch/abc</a>'
     )
   })
+
+  it('keeps unresolved media references unchanged when no attachment match exists', () => {
+    const resolver = createWordPressAttachmentResolver([createAttachmentItem()])
+    const html = `
+      <figure class="wp-block-image">
+        <img src="https://example.com/wp-content/uploads/2026/04/missing.jpg" />
+      </figure>
+      <a href="https://example.com/wp-content/uploads/2026/04/manual.pdf">manual</a>
+    `
+
+    const sanitized = sanitizeWordPressHtml(html, resolver)
+
+    expect(sanitized).toContain('https://example.com/wp-content/uploads/2026/04/missing.jpg')
+    expect(sanitized).toContain('https://example.com/wp-content/uploads/2026/04/manual.pdf')
+  })
 })
 
 describe('useWordPressDataParser', () => {
@@ -261,6 +276,35 @@ describe('useWordPressDataParser', () => {
       id: '200',
       name: 'Attachment',
       path: 'wp-content/uploads/2026/04/cover.jpg',
+      type: 'LOCAL'
+    })
+  })
+
+  it('derives attachment path from attachment url when metadata is sparse', async () => {
+    const sparseAttachmentXml = createWordPressWxr().replace(
+      /<item>\s*<title><!\[CDATA\[Attachment\]\]><\/title>[\s\S]*?<\/item>/,
+      `<item>
+      <title><![CDATA[]]></title>
+      <guid isPermaLink="false">https://example.com/wp-content/uploads/2026/04/manual.pdf</guid>
+      <wp:post_id>200</wp:post_id>
+      <wp:post_date><![CDATA[2026-04-17 10:00:00]]></wp:post_date>
+      <wp:post_name><![CDATA[attachment]]></wp:post_name>
+      <wp:status><![CDATA[inherit]]></wp:status>
+      <wp:post_type><![CDATA[attachment]]></wp:post_type>
+      <wp:attachment_url><![CDATA[https://example.com/wp-content/uploads/2026/04/manual.pdf]]></wp:attachment_url>
+    </item>`
+    )
+
+    const data = await useWordPressDataParser(createWordPressWxrFile(sparseAttachmentXml)).parse()
+
+    expect(data.posts?.[0].postRequest.content.raw).toContain(
+      'https://example.com/wp-content/uploads/2026/04/manual.pdf'
+    )
+    expect(data.attachments?.[0]).toMatchObject({
+      id: '200',
+      name: 'manual.pdf',
+      path: 'wp-content/uploads/2026/04/manual.pdf',
+      url: 'https://example.com/wp-content/uploads/2026/04/manual.pdf',
       type: 'LOCAL'
     })
   })

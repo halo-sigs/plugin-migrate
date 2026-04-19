@@ -12,12 +12,9 @@ export default definePlugin({
         children: [
           {
             path: '',
-            redirect: { name: 'MigrateSelect' }
-          },
-          {
-            path: 'select',
-            name: 'MigrateSelect',
-            component: () => import('./views/SelectProviderView.vue'),
+            name: 'MigrateProviders',
+            component: () =>
+              import(/** webpackChunkName: "migrate-providers" */ './views/SelectProviderView.vue'),
             meta: {
               title: '迁移',
               searchable: true,
@@ -33,7 +30,8 @@ export default definePlugin({
           {
             path: 'execute',
             name: 'MigrateExecute',
-            component: () => import('./views/MigrateView.vue'),
+            component: () =>
+              import(/** webpackChunkName: "migrate-execute" */ './views/MigrateView.vue'),
             meta: {
               title: '迁移执行',
               searchable: true,

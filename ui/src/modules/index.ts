@@ -14,7 +14,9 @@ export const providerItems: Provider[] = [
     name: 'Halo 1.x',
     icon: halo,
     description: 'Halo 1.5 / 1.6 数据迁移',
-    importComponent: defineAsyncComponent(() => import('./halo/HaloMigrateDataParser.vue')),
+    importComponent: defineAsyncComponent(
+      () => import(/** webpackChunkName: "halo" */ './halo/HaloMigrateDataParser.vue')
+    ),
     options: {
       attachmentFolderPath: 'migrate-from-1.x',
       attachmentHandlerDescriptions: {
@@ -34,7 +36,8 @@ export const providerItems: Provider[] = [
     icon: wordpress,
     description: 'WordPress WXR 数据迁移',
     importComponent: defineAsyncComponent(
-      () => import('./wordpress/WordPressMigrateDataParser.vue')
+      () =>
+        import(/** webpackChunkName: "wordpress" */ './wordpress/WordPressMigrateDataParser.vue')
     ),
     options: {
       attachmentFolderPath: 'migrate-from-wp'
@@ -44,7 +47,9 @@ export const providerItems: Provider[] = [
     name: 'Ghost',
     icon: ghost,
     description: '从 Ghost 博客平台迁移',
-    importComponent: defineAsyncComponent(() => import('./ghost/GhostMigrateDataParser.vue')),
+    importComponent: defineAsyncComponent(
+      () => import(/** webpackChunkName: "ghost" */ './ghost/GhostMigrateDataParser.vue')
+    ),
     options: {
       attachmentFolderPath: 'migrate-from-ghost',
       attachmentHandlerDescriptions: {
@@ -63,7 +68,9 @@ export const providerItems: Provider[] = [
     name: 'Typecho',
     icon: typecho,
     description: '从 Typecho 博客平台迁移',
-    importComponent: defineAsyncComponent(() => import('./typecho/TypechoMigrateDataParser.vue')),
+    importComponent: defineAsyncComponent(
+      () => import(/** webpackChunkName: "typecho" */ './typecho/TypechoMigrateDataParser.vue')
+    ),
     options: {
       attachmentFolderPath: 'migrate-from-typecho',
       attachmentHandlerDescriptions: {
@@ -79,22 +86,12 @@ export const providerItems: Provider[] = [
     }
   },
   {
-    name: 'RSS',
-    icon: rss,
-    description: '基于 RSS 订阅文件的数据迁移',
-    importComponent: defineAsyncComponent(() => import('./rss/RssMigrateDataParser.vue'))
-  },
-  {
-    name: 'Atom Feed',
-    icon: atom,
-    description: '基于 Atom Feed 订阅文件的数据迁移',
-    importComponent: defineAsyncComponent(() => import('./atom/AtomMigrateDataParser.vue'))
-  },
-  {
     name: 'Markdown',
     icon: markdown,
     description: '从 Markdown 静态博客内容迁移（Hugo / Hexo 等）',
-    importComponent: defineAsyncComponent(() => import('./markdown/MarkdownMigrateDataParser.vue')),
+    importComponent: defineAsyncComponent(
+      () => import(/** webpackChunkName: "markdown" */ './markdown/MarkdownMigrateDataParser.vue')
+    ),
     options: {
       attachmentFolderPath: 'migrate-from-markdown',
       localAttachmentStrategies: ['upload'],
@@ -105,6 +102,22 @@ export const providerItems: Provider[] = [
           '请选择包含 Markdown 引用资源的目录，系统会根据正文中的相对路径、绝对路径或常见附件路径尽量匹配文件并上传。'
       }
     }
+  },
+  {
+    name: 'RSS',
+    icon: rss,
+    description: '基于 RSS 订阅文件的数据迁移',
+    importComponent: defineAsyncComponent(
+      () => import(/** webpackChunkName: "rss" */ './rss/RssMigrateDataParser.vue')
+    )
+  },
+  {
+    name: 'Atom Feed',
+    icon: atom,
+    description: '基于 Atom Feed 订阅文件的数据迁移',
+    importComponent: defineAsyncComponent(
+      () => import(/** webpackChunkName: "atom" */ './atom/AtomMigrateDataParser.vue')
+    )
   }
 ]
 

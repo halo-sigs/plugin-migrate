@@ -62,7 +62,7 @@ watch(
   (providerName) => {
     const provider = getProviderByName(providerName as string | undefined)
     if (!provider) {
-      router.replace({ name: 'MigrateSelect' })
+      router.replace({ name: 'MigrateProviders' })
       return
     }
 
@@ -117,7 +117,7 @@ const handleBackToSelect = () => {
     return
   }
 
-  router.push({ name: 'MigrateSelect' })
+  router.push({ name: 'MigrateProviders' })
 }
 
 const handleImport = async () => {

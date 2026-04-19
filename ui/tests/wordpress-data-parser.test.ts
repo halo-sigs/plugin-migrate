@@ -308,4 +308,67 @@ describe('useWordPressDataParser', () => {
       type: 'LOCAL'
     })
   })
+
+  it('maps nested comment trees to Halo replies and ignores comments on unsupported post types', async () => {
+    const wxrWithNestedComments = createWordPressWxr()
+      .replace(
+        '</wp:comment>\n    </item>',
+        `</wp:comment>
+      <wp:comment>
+        <wp:comment_id>503</wp:comment_id>
+        <wp:comment_author><![CDATA[Nested Reply User]]></wp:comment_author>
+        <wp:comment_author_email><![CDATA[nested@example.com]]></wp:comment_author_email>
+        <wp:comment_author_url><![CDATA[]]></wp:comment_author_url>
+        <wp:comment_author_IP><![CDATA[127.0.0.3]]></wp:comment_author_IP>
+        <wp:comment_date><![CDATA[2026-04-18 10:30:00]]></wp:comment_date>
+        <wp:comment_content><![CDATA[Nested reply comment]]></wp:comment_content>
+        <wp:comment_approved>1</wp:comment_approved>
+        <wp:comment_parent>502</wp:comment_parent>
+        <wp:comment_user_id>0</wp:comment_user_id>
+      </wp:comment>
+    </item>`
+      )
+      .replace(
+        '</channel>',
+        `<item>
+      <title><![CDATA[Product Review]]></title>
+      <wp:post_id>999</wp:post_id>
+      <wp:post_date><![CDATA[2026-04-18 12:00:00]]></wp:post_date>
+      <wp:post_name><![CDATA[product-review]]></wp:post_name>
+      <wp:status><![CDATA[publish]]></wp:status>
+      <wp:post_type><![CDATA[product]]></wp:post_type>
+      <wp:comment>
+        <wp:comment_id>900</wp:comment_id>
+        <wp:comment_author><![CDATA[Buyer]]></wp:comment_author>
+        <wp:comment_author_email><![CDATA[buyer@example.com]]></wp:comment_author_email>
+        <wp:comment_author_url><![CDATA[]]></wp:comment_author_url>
+        <wp:comment_author_IP><![CDATA[127.0.0.9]]></wp:comment_author_IP>
+        <wp:comment_date><![CDATA[2026-04-18 12:10:00]]></wp:comment_date>
+        <wp:comment_content><![CDATA[Product review]]></wp:comment_content>
+        <wp:comment_approved>1</wp:comment_approved>
+        <wp:comment_parent>0</wp:comment_parent>
+        <wp:comment_user_id>0</wp:comment_user_id>
+      </wp:comment>
+    </item>
+  </channel>`
+      )
+
+    const data = await useWordPressDataParser(createWordPressWxrFile(wxrWithNestedComments)).parse()
+
+    expect(data.comments?.map((item) => item.metadata?.name)).toEqual(['501', '502', '503'])
+    expect(data.comments?.[1]).toMatchObject({
+      kind: 'Reply',
+      spec: {
+        commentName: '501',
+        quoteReply: '501'
+      }
+    })
+    expect(data.comments?.[2]).toMatchObject({
+      kind: 'Reply',
+      spec: {
+        commentName: '501',
+        quoteReply: '502'
+      }
+    })
+  })
 })

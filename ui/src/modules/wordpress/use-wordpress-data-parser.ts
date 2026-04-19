@@ -68,11 +68,13 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
             }
           })
 
+          const supportedCommentItems = [...posts, ...pages]
+
           resolve({
             users: parseUsers(rawAuthors),
             posts: parsePosts(posts, rawTags, rawCategories, attachmentResolver, rawAuthors),
             pages: parsePages(pages, attachmentResolver, rawAuthors),
-            comments: parseComments(channel.item, rawAuthors),
+            comments: parseComments(supportedCommentItems, rawAuthors),
             tags: parseTags(rawTags),
             categories: parseCategories(rawCategories),
             // 菜单
@@ -262,11 +264,13 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     const authorById = createWordPressAuthorByIdMap(authors)
     items?.forEach((item) => {
       const refType = item['wp:post_type'] == 'post' ? 'Post' : 'SinglePage'
+      const commentById = createWordPressCommentMap(item['wp:comment'])
       item['wp:comment']?.forEach((comment) => {
-        if (comment['wp:comment_parent'] === 0) {
+        const replyTarget = resolveWordPressReplyTarget(comment, commentById)
+        if (!replyTarget) {
           comments.push(createComment(comment, item, refType, authorById))
         } else {
-          comments.push(createReply(comment, refType, authorById))
+          comments.push(createReply(comment, refType, replyTarget, authorById))
         }
       })
     })
@@ -325,6 +329,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   const createReply = (
     reply: Comment,
     refType: 'Post' | 'SinglePage',
+    replyTarget: { commentName: string; quoteReply: string },
     authorById: Map<number, Author>
   ): MigrateReply => {
     const fallbackAuthor = authorById.get(reply['wp:comment_user_id'])
@@ -355,8 +360,8 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         approvedTime: new Date(reply['wp:comment_date']).toISOString(),
         creationTime: new Date(reply['wp:comment_date']).toISOString(),
         hidden: false,
-        commentName: reply['wp:comment_parent'] + '',
-        quoteReply: reply['wp:comment_parent'] + ''
+        commentName: replyTarget.commentName,
+        quoteReply: replyTarget.quoteReply
       },
       status: {},
       ownerRef:
@@ -374,6 +379,51 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
       email: author['wp:author_email'],
       username: author['wp:author_login']
     }))
+  }
+
+  function createWordPressCommentMap(comments?: Comment[]) {
+    return (comments || []).reduce((map, comment) => {
+      map.set(String(comment['wp:comment_id']), comment)
+      return map
+    }, new Map<string, Comment>())
+  }
+
+  function resolveWordPressReplyTarget(
+    comment: Comment,
+    commentById: Map<string, Comment>
+  ): { commentName: string; quoteReply: string } | undefined {
+    if (comment['wp:comment_parent'] === 0) {
+      return undefined
+    }
+
+    const quoteReply = String(comment['wp:comment_parent'])
+    const directParent = commentById.get(quoteReply)
+    if (!directParent) {
+      return undefined
+    }
+
+    let rootComment = directParent
+    const visited = new Set<string>([String(comment['wp:comment_id'])])
+
+    while (rootComment['wp:comment_parent'] !== 0) {
+      const currentId = String(rootComment['wp:comment_id'])
+      if (visited.has(currentId)) {
+        break
+      }
+
+      visited.add(currentId)
+      const nextParent = commentById.get(String(rootComment['wp:comment_parent']))
+      if (!nextParent) {
+        break
+      }
+
+      rootComment = nextParent
+    }
+
+    return {
+      commentName: String(rootComment['wp:comment_id']),
+      quoteReply
+    }
   }
 
   const parseTags = (tags: Tag[]) => {

@@ -252,27 +252,30 @@ export function parseTypechoComments(
   const data: (MigrateComment | MigrateReply)[] = []
   const userMap = createTypechoUserMap(users)
   const contentMap = createTypechoContentMap(contents)
-  const findRootComment = (comment: TypechoComment): TypechoComment => {
-    if (comment.parent === '0') {
-      return comment
-    }
-    const parentComment = comments?.find((c) => c.coid === comment.parent)
-    if (parentComment) {
-      return findRootComment(parentComment)
-    }
-    return comment
-  }
+  const commentMap = (comments || []).reduce((map, comment) => {
+    map.set(comment.coid, comment)
+    return map
+  }, new Map<string, TypechoComment>())
+
   for (const comment of comments ?? []) {
     const content = contentMap.get(comment.cid)
     if (!content) {
       continue
     }
     const refType = content.type == 'post' ? 'Post' : 'SinglePage'
-    if (comment.parent === '0') {
+    const replyTarget = resolveTypechoReplyTarget(comment, commentMap)
+    if (!replyTarget) {
       data.push(createTypechoComment(comment, content, refType, userMap))
     } else {
-      const rootComment = findRootComment(comment)
-      data.push(createTypechoReply(comment, refType, `comment-${rootComment.coid}`, userMap))
+      data.push(
+        createTypechoReply(
+          comment,
+          refType,
+          replyTarget.commentName,
+          replyTarget.quoteReply,
+          userMap
+        )
+      )
     }
   }
   return data
@@ -357,6 +360,7 @@ function createTypechoReply(
   reply: TypechoComment,
   refType: 'Post' | 'SinglePage',
   commentName: string,
+  quoteReply: string,
   userMap: Map<string, TypechoUser>
 ): MigrateReply {
   const ownerRef = createTypechoCommentOwnerRef(reply, userMap)
@@ -381,11 +385,47 @@ function createTypechoReply(
       creationTime: new Date(Number(reply.created) * 1000).toISOString(),
       hidden: false,
       commentName: commentName,
-      quoteReply: `comment-${reply.parent}`
+      quoteReply
     },
     status: {},
     ownerRef
   } satisfies MigrateReply
+}
+
+function resolveTypechoReplyTarget(
+  comment: TypechoComment,
+  commentMap: Map<string, TypechoComment>
+): { commentName: string; quoteReply: string } | undefined {
+  if (comment.parent === '0') {
+    return undefined
+  }
+
+  const directParent = commentMap.get(comment.parent)
+  if (!directParent) {
+    return undefined
+  }
+
+  let rootComment = directParent
+  const visited = new Set<string>([comment.coid])
+
+  while (rootComment.parent !== '0') {
+    if (visited.has(rootComment.coid)) {
+      break
+    }
+
+    visited.add(rootComment.coid)
+    const nextParent = commentMap.get(rootComment.parent)
+    if (!nextParent) {
+      break
+    }
+
+    rootComment = nextParent
+  }
+
+  return {
+    commentName: `comment-${rootComment.coid}`,
+    quoteReply: `comment-${directParent.coid}`
+  }
 }
 
 export function parseTypechoAttachment(raw: string): Attachment {

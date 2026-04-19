@@ -27,10 +27,11 @@ export default defineConfig({
         items: [
           { text: "Halo 1.x", link: "/provider/halo" },
           { text: "WordPress", link: "/provider/wordpress" },
+          { text: "Ghost", link: "/provider/ghost" },
+          { text: "Typecho", link: "/provider/typecho" },
           { text: "RSS", link: "/provider/rss" },
           { text: "Atom", link: "/provider/atom" },
-          { text: "HUGO", link: "/provider/hugo" },
-          { text: "Ghost", link: "/provider/ghost" },
+          { text: "Markdown", link: "/provider/markdown" },
         ],
       },
       {

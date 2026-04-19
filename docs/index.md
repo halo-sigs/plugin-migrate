@@ -8,10 +8,17 @@
 
 1. Halo 1.5 / 1.6
 2. [WordPress](https://wordpress.org/)
-3. RSS / Atom 订阅链接
-4. Markdown（Hugo / Hexo / 其他 Markdown + Front Matter 静态博客）
-5. [Ghost](https://ghost.org/)
-6. [Typecho](https://github.com/typecho/typecho)
+3. [Ghost](https://ghost.org/)
+4. [Typecho](https://github.com/typecho/typecho)
+5. RSS / Atom 订阅文件或订阅链接
+6. Markdown（适用于 Markdown + Front Matter 静态博客内容导入）
+
+## 通用迁移说明
+
+1. 每个平台都有独立的数据解析界面，但最终都会转换为统一的导入任务并按同一套流程执行。
+2. 大多数平台都支持统一的附件处理步骤：自动上传本地附件或按原始路径手动迁移；Markdown 仅支持自动上传，RSS / Atom 则保留原始远程链接。
+3. 对包含邮箱的来源用户，系统会在开始导入时优先匹配已有 Halo 用户；未匹配到时会自动创建 `guest` 用户，并尽量保留文章、页面、评论的归属关系。
+4. Markdown 导入支持 YAML / TOML / JSON Front Matter，可识别标题、摘要、分类、标签、发布时间、页面类型，以及 `cover` / `thumbnail` / `feature_image` 等常见封面字段。
 
 ## 使用方式
 
@@ -30,8 +37,8 @@
 
 所需环境：
 
-1. Java 17
-2. Node 20
+1. Java 21
+2. Node 24
 3. pnpm 10
 4. Docker (可选)
 

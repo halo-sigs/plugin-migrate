@@ -1,86 +1,112 @@
 # 扩展可迁移平台
 
-若您使用的平台不在当前支持的平台内，则可通过扩展迁移平台的方式来支持。
+如果现有 Provider 不包含你的来源平台，可以通过扩展 `ui/src/modules/<provider>/` 的方式新增一个迁移入口。
 
-迁移插件并不强行置顶目标平台的导入方式，由扩展点决定如何进行导入及处理数据，迁移插件只关心最终数据。
+当前迁移插件的约定是：
+
+1. **每个 Provider 自己负责输入 UI、数据读取和来源平台特有的转换逻辑。**
+2. **Provider 最终只需要输出统一的 `MigrateData`。**
+3. **后续的用户归属预处理、附件策略、任务生成、任务执行由共享流程负责。**
+
+这意味着 Provider 可以专注于“如何把源数据转换为统一结构”，而不需要关心真正的导入执行细节。
 
 ## 扩展方式
 
-每个平台都应当有至少一种导入数据的方式，例如从文件中导入、远程导入等，因此需要对导入数据进行自定义扩展。
+以新增一个 `demo` Provider 为例：
 
-以 Halo 1.x 平台迁移为例。
-
-1. 前往 `ui/src/modules` 中新建一个名为 **halo** 的文件夹。
-2. 在新建的文件夹中，创建一个 `vue` 文件，用于展示导入数据的界面以及处理、转换导入的数据，如 `HaloMigrateDataParser.vue` 文件。
-3. 编写 `HaloMigrateDataParser.vue` 文件，此 vue 模板接收一个 [MigrateData](#migratedata) 类型的数据，用户最终解析完成导入数据后，需要更新此数据以进行下一步操作。后续操作将基于 **MigrateData** 进行。例如
+1. 在 `ui/src/modules` 中创建 `demo/` 目录。
+2. 创建一个用于读取源数据并输出 `MigrateData` 的组件，例如 `DemoMigrateDataParser.vue`。
+3. 组件需要接收 `data`，在解析完成后通过 `update:data` 抛出结果，并暴露 `reset()` 供 `MigrateView.vue` 在切换 Provider 时重置状态。
 
    ```ts
    defineProps<{
-     data: MigrateData;
-   }>();
+     data: MigrateData
+   }>()
 
    const emit = defineEmits<{
-     (event: "update:data", value: MigrateData): void;
-   }>();
+     (event: 'update:data', value: MigrateData): void
+   }>()
 
-   /**
-    * 必要操作：处理数据处理完成之后，触发 update:data 事件来更新 data。
-    */
-   const handleDataChange = (data: MigrateData) => {
-     emit("update:data", data);
-   };
+   function handleDataChange(data: MigrateData) {
+     emit('update:data', data)
+   }
+
+   function reset() {
+     emit('update:data', {} as MigrateData)
+   }
+
+   defineExpose({
+     reset
+   })
    ```
 
-4. 在 **ui/src/modules** 目录下的 **index.ts** 文件中，为 `providerItems` 新增一个 [Provider](#provider) 对象，例如
+4. 在 `ui/src/modules/index.ts` 中注册 Provider：
 
-   ```json
+   ```ts
    {
-     name: "Halo",
-     icon: "https://halo.run/logo",
-     description: "Halo 1.5 / 1.6 数据迁移",
-     importComponent: defineAsyncComponent(
-       () => import("./halo/HaloMigrateDataParser.vue") // 扩展文件
-     ),
+     name: 'Demo',
+     icon: demoIcon,
+     description: 'Demo 平台数据迁移',
+     importComponent: defineAsyncComponent(() => import('./demo/DemoMigrateDataParser.vue')),
      options: {
-       attachmentFolderPath: "migrate-from-1.x", // 附件迁移文件夹
+       attachmentFolderPath: 'migrate-from-demo',
+       localAttachmentStrategies: ['upload', 'manual']
      }
    }
    ```
+
+## 共享流程
+
+Provider 输出 `MigrateData` 后，后续会进入共享流程：
+
+1. 如果 `attachments` 不为空，会进入统一的附件处理步骤。
+2. 如果 `users` 中存在带邮箱的来源用户，会在导入前尝试匹配或创建 Halo `guest` 用户，并回填内容归属。
+3. 所有内容最终都会被转换为统一的导入任务，并按既定顺序执行。
 
 ## MigrateData
 
 ```ts
 interface MigrateData {
-  tags?: MigrateTag[];
+  sourceProvider?: string
 
-  categories?: MigrateCategory[];
+  tags?: MigrateTag[]
 
-  posts?: MigratePost[];
+  categories?: MigrateCategory[]
 
-  pages?: MigrateSinglePage[];
+  users?: MigrateSourceUser[]
 
-  comments?: (MigrateComment | MigrateReply)[];
+  posts?: MigratePost[]
 
-  menuItems?: MigrateMenu[];
+  pages?: MigrateSinglePage[]
 
-  moments?: MigrateMoment[];
+  comments?: (MigrateComment | MigrateReply)[]
 
-  photos?: MigratePhoto[];
+  menuItems?: MigrateMenu[]
 
-  links?: MigrateLink[];
+  moments?: MigrateMoment[]
 
-  attachments?: MigrateAttachment[];
+  photos?: MigratePhoto[]
+
+  links?: MigrateLink[]
+
+  attachments?: MigrateAttachment[]
 }
 ```
 
 ## Provider
 
 ```ts
+interface MigrationOption {
+  attachmentFolderPath?: string
+  attachmentHandlerDescriptions?: AttachmentHandlerDescriptions
+  localAttachmentStrategies?: LocalAttachmentStrategy[]
+}
+
 interface Provider {
-  name: string;
-  icon: string;
-  description: string;
-  importComponent?: string | Component;
-  options?: MigrationOption;
+  name: string
+  icon: string
+  description: string
+  importComponent?: string | Component
+  options?: MigrationOption
 }
 ```

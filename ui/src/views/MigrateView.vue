@@ -222,7 +222,7 @@ onBeforeRouteLeave((to, from, next) => {
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
         </div>
-        <h2 class=":uno: text-lg font-semibold">导入数据</h2>
+        <h2 class=":uno: text-lg font-semibold">上传数据</h2>
       </div>
 
       <div class=":uno: space-y-5">

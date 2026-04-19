@@ -10,7 +10,7 @@
 
 - Halo 版本必须为 1.5.x 或 1.6.x。如果不满足，需要先升级到 1.5.x 或 1.6.x 版本。
 - Halo 2.0 不兼容 1.x 的主题，建议在升级前先查询你正在使用的主题是否已经支持 2.0。你可以访问 [halo-sigs/awesome-halo](https://github.com/halo-sigs/awesome-halo) 或 [应用市场](https://halo.run/store/apps?type=THEME) 查阅目前支持的主题。
-- Halo 2.0 目前没有内置 Markdown 编辑器，如果需要重新编辑迁移后的文章，需要额外安装 Markdown 编辑器插件。目前社区已经提供了以下插件：
+- Halo 2 默认没有内置 Markdown 编辑器。如果需要重新编辑迁移后的 Markdown 文章，需要额外安装 Markdown 编辑器插件。目前社区已经提供了以下插件：
   - StackEdit：<https://halo.run/store/apps/app-hDXMG>
   - ByteMD：<https://halo.run/store/apps/app-HTyhC>
 - Halo 2.0 不再内置友情链接、日志、图库等模块，需要安装额外的插件，目前官方已提供：

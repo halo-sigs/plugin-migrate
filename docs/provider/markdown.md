@@ -13,7 +13,8 @@
 5. 默认按文章导入，仅在 Front Matter 明确指定 `type/layout/kind=page` 时导入为单页。
 6. 系统会扫描 Markdown 正文、嵌入式 HTML 和 Front Matter 封面中的本地资源引用，并在下一步统一上传后替换链接。
 7. 当前仅提供 **本地上传** 附件策略，不提供保留原始路径的手动迁移模式。
-8. 本插件使用独立的 Markdown 解析器，渲染效果可能和原站点以及 Halo 中安装的编辑器存在差异。
+8. Halo 2 默认没有内置 Markdown 编辑器。如果后续需要重新编辑导入后的 Markdown 文章，需要额外安装 Markdown 编辑器插件，例如 StackEdit 或 ByteMD。
+9. 本插件使用独立的 Markdown 解析器，渲染效果可能和原站点以及 Halo 中安装的编辑器存在差异。
 
 ## 准备工作
 

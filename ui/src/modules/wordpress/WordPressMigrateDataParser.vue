@@ -43,6 +43,7 @@ defineExpose({
   <MigrateSourceUploadCard
     :file-options="{ accept: '.xml', multiple: false }"
     :parse-error="parseError"
+    buttonText="选择 XML 文件"
     @file-change="handleFileChange"
   >
     <template #description>

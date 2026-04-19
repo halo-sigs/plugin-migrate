@@ -50,6 +50,7 @@ defineExpose({
   <MigrateSourceUploadCard
     :file-options="{ accept: '.json', multiple: false }"
     :parse-error="parseError"
+    buttonText="选择 JSON 文件"
     @file-change="handleFileChange"
   >
     <template #description>

@@ -45,6 +45,7 @@ const handleFileChange = (files: FileList) => {
   <MigrateSourceUploadCard
     :file-options="{ accept: '.dat,.txt', multiple: false }"
     :parse-error="parseError"
+    buttonText="选择 DAT / TXT 文件"
     @file-change="handleFileChange"
   >
     <template #description>

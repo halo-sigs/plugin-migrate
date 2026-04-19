@@ -27,9 +27,9 @@
    halo:
      attachment:
        resource-mappings:
-         - pathPattern: /content/images/**
-           locations:
-             - migrate-from-ghost
+          - pathPattern: /content/images/**
+            locations:
+              - migrate-from-ghost
           - pathPattern: /content/files/**
             locations:
               - migrate-from-ghost

@@ -21,14 +21,14 @@
    <!-- TODO: 补图（Typecho）- 服务器中的 usr/uploads 目录示意 -->
 3. 如果计划手动保留 Typecho 原始附件路径，可提前在 Halo 侧准备资源映射：
 
-   ```yaml
-   halo:
-     attachment:
-       resource-mappings:
+    ```yaml
+    halo:
+      attachment:
+        resource-mappings:
           - pathPattern: /usr/uploads/**
             locations:
               - migrate-from-typecho
-   ```
+    ```
 4. 建议先在本地环境完成一轮完整导入测试，再考虑在生产环境执行。这样更方便快速重试和定位问题，也能避免线上因频繁请求后端、上传附件而出现导入变慢或部分失败；本地验证通过后，还可以结合 Halo 的备份恢复能力更快完成线上恢复或回滚。
 
 ## 执行迁移

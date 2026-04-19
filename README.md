@@ -28,10 +28,10 @@
 2. 安装，插件安装和更新方式可参考：<https://docs.halo.run/user-guide/plugins>
 3. 启动插件之后，即可在 Console 的左侧菜单栏看到 **迁移** 的菜单。
 
-> **Warning**
-> 详细的迁移文档请查阅 <https://halo-plugin-migrate.pages.dev>
+> [!NOTE]
+> 详细的迁移文档请查阅 <https://www.halo.run/docs/plugin-migrate>
 
-> **Tip**
+> [!TIP]
 > 建议先在本地环境测试导入，确认无误后再考虑在生产环境执行。这样做的原因是：
 > 1. 导入失败的因素较多，在本地更容易快速重试并定位原因。
 > 2. 导入过程会频繁请求后端并上传附件，在线上环境可能因为服务器性能或网络波动导致导入变慢，甚至出现部分数据导入失败。

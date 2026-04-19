@@ -30,7 +30,7 @@ title: Hello Halo
 description: Summary from description
 category: Notes
 tags: demo, markdown
-publishDate: 2026-04-18 10:00:00
+publishDate: "2026-04-18T10:00:00+08:00"
 draft: true
 layout: page
 ---

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MigrateSourceUploadCard from '@/components/MigrateSourceUploadCard.vue'
 import type { MigrateData } from '@/types'
+import { VButton } from '@halo-dev/components'
 import { ref } from 'vue'
 import { useMarkdownDataParser } from './use-markdown-data-parser'
 
@@ -46,6 +47,10 @@ const reset = () => {
   emit('update:data', {} as MigrateData)
 }
 
+function openDocument() {
+  window.open('https://www.halo.run/docs/plugin-migrate/migrate/markdown', '_blank')
+}
+
 defineExpose({
   reset
 })
@@ -62,18 +67,17 @@ defineExpose({
     @file-change="handleFolderChange"
   >
     <template #description>
-      请选择包含 Markdown 文件的目录。
-      <ul class=":uno: ml-2 mt-1 list-disc list-inside space-y-1">
-        <li>适用于 Hugo、Hexo 以及其他基于 Markdown + Front Matter 的静态博客内容。</li>
-        <li>
-          支持解析 YAML、TOML、JSON Front Matter 中的标题、摘要、分类、标签、发布时间等元数据。
-        </li>
-        <li>
-          默认按文章导入，仅在 Front Matter 明确标记
-          <code>type/layout/kind=page</code> 时导入为单页。
-        </li>
-        <li>如果正文中引用了本地图片或附件，可在下一步选择附件目录自动上传并替换地址。</li>
-      </ul>
+      <ol>
+        <li>1. 准备包含 Markdown 文件的内容目录，并保留文章与资源文件的相对路径关系</li>
+        <li>2. 如正文或封面引用了本地图片、附件，建议一并准备对应资源目录</li>
+        <li>3. 点击下方的选择 Markdown 目录按钮，并选择刚刚准备好的内容目录</li>
+        <li>4. 如果检测到本地图片或附件，根据后续提示选择资源目录并自动上传</li>
+        <li>5. 最后，点击开始导入按钮开始迁移</li>
+        <li>6. 迁移完成后，建议抽样检查 Front Matter 字段、封面和正文渲染结果</li>
+      </ol>
+    </template>
+    <template #actions>
+      <VButton ghost size="sm" type="default" @click="openDocument"> 查阅详细迁移文档 </VButton>
     </template>
   </MigrateSourceUploadCard>
 </template>

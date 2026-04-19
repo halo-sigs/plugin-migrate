@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import MigrateSourceUploadCard from '@/components/MigrateSourceUploadCard.vue'
 import type { MigrateData } from '@/types'
+import { VButton } from '@halo-dev/components'
 import { ref } from 'vue'
 import { useTypechoDataParser } from './use-typecho-data-parser'
 
@@ -40,6 +41,10 @@ const handleFileChange = (files: FileList) => {
       console.error(error)
     })
 }
+
+function openDocument() {
+  window.open('https://www.halo.run/docs/plugin-migrate/migrate/typecho', '_blank')
+}
 </script>
 <template>
   <MigrateSourceUploadCard
@@ -49,16 +54,17 @@ const handleFileChange = (files: FileList) => {
     @file-change="handleFileChange"
   >
     <template #description>
-      请选择从 Typecho 后台【备份】功能中导出的数据文件（.dat / .txt）。
-      <ul class=":uno: ml-2 mt-1 list-disc list-inside space-y-1">
-        <li>目前仅支持根据 Typecho 后台导出的备份文件自动迁移数据。</li>
-        <li>
-          由于平台之间的差异性，目前仅支持迁移<b>文章</b>、<b>分类</b>、<b>标签</b>、<b>页面</b>、<b>评论</b>、<b>附件</b>数据，其它
-          数据（包括主题模板、网站设置，用户等）无法迁移。
-        </li>
-        <li>附件会在下一步统一使用本地目录上传或手动迁移策略处理。</li>
-        <li>迁移完成后，不建议立即删除 Typecho 的备份文件，可以先检查数据是否完整。</li>
-      </ul>
+      <ol>
+        <li>1. 在 Typecho 后台的控制台 -> 备份中导出网站数据，格式为 DAT / TXT</li>
+        <li>2. 下载 Typecho 站点中的 usr/uploads 目录（可选），用于后续附件迁移</li>
+        <li>3. 点击下方的选择 DAT / TXT 文件按钮，并选择刚刚导出的备份文件</li>
+        <li>4. 如果检测到本地附件，根据后续提示选择上传到 Halo 或手动迁移</li>
+        <li>5. 最后，点击开始导入按钮开始迁移</li>
+        <li>6. 迁移完成后，建议抽样检查页面、评论层级和附件引用是否正确</li>
+      </ol>
+    </template>
+    <template #actions>
+      <VButton ghost size="sm" type="default" @click="openDocument"> 查阅详细迁移文档 </VButton>
     </template>
   </MigrateSourceUploadCard>
 </template>

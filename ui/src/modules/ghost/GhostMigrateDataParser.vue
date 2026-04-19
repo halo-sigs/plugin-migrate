@@ -33,7 +33,7 @@ const handleFileChange = (files: FileList) => {
 }
 
 function openDocument() {
-  window.open('https://halo-plugin-migrate.pages.dev/provider/ghost.html', '_blank')
+  window.open('https://www.halo.run/docs/plugin-migrate/migrate/ghost', '_blank')
 }
 
 const reset = () => {
@@ -54,26 +54,17 @@ defineExpose({
     @file-change="handleFileChange"
   >
     <template #description>
-      请选择从 Ghost 后台【Settings &rarr; Labs】中导出的 JSON 文件。
-      <ul class=":uno: ml-2 mt-1 list-disc list-inside space-y-1">
-        <li>在开始迁移前，建议先阅读关于 Ghost 迁移的文档。</li>
-        <li>
-          Ghost 导出的 JSON
-          不包含独立附件清单，系统会从文章、页面、标签封面中的媒体链接自动识别本地附件。
-        </li>
-        <li>
-          解析完成后，如果检测到 Ghost
-          本地媒体链接，可以在下一步选择附件目录自动上传，或者手动迁移。
-        </li>
-        <li>
-          由于平台之间的差异性，目前仅支持迁移<b>文章</b>、<b>标签</b>、<b>页面</b>数据，其他和
-          Ghost 平台相关的数据（包括主题模板、网站设置，用户等）无法迁移。
-        </li>
-        <li>迁移完成后，不建议立即删除 Ghost 的数据文件，可以先检查数据是否完整。</li>
-      </ul>
+      <ol>
+        <li>1. 在 Ghost 后台的 Settings -> Labs 中导出网站数据，格式为 JSON</li>
+        <li>2. 下载 Ghost 站点的 content 目录（可选），用于后续附件迁移</li>
+        <li>3. 点击下方的选择 JSON 文件按钮，并选择刚刚导出的 JSON 文件</li>
+        <li>4. 如果检测到本地媒体链接，根据后续提示选择上传到 Halo 或手动迁移</li>
+        <li>5. 最后，点击开始导入按钮开始迁移</li>
+        <li>6. 迁移完成后，建议抽样检查文章、页面、标签封面和附件链接</li>
+      </ol>
     </template>
     <template #actions>
-      <VButton size="sm" type="secondary" @click="openDocument"> 查阅文档 </VButton>
+      <VButton ghost size="sm" type="default" @click="openDocument"> 查阅详细迁移文档 </VButton>
     </template>
   </MigrateSourceUploadCard>
 </template>

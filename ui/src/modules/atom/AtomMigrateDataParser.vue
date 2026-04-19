@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import FileSelector from '@/components/FileSelector.vue'
+import MigrateSourceUploadCard from '@/components/MigrateSourceUploadCard.vue'
 import type { MigrateData } from '@/types'
-import { Toast, VAlert, VButton } from '@halo-dev/components'
+import { Toast, VButton } from '@halo-dev/components'
 import { ref } from 'vue'
 import { useRssDataParser } from './use-atom-data-parser'
 defineProps<{
@@ -56,28 +56,35 @@ const reset = () => {
   emit('update:data', {} as MigrateData)
 }
 
+function openDocument() {
+  window.open('https://www.halo.run/docs/plugin-migrate/migrate/atom', '_blank')
+}
+
 defineExpose({
   reset
 })
 </script>
 <template>
-  <div>
-    <div class=":uno: mb-2">
-      <VAlert title="迁移提示" type="info" :closable="false">
-        <template #description>
-          请上传 Atom 订阅源文件（.xml）或输入订阅链接，系统会自动解析其中的文章数据。
-          <br />
-          Atom Feed 文件中至少需要具有文章标题以及包含文章内容的 content
-          字段，否则文章将无法正确导入。
-        </template>
-      </VAlert>
-    </div>
-    <div>
-      <FileSelector
-        :options="{ accept: '.xml', multiple: false }"
-        @fileChange="handleFileChange"
-      ></FileSelector>
-      <span class=":uno: my-6 block"> 或 </span>
+  <MigrateSourceUploadCard
+    :file-options="{ accept: '.xml', multiple: false }"
+    button-text="选择 XML 文件"
+    @file-change="handleFileChange"
+  >
+    <template #description>
+      <ol>
+        <li>1. 准备 Atom Feed 文件（XML）或可直接访问的 Atom 订阅链接</li>
+        <li>2. 确认 Atom 中包含文章标题以及完整正文内容字段</li>
+        <li>3. 点击下方的选择 XML 文件按钮，或在下方输入 Atom 订阅链接并解析</li>
+        <li>4. 审查解析到的文章标题、发布时间和正文内容</li>
+        <li>5. 最后，点击开始导入按钮开始迁移</li>
+        <li>6. 迁移完成后，建议抽样检查正文内容和远程资源链接</li>
+      </ol>
+    </template>
+    <template #actions>
+      <VButton ghost size="sm" type="default" @click="openDocument"> 查阅详细迁移文档 </VButton>
+    </template>
+    <template #extra-selectors>
+      <span class=":uno: my-2 block text-sm text-gray-500">或输入 Atom 订阅链接</span>
       <div>
         <FormKit v-model="rssUrl" type="url" placeholder="请输入 Atom 订阅链接" validation="url">
           <template #suffix>
@@ -93,6 +100,6 @@ defineExpose({
           </template>
         </FormKit>
       </div>
-    </div>
-  </div>
+    </template>
+  </MigrateSourceUploadCard>
 </template>

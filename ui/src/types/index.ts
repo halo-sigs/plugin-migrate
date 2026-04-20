@@ -1,17 +1,20 @@
 import type {
   Category,
   Comment,
-  Reply,
   MenuItem,
   Metadata,
   PostRequest,
+  Reply,
   SinglePageRequest,
   Tag
 } from '@halo-dev/api-client'
+import type { AxiosResponse } from 'axios'
 import type { Component } from 'vue'
 
 export interface MigrationOption {
   attachmentFolderPath?: string
+  attachmentHandlerDescriptions?: AttachmentHandlerDescriptions
+  localAttachmentStrategies?: LocalAttachmentStrategy[]
 }
 
 export interface Provider {
@@ -22,6 +25,19 @@ export interface Provider {
   options?: MigrationOption
 }
 
+export type LocalAttachmentStrategy = 'upload' | 'manual'
+
+export type AttachmentPolicyConfig = Partial<Record<AttachmentType, string>>
+
+export interface AttachmentHandlerDescriptions {
+  localUploadTitle?: string
+  localUploadDescription?: string
+  localUploadHint?: string
+  localManualTitle?: string
+  localManualDescription?: string
+  localManualHint?: string
+}
+
 export interface MigrateDataParser {
   files: FileList
   // 将读取到的文件，根据不同的类型，执行不同的解析方法
@@ -29,9 +45,13 @@ export interface MigrateDataParser {
 }
 
 export interface MigrateData {
+  sourceProvider?: string
+
   tags?: MigrateTag[]
 
   categories?: MigrateCategory[]
+
+  users?: MigrateSourceUser[]
 
   posts?: MigratePost[]
 
@@ -61,39 +81,63 @@ export interface Counter {
   approvedComment?: number
 }
 
+export interface MigrateSourceUser {
+  id: string
+  provider: string
+  displayName: string
+  email?: string
+  username?: string
+  slug?: string
+  avatar?: string
+  bio?: string
+  website?: string
+  role?: string
+}
+
+export interface MigrateUserRef {
+  sourceId: string
+}
+
 export interface MigratePost {
   postRequest: PostRequest
   counter?: Counter
+  ownerRef?: MigrateUserRef
 }
 
 export interface MigrateSinglePage {
   singlePageRequest: SinglePageRequest
   counter?: Counter
+  ownerRef?: MigrateUserRef
 }
 
 export interface MigrateComment extends Comment {
+  kind: 'Comment'
   refType: 'Post' | 'SinglePage' | 'Moment'
+  ownerRef?: MigrateUserRef
 }
 
 export interface MigrateReply extends Reply {
+  kind: 'Reply'
   refType: 'Post' | 'SinglePage' | 'Moment'
+  ownerRef?: MigrateUserRef
 }
 
-export type AttachmentType = 
-| 'LOCAL'
-| 'UPOSS'
-| 'QINIUOSS'
-| 'SMMS'
-| 'ALIOSS'
-| 'BAIDUBOS'
-| 'TENCENTCOS'
-| 'HUAWEIOBS'
-| 'MINIO';
+export type AttachmentType =
+  | 'LOCAL'
+  | 'UPOSS'
+  | 'QINIUOSS'
+  | 'SMMS'
+  | 'ALIOSS'
+  | 'BAIDUBOS'
+  | 'TENCENTCOS'
+  | 'HUAWEIOBS'
+  | 'MINIO'
 
 export interface MigrateAttachment {
   id: number | string
   name: string
   path: string
+  url?: string
   groupName?: string
   fileKey?: string
   thumbPath?: string
@@ -103,7 +147,7 @@ export interface MigrateAttachment {
   height?: number
   size?: number
   tags?: string[]
-  type: AttachmentType;
+  type: AttachmentType
   createTime?: number
   updateTime?: number
 }
@@ -171,4 +215,39 @@ export interface LinkSpec {
   description?: string
   priority?: number
   groupName?: string
+}
+
+export type MigrateTaskState = 'pending' | 'running' | 'success' | 'failed'
+
+export interface MigrateTaskItem<T = any> {
+  id: string
+  type: string
+  label: string
+  item: T
+  status: MigrateTaskState
+  error?: string
+  run: () => Promise<AxiosResponse<any, any>>
+  retry: () => void
+}
+
+export interface MigrateTaskGroup {
+  key: string
+  label: string
+  tasks: MigrateTaskItem<any>[]
+}
+
+export interface AttachmentPreparationResult {
+  data: MigrateData
+  attachmentPolicies: AttachmentPolicyConfig
+  selectedFolderFiles: FileList | null
+  localStrategy: LocalAttachmentStrategy | null
+}
+
+export interface AttachmentHandlerExpose {
+  canConfirm: () => boolean
+  getPreparationResult: () => AttachmentPreparationResult
+}
+
+export interface ProviderParserExpose {
+  reset: () => void
 }

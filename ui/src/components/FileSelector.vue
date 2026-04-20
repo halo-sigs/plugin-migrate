@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { VButton } from '@halo-dev/components'
 import { type UseFileDialogOptions, useFileDialog } from '@vueuse/core'
 import { ref, watch } from 'vue'
 const { files, open, reset } = useFileDialog()
 const props = defineProps<{
   options?: UseFileDialogOptions
+  folder?: boolean
+  buttonText?: string
 }>()
 
 const emit = defineEmits<{
@@ -14,7 +17,11 @@ const selectedFileName = ref<string>()
 
 const handleOpenFile = () => {
   reset()
-  open(props.options)
+  const opts: UseFileDialogOptions = { ...props.options }
+  if (props.folder) {
+    opts.directory = true
+  }
+  open(opts)
 }
 
 watch(
@@ -30,25 +37,13 @@ watch(
   }
 )
 </script>
+
 <template>
-  <div class=":uno: w-full" @click="handleOpenFile">
-    <label
-      class=":uno: flex flex-col cursor-pointer items-center border border-blue rounded-lg bg-white px-4 py-6 text-blue tracking-wide hover:bg-blue-400 hover:text-white"
-    >
-      <svg
-        class=":uno: h-8 w-8"
-        fill="currentColor"
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 20 20"
-      >
-        <path
-          d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z"
-        />
-      </svg>
-      <span class=":uno: mt-2 text-base leading-normal"> 选择文件 </span>
-      <p v-if="selectedFileName" class=":uno: text-xs text-gray-500 dark:text-gray-400">
-        已选择文件: {{ selectedFileName }}
-      </p>
-    </label>
+  <div class=":uno: flex items-center gap-3">
+    <VButton type="secondary" @click="handleOpenFile">{{ buttonText || '选择文件' }}</VButton>
+    <span v-if="selectedFileName" class=":uno: text-sm text-gray-600">
+      已选择: {{ selectedFileName }}
+    </span>
+    <span v-else class=":uno: text-sm text-gray-400"> 未选择文件 </span>
   </div>
 </template>

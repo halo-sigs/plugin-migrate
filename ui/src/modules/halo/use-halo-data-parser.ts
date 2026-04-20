@@ -1,17 +1,19 @@
 import type {
-  MigrateData,
-  MigratePost,
-  MigrateSinglePage,
-  MigrateMenu,
-  MigratePhoto,
-  MigrateLink,
   MigrateAttachment,
-  MigrateTag,
   MigrateCategory,
   MigrateComment,
+  MigrateData,
+  MigrateLink,
+  MigrateMenu,
+  MigrateMoment,
+  MigratePhoto,
+  MigratePost,
   MigrateReply,
-  MigrateMoment
+  MigrateSinglePage,
+  MigrateSourceUser,
+  MigrateTag
 } from '@/types'
+import { createEmailCommentOwner, createSourceUserId } from '@/utils/migrate-user'
 import { arrayToTree } from 'performant-array-to-tree'
 
 interface useHaloDataParserReturn {
@@ -41,8 +43,10 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
 
   const parseData = (data: any): MigrateData => {
     return {
+      sourceProvider: 'halo',
       tags: parseTags(data.tags),
       categories: parseCategories(data.categories),
+      users: parseUsers(data.users || data.user),
       posts: parsePosts(data),
       pages: parseSinglePages(data),
       comments: parseComments(data),
@@ -273,6 +277,25 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
     return [...postComments, ...sheetComments, ...journalComments]
   }
 
+  const parseUsers = (users?: Record<string, any> | Record<string, any>[]): MigrateSourceUser[] => {
+    const normalizedUsers = Array.isArray(users) ? users : users ? [users] : []
+
+    return (
+      normalizedUsers.map((user) => ({
+        id: createSourceUserId('halo', resolveHaloUserRawId(user)),
+        provider: 'halo',
+        displayName:
+          user.nickname || user.displayName || user.screenName || user.username || user.email,
+        email: user.email,
+        username: user.username || user.name,
+        avatar: user.avatar || user.avatarUrl,
+        bio: user.description || user.bio,
+        website: user.website || user.url,
+        role: user.role || user.roles?.[0]
+      })) ?? []
+    )
+  }
+
   const createCommentOrReply = (
     commentsTree: Comment[],
     subjectRef: { kind: string; group: string; version: string }
@@ -309,15 +332,15 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
       spec: {
         raw: comment.content,
         content: comment.content,
-        owner: {
-          kind: 'Email',
-          name: comment.email,
+        owner: createEmailCommentOwner({
+          email: comment.email,
           displayName: comment.author,
-          annotations: {
-            avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-            website: comment.authorUrl
-          }
-        },
+          website: comment.authorUrl,
+          avatar: comment.gravatarMd5
+            ? `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`
+            : undefined,
+          sourceId: comment.email || comment.author
+        }),
         userAgent: comment.userAgent,
         ipAddress: comment.ipAddress,
         priority: 0,
@@ -354,15 +377,15 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
       spec: {
         raw: comment.content,
         content: comment.content,
-        owner: {
-          kind: 'Email',
-          name: comment.email,
+        owner: createEmailCommentOwner({
+          email: comment.email,
           displayName: comment.author,
-          annotations: {
-            avatar: `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`,
-            website: comment.authorUrl
-          }
-        },
+          website: comment.authorUrl,
+          avatar: comment.gravatarMd5
+            ? `https://www.gravatar.com/avatar/${comment.gravatarMd5}?s=64&d=identicon&r=PG`
+            : undefined,
+          sourceId: comment.email || comment.author
+        }),
         userAgent: comment.userAgent,
         ipAddress: comment.ipAddress,
         priority: 0,
@@ -684,4 +707,8 @@ interface Attachment {
     | 'TENCENTCOS'
     | 'HUAWEIOBS'
     | 'MINIO'
+}
+
+function resolveHaloUserRawId(user: Record<string, any>) {
+  return String(user.id || user.userId || user.uid || user.username || user.email)
 }

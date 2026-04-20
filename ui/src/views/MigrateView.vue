@@ -1,22 +1,81 @@
 <script setup lang="ts">
-import AttachmentPolicy from '@/components/AttachmentPolicy.vue'
-import MigratePreview from '@/components/MigratePreview.vue'
-import MigrateProvider from '@/components/MigrateProvider.vue'
-import Steps, { type Step } from '@/components/Steps.vue'
-import { useMigrateTask, type MigrateRequestTask } from '@/composables/use-migrate-task'
-import { providerItems } from '@/modules/index'
-import type { MigrateData, Provider } from '@/types'
+import MigrateAttachmentHandler from '@/components/MigrateAttachmentHandler.vue'
+import MigrateTaskDashboard from '@/components/MigrateTaskDashboard.vue'
+import { useMigratePreparation } from '@/composables/use-migrate-preparation'
+import { useMigrateTaskRunner } from '@/composables/use-migrate-task-runner'
+import { getProviderByName } from '@/modules'
+import { getMissingHaloPlugins } from '@/modules/halo/halo-required-plugins'
+import type {
+  AttachmentHandlerExpose,
+  MigrateTaskItem,
+  Provider,
+  ProviderParserExpose
+} from '@/types'
 import { consoleApiClient, type PluginList, type User } from '@halo-dev/api-client'
-import { Dialog, VPageHeader } from '@halo-dev/components'
-import type { AxiosResponse } from 'axios'
-import * as fastq from 'fastq'
-import type { queueAsPromised } from "fastq";
-import { computed, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { Dialog, VAlert, VButton, VPageHeader } from '@halo-dev/components'
+import { computed, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import SolarTransferHorizontalBoldDuotone from '~icons/solar/transfer-horizontal-bold-duotone'
 
+const route = useRoute()
+const router = useRouter()
+
+const activeProvider = ref<Provider>()
 const activatedPluginNames = ref<string[]>([])
 const currentUser = ref<User>()
+const attachmentHandlerRef = ref<AttachmentHandlerExpose | null>(null)
+const providerComponentRef = ref<ProviderParserExpose | null>(null)
+
+const {
+  parsedData,
+  preparedData,
+  selectedFolderFiles,
+  localStrategy,
+  taskGroups,
+  showTasks,
+  dataSummaryItems,
+  confirmPreparation,
+  setParsedData,
+  resetAll
+} = useMigratePreparation(activeProvider, currentUser)
+
+const { importLoading, isImportStarted, allTasks, hasFailedTasks, runImport, retryAll, retryTask } =
+  useMigrateTaskRunner(taskGroups)
+
+const providerData = computed({
+  get: () => parsedData.value,
+  set: (value) => {
+    setParsedData(value)
+  }
+})
+
+const missingHaloPlugins = computed(() => {
+  if (activeProvider.value?.name !== 'Halo 1.x') {
+    return []
+  }
+
+  return getMissingHaloPlugins(parsedData.value, activatedPluginNames.value)
+})
+
+watch(
+  () => route.query.provider,
+  (providerName) => {
+    const provider = getProviderByName(providerName as string | undefined)
+    if (!provider) {
+      router.replace({ name: 'MigrateProviders' })
+      return
+    }
+
+    if (activeProvider.value?.name && activeProvider.value.name !== provider.name) {
+      providerComponentRef.value?.reset?.()
+      resetAll()
+    }
+
+    activeProvider.value = provider
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
   const { data }: { data: PluginList } = await consoleApiClient.plugin.plugin.listPlugins({
     enabled: true,
@@ -26,150 +85,57 @@ onMounted(async () => {
   activatedPluginNames.value =
     data.items
       .filter((plugin) => plugin.status?.phase === 'STARTED')
-      .map((plugin) => {
-        return plugin.metadata.name
-      }) || []
+      .map((plugin) => plugin.metadata.name) || []
 
   const userDetailResponse = await consoleApiClient.user.getCurrentUserDetail()
   currentUser.value = userDetailResponse.data.user
 })
 
-const migrateData = ref<MigrateData>()
-const activeProvider = ref<Provider>()
-const handleSelectProvider = (provider: Provider) => {
-  activeProvider.value = provider
-  migrateData.value = undefined
-}
-const disabledProviderView = computed(() => {
-  return !activeProvider.value
-})
-const disabledImportDataView = computed(() => {
-  return !migrateData.value || !activeProvider.value
-})
-const policyMap = ref<Map<string, string>>(new Map())
-const handlePolicyChange = (typeToPolicyMap: Map<string, string>) => {
-  policyMap.value = typeToPolicyMap
-}
-
-const taskQueue: queueAsPromised<MigrateRequestTask<any>> = fastq.promise(asyncWorker, 9)
-
-async function asyncWorker(arg: MigrateRequestTask<any>): Promise<AxiosResponse<any, any>> {
-  return arg.run()
-}
-
-const importLoading = ref(false)
-const handleImport = () => {
-  importLoading.value = true
-  window.onbeforeunload = function (e) {
-    e.preventDefault()
-    e.returnValue = ''
-    const message = '数据正在导入中，请勿关闭或刷新此页面。'
-    e = e || window.event
-    if (e) {
-      e.returnValue = message
-    }
-    return message
+const handleUnifiedNextStep = () => {
+  if (!parsedData.value) {
+    return
   }
-  const {
-    createTagTasks,
-    createCategoryTasks,
-    createPostTasks,
-    createSinglePageTasks,
-    createCommentAndReplyTasks,
-    createMenuTasks,
-    createMomentTasks,
-    createPhotoTasks,
-    createLinkTasks,
-    createAttachmentTasks
-  } = useMigrateTask(migrateData.value as MigrateData)
-  // 调用 tasks
-  const tasks = [
-    ...createTagTasks(),
-    ...createCategoryTasks(),
-    ...createPostTasks(),
-    ...createSinglePageTasks(),
-    ...createCommentAndReplyTasks(),
-    ...createMenuTasks(),
-    ...createMomentTasks(),
-    ...createPhotoTasks(),
-    ...createLinkTasks(),
-    ...createAttachmentTasks(
-      activeProvider.value?.options?.attachmentFolderPath as string,
-      currentUser.value as User,
-      policyMap.value
-    )
-  ]
-  tasks.forEach((task) => {
-    taskQueue.push(task).catch((error) => {
-      console.error(error)
+
+  if (parsedData.value.attachments?.length && attachmentHandlerRef.value) {
+    if (!attachmentHandlerRef.value.canConfirm()) {
+      return
+    }
+
+    confirmPreparation(attachmentHandlerRef.value.getPreparationResult())
+    return
+  }
+
+  confirmPreparation()
+}
+
+const handleBackToSelect = () => {
+  if (importLoading.value) {
+    Dialog.warning({
+      title: '数据正在导入中',
+      description: '数据正在导入中，请勿离开此页面。'
     })
-  })
-  taskQueue.drained().then(() => {
-    importLoading.value = false
-    Dialog.success({
-      title: '导入完成'
-    })
-    window.onbeforeunload = null
-  })
-  taskQueue.error((error) => {
-    importLoading.value = false
-    Dialog.error({
-      title: '导入失败',
-      description: error.message
-    })
-    window.onbeforeunload = null
+    return
+  }
+
+  router.push({ name: 'MigrateProviders' })
+}
+
+const handleImport = async () => {
+  await runImport({
+    data: preparedData.value,
+    attachmentFiles: selectedFolderFiles.value,
+    localStrategy: localStrategy.value,
+    currentUser: currentUser.value
   })
 }
 
-const stepItems: Step[] = [
-  {
-    key: 'provider',
-    name: '选择渠道',
-    next: {
-      disabled: disabledProviderView,
-      disabledMessage: '需要选择数据渠道'
-    }
-  },
-  {
-    key: 'importData',
-    name: '导入数据',
-    next: {
-      disabled: disabledImportDataView,
-      disabledMessage: '不存在需要导入的数据'
-    }
-  },
-  {
-    key: 'attachmentPolicy',
-    name: '设置附件存储策略',
-    next: {
-      disabled: computed(() => {
-        return policyMap.value.size === 0
-      }),
-      disabledMessage: '未设置附件存储策略'
-    },
-    visible: computed(() => {
-      const attachments = migrateData.value?.attachments
-      return attachments && attachments.length > 0
-    })
-  },
-  {
-    key: 'migrate',
-    name: '待迁移数据',
-    next: {
-      text: '执行导入',
-      handler: handleImport,
-      loading: computed(() => {
-        return importLoading.value
-      })
-    },
-    prev: {
-      disabled: computed(() => {
-        return importLoading.value
-      }),
-      disabledMessage: '数据正在导入中。'
-    }
-  }
-]
+const handleRetryAll = async () => {
+  await retryAll()
+}
+
+const handleRetryTask = async (task: MigrateTaskItem) => {
+  await retryTask(task)
+}
 
 onBeforeRouteLeave((to, from, next) => {
   if (importLoading.value) {
@@ -180,50 +146,209 @@ onBeforeRouteLeave((to, from, next) => {
     next(false)
     return
   }
+
   next()
 })
 </script>
+
 <template>
-  <VPageHeader title="迁移">
+  <VPageHeader :title="activeProvider?.name ? `${activeProvider.name} 数据迁移` : '迁移'">
     <template #icon>
-      <SolarTransferHorizontalBoldDuotone class=":uno: mr-2 self-center" />
+      <img
+        v-if="activeProvider?.icon"
+        :src="activeProvider.icon"
+        class=":uno: mr-2 h-6 w-6 rounded"
+        alt=""
+      />
+      <SolarTransferHorizontalBoldDuotone v-else class=":uno: mr-2 self-center" />
+    </template>
+    <template #actions>
+      <VButton type="secondary" @click="handleBackToSelect">重新选择平台</VButton>
     </template>
   </VPageHeader>
-  <div class=":uno: m-4 flex flex-1 flex-col">
-    <Steps :items="stepItems" submitText="执行导入">
-      <template #provider>
-        <div>
-          <MigrateProvider
-            :providers="providerItems"
-            @selectProvider="handleSelectProvider"
-          ></MigrateProvider>
-        </div>
-      </template>
-      <template #importData>
-        <div class=":uno: h-full flex flex-col">
-          <component :is="activeProvider?.importComponent" v-model:data="migrateData" />
-        </div>
-      </template>
-      <template #attachmentPolicy>
-        <div class=":uno: h-full w-1/2 flex flex-col">
-          <AttachmentPolicy
-            v-if="migrateData"
-            :activatedPluginNames="activatedPluginNames"
-            :attachments="migrateData.attachments"
-            @policyChange="handlePolicyChange"
+
+  <div class=":uno: m-4 flex flex-1 flex-col gap-5">
+    <div class=":uno: mx-auto max-w-3xl w-full flex items-center justify-center gap-4 py-2">
+      <div class=":uno: flex items-center gap-2 text-sm text-gray-400 font-medium">
+        <span
+          class=":uno: h-6 w-6 flex items-center justify-center rounded-full bg-gray-100 text-xs"
+          >1</span
+        >
+        <span>选择平台</span>
+      </div>
+      <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
+      <div
+        class=":uno: flex items-center gap-2 text-sm font-medium"
+        :class="parsedData ? ':uno: text-gray-400' : ':uno: text-gray-900'"
+      >
+        <span
+          class=":uno: h-6 w-6 flex items-center justify-center rounded-full text-xs"
+          :class="parsedData ? ':uno: bg-gray-100' : ':uno: bg-gray-900 text-white'"
+          >2</span
+        >
+        <span>上传数据</span>
+      </div>
+      <div class=":uno: w-8 self-center border-t border-gray-300 border-dashed" />
+      <div
+        class=":uno: flex items-center gap-2 text-sm font-medium"
+        :class="preparedData ? ':uno: text-indigo-600' : ':uno: text-gray-400'"
+      >
+        <span
+          class=":uno: h-6 w-6 flex items-center justify-center rounded-full text-xs"
+          :class="preparedData ? ':uno: bg-indigo-100' : ':uno: bg-gray-100'"
+          >3</span
+        >
+        <span>开始迁移</span>
+      </div>
+    </div>
+
+    <div
+      v-if="!showTasks"
+      class=":uno: mx-auto max-w-3xl w-full rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200"
+    >
+      <div class=":uno: mb-4 flex items-center gap-3">
+        <div
+          class=":uno: h-8 w-8 flex items-center justify-center rounded-lg bg-indigo-50 text-indigo-600"
+        >
+          <svg
+            class=":uno: h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
           >
-          </AttachmentPolicy>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
         </div>
-      </template>
-      <template #migrate>
-        <div class=":uno: h-full w-1/2 flex flex-col">
-          <MigratePreview
-            v-if="migrateData"
-            :provider="activeProvider"
-            :data="migrateData"
-          ></MigratePreview>
+        <h2 class=":uno: text-lg font-semibold">上传数据</h2>
+      </div>
+
+      <div class=":uno: space-y-5">
+        <component
+          :is="activeProvider?.importComponent"
+          ref="providerComponentRef"
+          v-model:data="providerData"
+        />
+
+        <div
+          v-if="parsedData && dataSummaryItems.length > 0"
+          class=":uno: border border-gray-200 rounded-lg bg-white p-4"
+        >
+          <h3 class=":uno: mb-2 text-sm text-gray-900 font-semibold">数据概览</h3>
+          <div class=":uno: flex flex-wrap gap-2">
+            <div
+              v-for="item in dataSummaryItems"
+              :key="item.key"
+              class=":uno: flex items-center gap-2 border border-gray-200 rounded-md px-2.5 py-1.5 text-sm"
+            >
+              <span class=":uno: text-gray-500">{{ item.label }}</span>
+              <span class=":uno: text-gray-900 font-semibold">{{ item.count }}</span>
+            </div>
+          </div>
         </div>
-      </template>
-    </Steps>
+
+        <VAlert
+          v-if="missingHaloPlugins.length > 0"
+          type="warning"
+          title="缺少必要插件"
+          :closable="false"
+          class=":uno: sheet"
+        >
+          <template #description>
+            <div class=":uno: text-sm space-y-1">
+              <p>检测到以下数据，但对应插件尚未安装或启用，请先安装后再继续迁移：</p>
+              <ul class=":uno: list-disc list-inside space-y-1">
+                <li v-for="plugin in missingHaloPlugins" :key="plugin.key">
+                  {{ plugin.name }}
+                  <a
+                    :href="plugin.storeUrl"
+                    target="_blank"
+                    class=":uno: text-indigo-600 hover:underline"
+                  >
+                    前往安装
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </VAlert>
+
+        <div v-if="parsedData?.attachments && parsedData.attachments.length > 0">
+          <h3 class=":uno: mb-2 text-sm text-gray-900 font-semibold">附件存储策略</h3>
+          <MigrateAttachmentHandler
+            ref="attachmentHandlerRef"
+            :data="parsedData"
+            :activatedPluginNames="activatedPluginNames"
+            :descriptions="activeProvider?.options?.attachmentHandlerDescriptions"
+            :local-strategies="activeProvider?.options?.localAttachmentStrategies"
+          />
+        </div>
+
+        <div class=":uno: flex items-center justify-end pt-2">
+          <VButton
+            type="primary"
+            :disabled="
+              !!(
+                !parsedData ||
+                (parsedData.attachments?.length &&
+                  attachmentHandlerRef &&
+                  !attachmentHandlerRef.canConfirm())
+              )
+            "
+            @click="handleUnifiedNextStep"
+          >
+            下一步
+          </VButton>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="preparedData && showTasks"
+      class=":uno: mx-auto max-w-5xl w-full flex-1 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200"
+    >
+      <div class=":uno: mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div class=":uno: flex items-center gap-3">
+          <div
+            class=":uno: h-8 w-8 flex items-center justify-center rounded-lg bg-green-50 text-green-600"
+          >
+            <svg
+              class=":uno: h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+          <div>
+            <h2 class=":uno: text-lg font-semibold">迁移任务</h2>
+            <p class=":uno: text-sm text-gray-500">共 {{ allTasks.length }} 个任务，准备就绪</p>
+          </div>
+        </div>
+        <div class=":uno: flex gap-2">
+          <VButton v-if="hasFailedTasks" :disabled="importLoading" @click="handleRetryAll">
+            全部重试
+          </VButton>
+          <VButton
+            type="primary"
+            :loading="importLoading"
+            :disabled="!taskGroups.length || importLoading"
+            @click="handleImport"
+          >
+            {{ isImportStarted ? '继续导入' : '开始导入' }}
+          </VButton>
+        </div>
+      </div>
+
+      <MigrateTaskDashboard
+        :taskGroups="taskGroups"
+        :loading="importLoading"
+        @retry="handleRetryTask"
+      />
+    </div>
   </div>
 </template>

@@ -12,8 +12,9 @@ export default definePlugin({
         children: [
           {
             path: '',
-            name: 'Migrate',
-            component: () => import('./views/MigrateView.vue'),
+            name: 'MigrateProviders',
+            component: () =>
+              import(/** webpackChunkName: "migrate-providers" */ './views/SelectProviderView.vue'),
             meta: {
               title: '迁移',
               searchable: true,
@@ -24,6 +25,17 @@ export default definePlugin({
                 icon: markRaw(SolarTransferHorizontalBoldDuotone),
                 priority: 0
               }
+            }
+          },
+          {
+            path: 'execute',
+            name: 'MigrateExecute',
+            component: () =>
+              import(/** webpackChunkName: "migrate-execute" */ './views/MigrateView.vue'),
+            meta: {
+              title: '迁移执行',
+              searchable: true,
+              permissions: ['*']
             }
           }
         ]

@@ -182,6 +182,20 @@ export interface TypechoMeta {
   parent: string
 }
 
+export interface TypechoUser {
+  uid: string
+  name: string
+  password: string | null
+  mail: string
+  url: string | null
+  screenName: string
+  created: string
+  activated: string | null
+  logged: string | null
+  group: string
+  authCode: string | null
+}
+
 /**
  * 关系
  */
@@ -201,7 +215,7 @@ interface BackupData {
   comments?: TypechoComment[]
   metas?: TypechoMeta[]
   relationships?: TypechoRelationship[]
-  users?: Record<string, any>[]
+  users?: TypechoUser[]
   fields?: Record<string, any>[]
 }
 

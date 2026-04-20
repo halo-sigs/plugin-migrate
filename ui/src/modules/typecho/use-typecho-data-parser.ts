@@ -1,3 +1,4 @@
+import MarkdownItIdPlugin from '@/modules/markdown/markdown-it-id'
 import type {
   MigrateAttachment,
   MigrateCategory,
@@ -6,8 +7,12 @@ import type {
   MigratePost,
   MigrateReply,
   MigrateSinglePage,
+  MigrateSourceUser,
   MigrateTag
 } from '@/types'
+import { createEmailCommentOwner, createSourceUserId } from '@/utils/migrate-user'
+import markdownit from 'markdown-it'
+import { slugify } from 'transliteration'
 import {
   type Attachment,
   phpUnserialize,
@@ -15,11 +20,9 @@ import {
   type TypechoContent,
   TypechoDataParser,
   type TypechoMeta,
-  type TypechoRelationship
+  type TypechoRelationship,
+  type TypechoUser
 } from './typecho-data-parser'
-import markdownit from 'markdown-it'
-import MarkdownItIdPlugin from '@/modules/hugo/markdown-it-id'
-import { consoleApiClient } from '@halo-dev/api-client'
 
 interface useTypechoDataParserReturn {
   parse: () => Promise<MigrateData>
@@ -34,21 +37,30 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
       reader.readAsArrayBuffer(file)
       reader.onload = (event) => {
         const buffer = event.target?.result as ArrayBuffer
-        if (buffer) {
-          try {
-            const parser = new TypechoDataParser(buffer)
-            const backupData = parser.parse()
-            resolve({
-              posts: parsePosts(backupData.contents, backupData.relationships, backupData.metas),
-              pages: parsePages(backupData.contents),
-              comments: parseComments(backupData.contents, backupData.comments),
-              tags: parseTags(backupData.metas),
-              categories: parseCategories(backupData.metas),
-              attachments: parseAttachments(backupData.contents)
-            } as MigrateData)
-          } catch (error) {
-            console.error('解析失败:', error)
-          }
+        if (!buffer) {
+          reject(new Error('未读取到有效的 Typecho 备份内容'))
+          return
+        }
+
+        try {
+          const parser = new TypechoDataParser(buffer)
+          const backupData = parser.parse()
+          resolve({
+            users: parseUsers(backupData.users),
+            posts: parsePosts(backupData.contents, backupData.relationships, backupData.metas),
+            pages: parsePages(backupData.contents),
+            comments: parseTypechoComments(
+              backupData.contents,
+              backupData.comments,
+              backupData.users
+            ),
+            tags: parseTags(backupData.metas),
+            categories: parseCategories(backupData.metas),
+            attachments: parseTypechoAttachments(backupData.contents)
+          } as MigrateData)
+        } catch (error) {
+          console.error('解析失败:', error)
+          reject(error)
         }
       }
       reader.onerror = () => {
@@ -71,7 +83,7 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
               post: {
                 spec: {
                   title: content.title,
-                  slug: content.title,
+                  slug: normalizeTypechoSlug(content.slug, content.title, `post-${content.cid}`),
                   deleted: false,
                   publish: content.status === 'publish',
                   publishTime: new Date(Number(content.created) * 1000).toISOString(),
@@ -112,7 +124,11 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
                   .render(content.text.replaceAll(/<!--.*?-->/g, '')),
                 rawType: 'markdown'
               }
-            }
+            },
+            ownerRef:
+              content.authorId && content.authorId !== '0'
+                ? { sourceId: createSourceUserId('typecho', content.authorId) }
+                : undefined
           }
         }) ?? []
     )
@@ -174,13 +190,13 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
               page: {
                 spec: {
                   title: content.title,
-                  slug: content.slug,
+                  slug: normalizeTypechoSlug(content.slug, content.title, `page-${content.cid}`),
                   deleted: false,
                   publish: content.status === 'publish',
                   publishTime: new Date(Number(content.created) * 1000).toISOString(),
                   pinned: false,
                   allowComment: content.allowComment === '1',
-                  visible: 'PUBLIC',
+                  visible: content.status === 'publish' ? 'PUBLIC' : 'PRIVATE',
                   priority: 0,
                   excerpt: {
                     autoGenerate: true
@@ -199,138 +215,28 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
                   .render(content.text.replaceAll(/<!--.*?-->/g, '')),
                 rawType: 'markdown'
               }
-            }
+            },
+            ownerRef:
+              content.authorId && content.authorId !== '0'
+                ? { sourceId: createSourceUserId('typecho', content.authorId) }
+                : undefined
           }
         }) ?? []
     )
   }
 
-  const parseComments = (
-    contents?: TypechoContent[],
-    comments?: TypechoComment[]
-  ): (MigrateComment | MigrateReply)[] => {
-    const data: (MigrateComment | MigrateReply)[] = []
-    const findRootComment = (comment: TypechoComment): TypechoComment => {
-      if (comment.parent === '0') {
-        return comment
-      }
-      const parentComment = comments?.find((c) => c.coid === comment.parent)
-      if (parentComment) {
-        return findRootComment(parentComment)
-      }
-      return comment
-    }
-    for (const comment of comments ?? []) {
-      const content = contents?.find((c) => c.cid === comment.cid)
-      if (!content) {
-        break
-      }
-      const refType = content?.type == 'post' ? 'Post' : 'SinglePage'
-      if (comment.parent === '0') {
-        data.push(createComment(comment, content, refType))
-      } else {
-        const rootComment = findRootComment(comment)
-        data.push(createReply(comment, refType, `comment-${rootComment.coid}`))
-      }
-    }
-    return data
-  }
-
-  const parseAttachments = (contents?: TypechoContent[]): MigrateAttachment[] => {
+  const parseUsers = (users?: TypechoUser[]): MigrateSourceUser[] => {
     return (
-      contents
-        ?.filter((content) => content.type === 'attachment')
-        .map((content) => {
-          const img = phpUnserialize(content.text) as unknown as Attachment
-          return {
-            id: `attachment-${content.cid}`,
-            name: img.name,
-            path: img.path,
-            type: 'LOCAL',
-            height: 0,
-            width: 0,
-            mediaType: img.mime,
-            size: img.size
-          }
-        }) ?? []
+      users?.map((user) => ({
+        id: createSourceUserId('typecho', user.uid),
+        provider: 'typecho',
+        displayName: user.screenName || user.name,
+        email: user.mail,
+        username: user.name,
+        website: user.url || undefined,
+        role: user.group
+      })) ?? []
     )
-  }
-
-  const createComment = (
-    comment: TypechoComment,
-    content: TypechoContent,
-    refType: 'Post' | 'SinglePage'
-  ): MigrateComment => {
-    return {
-      refType: refType,
-      kind: 'Comment',
-      apiVersion: 'content.halo.run/v1alpha1',
-      spec: {
-        raw: comment.text,
-        content: comment.text,
-        owner: {
-          kind: 'Email',
-          name: comment.mail,
-          displayName: comment.author,
-          annotations: {
-            website: comment.url || ''
-          }
-        },
-        ipAddress: comment.ip,
-        priority: 0,
-        top: false,
-        allowNotification: true,
-        approved: comment.status === 'approved',
-        creationTime: new Date(Number(comment.created) * 1000).toISOString(),
-        hidden: false,
-        subjectRef: {
-          kind: content.type == 'post' ? 'Post' : 'SinglePage',
-          group: 'content.halo.run',
-          version: 'v1alpha1',
-          name: `${content.type}-${content.cid}`
-        }
-      },
-      metadata: {
-        name: `comment-${comment.coid}`
-      }
-    }
-  }
-
-  const createReply = (
-    reply: TypechoComment,
-    refType: 'Post' | 'SinglePage',
-    commentName: string
-  ): MigrateReply => {
-    return {
-      refType: refType,
-      kind: 'Reply',
-      apiVersion: 'content.halo.run/v1alpha1',
-      metadata: {
-        name: `comment-${reply.coid}`
-      },
-      spec: {
-        raw: reply.text,
-        content: reply.text,
-        owner: {
-          kind: 'Email',
-          name: reply.mail,
-          displayName: reply.author,
-          annotations: {
-            website: reply.url || ''
-          }
-        },
-        ipAddress: reply.ip,
-        priority: 0,
-        top: false,
-        allowNotification: true,
-        approved: reply.status === 'approved',
-        creationTime: new Date(Number(reply.created) * 1000).toISOString(),
-        hidden: false,
-        commentName: commentName,
-        quoteReply: `comment-${reply.parent}`
-      },
-      status: {}
-    }
   }
 
   return {
@@ -338,12 +244,275 @@ export function useTypechoDataParser(file: File): useTypechoDataParserReturn {
   }
 }
 
-export async function uploadAttachment(name: string, url: string) {
-  return await consoleApiClient.storage.attachment.externalTransferAttachment({
-    uploadFromUrlRequest: {
-      filename: name,
-      policyName: 'default-policy',
-      url: url
+export function parseTypechoComments(
+  contents?: TypechoContent[],
+  comments?: TypechoComment[],
+  users?: TypechoUser[]
+): (MigrateComment | MigrateReply)[] {
+  const data: (MigrateComment | MigrateReply)[] = []
+  const userMap = createTypechoUserMap(users)
+  const contentMap = createTypechoContentMap(contents)
+  const commentMap = (comments || []).reduce((map, comment) => {
+    map.set(comment.coid, comment)
+    return map
+  }, new Map<string, TypechoComment>())
+
+  for (const comment of comments ?? []) {
+    const content = contentMap.get(comment.cid)
+    if (!content) {
+      continue
     }
+    const refType = content.type == 'post' ? 'Post' : 'SinglePage'
+    const replyTarget = resolveTypechoReplyTarget(comment, commentMap)
+    if (!replyTarget) {
+      data.push(createTypechoComment(comment, content, refType, userMap))
+    } else {
+      data.push(
+        createTypechoReply(
+          comment,
+          refType,
+          replyTarget.commentName,
+          replyTarget.quoteReply,
+          userMap
+        )
+      )
+    }
+  }
+  return data
+}
+
+export function parseTypechoAttachments(contents?: TypechoContent[]): MigrateAttachment[] {
+  return (
+    contents
+      ?.filter((content) => content.type === 'attachment')
+      .flatMap((content) => {
+        try {
+          const attachment = parseTypechoAttachment(content.text)
+          return [
+            {
+              id: `attachment-${content.cid}`,
+              name: attachment.name || content.title || `attachment-${content.cid}`,
+              path: normalizeTypechoAttachmentPath(attachment.path),
+              type: 'LOCAL',
+              height: 0,
+              width: 0,
+              mediaType: attachment.mime,
+              size: attachment.size
+            }
+          ]
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          console.warn(`Skip invalid Typecho attachment ${content.cid}: ${message}`)
+          return []
+        }
+      }) ?? []
+  )
+}
+
+function normalizeTypechoSlug(value: string | undefined, title: string, fallback: string) {
+  const normalized = value?.trim()
+  if (normalized) {
+    return normalized
+  }
+
+  return slugify(title, { trim: true }) || fallback
+}
+
+function createTypechoComment(
+  comment: TypechoComment,
+  content: TypechoContent,
+  refType: 'Post' | 'SinglePage',
+  userMap: Map<string, TypechoUser>
+): MigrateComment {
+  const ownerRef = createTypechoCommentOwnerRef(comment, userMap)
+  return {
+    refType: refType,
+    kind: 'Comment',
+    apiVersion: 'content.halo.run/v1alpha1',
+    spec: {
+      raw: comment.text,
+      content: comment.text,
+      owner: createCommentOwner(comment, userMap),
+      ipAddress: comment.ip,
+      userAgent: comment.agent,
+      priority: 0,
+      top: false,
+      allowNotification: true,
+      approved: comment.status === 'approved',
+      approvedTime: new Date(Number(comment.created) * 1000).toISOString(),
+      creationTime: new Date(Number(comment.created) * 1000).toISOString(),
+      hidden: false,
+      subjectRef: {
+        kind: content.type == 'post' ? 'Post' : 'SinglePage',
+        group: 'content.halo.run',
+        version: 'v1alpha1',
+        name: `${content.type}-${content.cid}`
+      }
+    },
+    metadata: {
+      name: `comment-${comment.coid}`
+    },
+    ownerRef
+  } satisfies MigrateComment
+}
+
+function createTypechoReply(
+  reply: TypechoComment,
+  refType: 'Post' | 'SinglePage',
+  commentName: string,
+  quoteReply: string,
+  userMap: Map<string, TypechoUser>
+): MigrateReply {
+  const ownerRef = createTypechoCommentOwnerRef(reply, userMap)
+  return {
+    refType: refType,
+    kind: 'Reply',
+    apiVersion: 'content.halo.run/v1alpha1',
+    metadata: {
+      name: `comment-${reply.coid}`
+    },
+    spec: {
+      raw: reply.text,
+      content: reply.text,
+      owner: createCommentOwner(reply, userMap),
+      ipAddress: reply.ip,
+      userAgent: reply.agent,
+      priority: 0,
+      top: false,
+      allowNotification: true,
+      approved: reply.status === 'approved',
+      approvedTime: new Date(Number(reply.created) * 1000).toISOString(),
+      creationTime: new Date(Number(reply.created) * 1000).toISOString(),
+      hidden: false,
+      commentName: commentName,
+      quoteReply
+    },
+    status: {},
+    ownerRef
+  } satisfies MigrateReply
+}
+
+function resolveTypechoReplyTarget(
+  comment: TypechoComment,
+  commentMap: Map<string, TypechoComment>
+): { commentName: string; quoteReply: string } | undefined {
+  if (comment.parent === '0') {
+    return undefined
+  }
+
+  const directParent = commentMap.get(comment.parent)
+  if (!directParent) {
+    return undefined
+  }
+
+  let rootComment = directParent
+  const visited = new Set<string>([comment.coid])
+
+  while (rootComment.parent !== '0') {
+    if (visited.has(rootComment.coid)) {
+      break
+    }
+
+    visited.add(rootComment.coid)
+    const nextParent = commentMap.get(rootComment.parent)
+    if (!nextParent) {
+      break
+    }
+
+    rootComment = nextParent
+  }
+
+  return {
+    commentName: `comment-${rootComment.coid}`,
+    quoteReply: `comment-${directParent.coid}`
+  }
+}
+
+export function parseTypechoAttachment(raw: string): Attachment {
+  const normalized = raw.trim()
+
+  if (!normalized) {
+    throw new Error('附件元数据为空')
+  }
+
+  if (normalized.startsWith('{')) {
+    const parsed = JSON.parse(normalized) as Partial<Attachment>
+    return normalizeTypechoAttachment(parsed)
+  }
+
+  if (normalized.startsWith('a:')) {
+    const parsed = phpUnserialize(normalized) as unknown as Partial<Attachment>
+    return normalizeTypechoAttachment(parsed)
+  }
+
+  throw new Error('不支持的 Typecho 附件元数据格式')
+}
+
+function normalizeTypechoAttachment(attachment: Partial<Attachment>): Attachment {
+  if (!attachment.path) {
+    throw new Error('附件元数据缺少 path 字段')
+  }
+
+  return {
+    name: attachment.name || attachment.path.split('/').pop() || 'attachment',
+    path: attachment.path,
+    size: Number(attachment.size || 0),
+    type: attachment.type || '',
+    mime: attachment.mime || 'application/octet-stream'
+  }
+}
+
+export function normalizeTypechoAttachmentPath(path: string) {
+  return path.trim().replace(/^\/+/, '')
+}
+
+export function createTypechoUserMap(users?: TypechoUser[]) {
+  return (users || []).reduce((map, user) => {
+    map.set(user.uid, user)
+    return map
+  }, new Map<string, TypechoUser>())
+}
+
+function createTypechoContentMap(contents?: TypechoContent[]) {
+  return (contents || []).reduce((map, content) => {
+    map.set(content.cid, content)
+    return map
+  }, new Map<string, TypechoContent>())
+}
+
+function getTypechoCommentAuthorUser(comment: TypechoComment, userMap: Map<string, TypechoUser>) {
+  if (!comment.authorId || comment.authorId === '0') {
+    return undefined
+  }
+
+  return userMap.get(comment.authorId)
+}
+
+export function createTypechoCommentOwnerRef(
+  comment: TypechoComment,
+  userMap: Map<string, TypechoUser>
+): MigrateComment['ownerRef'] {
+  const sourceUser = getTypechoCommentAuthorUser(comment, userMap)
+
+  if (!sourceUser) {
+    return undefined
+  }
+
+  return {
+    sourceId: createSourceUserId('typecho', sourceUser.uid)
+  }
+}
+
+export function createCommentOwner(
+  comment: TypechoComment,
+  userMap: Map<string, TypechoUser>
+): MigrateComment['spec']['owner'] {
+  const sourceUser = getTypechoCommentAuthorUser(comment, userMap)
+
+  return createEmailCommentOwner({
+    email: comment.mail || sourceUser?.mail,
+    displayName: comment.author || sourceUser?.screenName || sourceUser?.name,
+    website: comment.url || sourceUser?.url,
+    sourceId: sourceUser ? createSourceUserId('typecho', sourceUser.uid) : undefined
   })
 }

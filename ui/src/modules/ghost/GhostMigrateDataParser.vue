@@ -1,7 +1,8 @@
 <script lang="ts" setup>
-import FileSelector from '@/components/FileSelector.vue'
+import MigrateSourceUploadCard from '@/components/MigrateSourceUploadCard.vue'
 import type { MigrateData } from '@/types'
-import { VAlert, VButton } from '@halo-dev/components'
+import { VButton } from '@halo-dev/components'
+import { ref } from 'vue'
 import { useGhostDataParser } from './use-ghost-data-parser'
 
 defineProps<{
@@ -12,7 +13,10 @@ const emit = defineEmits<{
   (event: 'update:data', value: MigrateData): void
 }>()
 
+const parseError = ref<string>()
+
 const handleFileChange = (files: FileList) => {
+  parseError.value = undefined
   const file = files.item(0)
   if (!file) {
     return
@@ -24,38 +28,43 @@ const handleFileChange = (files: FileList) => {
     })
     .catch((error) => {
       console.error(error)
+      parseError.value = error instanceof Error ? error.message : String(error)
     })
 }
 
 function openDocument() {
-  window.open('https://halo-plugin-migrate.pages.dev/provider/ghost.html', '_blank')
+  window.open('https://www.halo.run/docs/plugin-migrate/migrate/ghost', '_blank')
 }
+
+const reset = () => {
+  parseError.value = undefined
+  emit('update:data', {} as MigrateData)
+}
+
+defineExpose({
+  reset
+})
 </script>
 
 <template>
-  <div class=":uno: sm:w-1/2 space-y-4">
-    <VAlert title="注意事项" type="info" :closable="false" class=":uno: sheet">
-      <template #description>
-        <ul class=":uno: ml-2 list-disc list-inside space-y-1">
-          <li>在开始迁移前，建议先阅读关于 Ghost 迁移的文档。</li>
-          <li>
-            目前仅支持根据 Ghost 导出的 JSON
-            文件自动迁移数据，图片相关的数据迁移请参阅文档手动迁移。
-          </li>
-          <li>
-            由于平台之间的差异性，目前仅支持迁移<b>文章</b>、<b>标签</b>、<b>页面</b>数据，其他和
-            Ghost 平台相关的数据（包括主题模板、网站设置，用户等）无法迁移。
-          </li>
-          <li>迁移完成后，不建议立即删除 Ghost 的数据文件，可以先检查数据是否完整。</li>
-        </ul>
-      </template>
-      <template #actions>
-        <VButton size="sm" type="secondary" @click="openDocument"> 查阅文档 </VButton>
-      </template>
-    </VAlert>
-    <FileSelector
-      :options="{ accept: '.json', multiple: false }"
-      @file-change="handleFileChange"
-    ></FileSelector>
-  </div>
+  <MigrateSourceUploadCard
+    :file-options="{ accept: '.json', multiple: false }"
+    :parse-error="parseError"
+    buttonText="选择 JSON 文件"
+    @file-change="handleFileChange"
+  >
+    <template #description>
+      <ol>
+        <li>1. 在 Ghost 后台的 Settings -> Labs 中导出网站数据，格式为 JSON</li>
+        <li>2. 下载 Ghost 站点的 content 目录（可选），用于后续附件迁移</li>
+        <li>3. 点击下方的选择 JSON 文件按钮，并选择刚刚导出的 JSON 文件</li>
+        <li>4. 如果检测到本地媒体链接，根据后续提示选择上传到 Halo 或手动迁移</li>
+        <li>5. 最后，点击开始导入按钮开始迁移</li>
+        <li>6. 迁移完成后，建议抽样检查文章、页面、标签封面和附件链接</li>
+      </ol>
+    </template>
+    <template #actions>
+      <VButton ghost size="sm" type="default" @click="openDocument"> 查阅详细迁移文档 </VButton>
+    </template>
+  </MigrateSourceUploadCard>
 </template>

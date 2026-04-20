@@ -248,7 +248,7 @@ watch(
                 v-if="filteredTasks[virtualRow.index].status === 'failed'"
                 size="sm"
                 :disabled="loading"
-                @click.stop="handleRetry(filteredTasks[virtualRow.index])"
+                @click="handleRetry(filteredTasks[virtualRow.index])"
               >
                 重试
               </VButton>

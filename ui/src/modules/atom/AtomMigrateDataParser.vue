@@ -57,7 +57,7 @@ const reset = () => {
 }
 
 function openDocument() {
-  window.open('https://www.halo.run/docs/plugin-migrate/migrate/atom', '_blank')
+  window.open('https://www.halo.run/docs/plugin-migrate/migrate/rss', '_blank')
 }
 
 defineExpose({

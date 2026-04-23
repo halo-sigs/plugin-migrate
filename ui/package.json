@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@halo-dev/ui-plugin-bundler-kit": "2.22.0",
-    "@iconify/json": "^2.2.408",
+    "@iconify-json/solar": "^1.2.5",
     "@rsbuild/core": "^1.6.6",
     "@rstest/core": "^0.7.9",
     "@rushstack/eslint-patch": "^1.15.0",

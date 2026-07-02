@@ -111,6 +111,45 @@ describe('useHaloDataParser', () => {
     })
   })
 
+  it('parses journal comments when sheet comments are missing', async () => {
+    const data = await useHaloDataParser(
+      createHaloExportFile({
+        post_comments: [],
+        sheet_comments: undefined,
+        journal_comments: [
+          {
+            id: 401,
+            postId: 501,
+            parentId: 0,
+            content: 'moment comment',
+            author: 'Moment User',
+            email: 'moment@example.com',
+            authorUrl: '',
+            gravatarMd5: '',
+            userAgent: 'UA',
+            ipAddress: '127.0.0.3',
+            allowNotification: true,
+            status: 'PUBLISHED',
+            createTime: 1710003000000
+          }
+        ]
+      })
+    ).parse()
+
+    expect(data.comments).toHaveLength(1)
+    expect(data.comments?.[0]).toMatchObject({
+      kind: 'Comment',
+      refType: 'Moment',
+      metadata: { name: '401' },
+      spec: {
+        subjectRef: {
+          kind: 'Moment',
+          name: '501'
+        }
+      }
+    })
+  })
+
   it('rejects unsupported halo versions', async () => {
     await expect(
       useHaloDataParser(createHaloExportFile({ version: '2.0.0' })).parse()

@@ -258,7 +258,7 @@ export function useHaloDataParser(file: File): useHaloDataParserReturn {
           }
         )
     // 日志（瞬间）评论
-    const journalComments = !sheet_comments
+    const journalComments = !journal_comments
       ? []
       : createCommentOrReply(
           arrayToTree(journal_comments, {

@@ -18,6 +18,11 @@ interface useWordPressDataParserReturn {
 }
 
 const ATTACHMENT_PATH_PREFIX = 'wp-content/uploads/'
+const EMPTY_COMMENT_CONTENT = '<!-- No Content -->'
+
+function normalizeWordPressCommentContent(content: unknown): string {
+  return String(content ?? '') || EMPTY_COMMENT_CONTENT
+}
 
 export function useWordPressDataParser(file: File): useWordPressDataParserReturn {
   const menuChildrenMap = new Map<string, string[]>()
@@ -284,13 +289,14 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     authorById: Map<number, Author>
   ): MigrateComment => {
     const fallbackAuthor = authorById.get(comment['wp:comment_user_id'])
+    const content = normalizeWordPressCommentContent(comment['wp:comment_content'])
     return {
       refType: refType,
       kind: 'Comment',
       apiVersion: 'content.halo.run/v1alpha1',
       spec: {
-        raw: comment['wp:comment_content'],
-        content: comment['wp:comment_content'],
+        raw: content,
+        content,
         owner: createEmailCommentOwner({
           email: comment['wp:comment_author_email'] || fallbackAuthor?.['wp:author_email'],
           displayName: comment['wp:comment_author'] || fallbackAuthor?.['wp:author_display_name'],
@@ -333,6 +339,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     authorById: Map<number, Author>
   ): MigrateReply => {
     const fallbackAuthor = authorById.get(reply['wp:comment_user_id'])
+    const content = normalizeWordPressCommentContent(reply['wp:comment_content'])
     return {
       refType: refType,
       kind: 'Reply',
@@ -341,8 +348,8 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         name: reply['wp:comment_id'] + ''
       },
       spec: {
-        raw: reply['wp:comment_content'],
-        content: reply['wp:comment_content'],
+        raw: content,
+        content,
         owner: createEmailCommentOwner({
           email: reply['wp:comment_author_email'] || fallbackAuthor?.['wp:author_email'],
           displayName: reply['wp:comment_author'] || fallbackAuthor?.['wp:author_display_name'],

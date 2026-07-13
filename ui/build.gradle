@@ -5,6 +5,10 @@ plugins {
 
 group 'run.halo.migrate.ui'
 
+node {
+    pnpmVersion = "10"
+}
+
 tasks.register('pnpmBuild', PnpmTask) {
     group = 'build'
     description = 'Build the UI project using pnpm'

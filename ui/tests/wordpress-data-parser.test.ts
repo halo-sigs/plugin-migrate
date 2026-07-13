@@ -303,6 +303,41 @@ describe('useWordPressDataParser', () => {
     })
   })
 
+  it('preserves empty comments with an invisible placeholder', async () => {
+    const xml = createWordPressWxr()
+      .replace(
+        '<wp:comment_content><![CDATA[First comment]]></wp:comment_content>',
+        '<wp:comment_content><![CDATA[]]></wp:comment_content>'
+      )
+      .replace(
+        '<wp:comment_content><![CDATA[Reply comment]]></wp:comment_content>',
+        '<wp:comment_content><![CDATA[😂]]></wp:comment_content>'
+      )
+
+    const data = await useWordPressDataParser(createWordPressWxrFile(xml)).parse()
+
+    expect(data.comments).toEqual([
+      expect.objectContaining({
+        kind: 'Comment',
+        metadata: { name: '501' },
+        spec: expect.objectContaining({
+          raw: '<!-- No Content -->',
+          content: '<!-- No Content -->'
+        })
+      }),
+      expect.objectContaining({
+        kind: 'Reply',
+        metadata: { name: '502' },
+        spec: expect.objectContaining({
+          raw: '😂',
+          content: '😂',
+          commentName: '501',
+          quoteReply: '501'
+        })
+      })
+    ])
+  })
+
   it('derives attachment path from attachment url when metadata is sparse', async () => {
     const sparseAttachmentXml = createWordPressWxr().replace(
       /<item>\s*<title><!\[CDATA\[Attachment\]\]><\/title>[\s\S]*?<\/item>/,

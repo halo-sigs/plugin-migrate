@@ -280,6 +280,29 @@ describe('useWordPressDataParser', () => {
     })
   })
 
+  it('parses numeric anonymous comment author names', async () => {
+    const xml = createWordPressWxr()
+      .replace(
+        '<wp:comment_author><![CDATA[Reply User]]></wp:comment_author>',
+        '<wp:comment_author><![CDATA[1900]]></wp:comment_author>'
+      )
+      .replace(
+        '<wp:comment_author_email><![CDATA[reply@example.com]]></wp:comment_author_email>',
+        '<wp:comment_author_email><![CDATA[]]></wp:comment_author_email>'
+      )
+
+    const data = await useWordPressDataParser(createWordPressWxrFile(xml)).parse()
+
+    expect(data.comments?.[1]).toMatchObject({
+      spec: {
+        owner: {
+          name: '1900@migrate.invalid',
+          displayName: '1900'
+        }
+      }
+    })
+  })
+
   it('derives attachment path from attachment url when metadata is sparse', async () => {
     const sparseAttachmentXml = createWordPressWxr().replace(
       /<item>\s*<title><!\[CDATA\[Attachment\]\]><\/title>[\s\S]*?<\/item>/,

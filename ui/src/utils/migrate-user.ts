@@ -21,12 +21,16 @@ export function createSyntheticEmail(sourceId: string) {
 
 export function createEmailCommentOwner(options: {
   email?: string | null
-  displayName?: string | null
+  displayName?: string | number | null
   website?: string | null
   avatar?: string | null
   sourceId?: string
 }): CommentOwner {
   const annotations: Record<string, string> = {}
+  const displayName =
+    options.displayName === undefined || options.displayName === null
+      ? undefined
+      : String(options.displayName)
 
   if (options.website) {
     annotations.website = options.website
@@ -40,8 +44,8 @@ export function createEmailCommentOwner(options: {
     kind: 'Email',
     name:
       normalizeEmail(options.email) ||
-      createSyntheticEmail(options.sourceId || options.displayName || 'comment-owner'),
-    displayName: options.displayName || undefined,
+      createSyntheticEmail(options.sourceId || displayName || 'comment-owner'),
+    displayName: displayName || undefined,
     annotations: Object.keys(annotations).length > 0 ? annotations : undefined
   }
 }

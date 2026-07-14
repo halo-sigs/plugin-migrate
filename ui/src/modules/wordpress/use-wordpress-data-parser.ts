@@ -335,7 +335,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   const createReply = (
     reply: Comment,
     refType: 'Post' | 'SinglePage',
-    replyTarget: { commentName: string; quoteReply: string },
+    replyTarget: { commentName: string; quoteReply?: string },
     authorById: Map<number, Author>
   ): MigrateReply => {
     const fallbackAuthor = authorById.get(reply['wp:comment_user_id'])
@@ -368,7 +368,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
         creationTime: new Date(reply['wp:comment_date']).toISOString(),
         hidden: false,
         commentName: replyTarget.commentName,
-        quoteReply: replyTarget.quoteReply
+        ...(replyTarget.quoteReply ? { quoteReply: replyTarget.quoteReply } : {})
       },
       status: {},
       ownerRef:
@@ -398,13 +398,13 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
   function resolveWordPressReplyTarget(
     comment: Comment,
     commentById: Map<string, Comment>
-  ): { commentName: string; quoteReply: string } | undefined {
+  ): { commentName: string; quoteReply?: string } | undefined {
     if (comment['wp:comment_parent'] === 0) {
       return undefined
     }
 
-    const quoteReply = String(comment['wp:comment_parent'])
-    const directParent = commentById.get(quoteReply)
+    const directParentName = String(comment['wp:comment_parent'])
+    const directParent = commentById.get(directParentName)
     if (!directParent) {
       return undefined
     }
@@ -415,7 +415,7 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
     while (rootComment['wp:comment_parent'] !== 0) {
       const currentId = String(rootComment['wp:comment_id'])
       if (visited.has(currentId)) {
-        break
+        return undefined
       }
 
       visited.add(currentId)
@@ -427,9 +427,10 @@ export function useWordPressDataParser(file: File): useWordPressDataParserReturn
       rootComment = nextParent
     }
 
+    const commentName = String(rootComment['wp:comment_id'])
     return {
-      commentName: String(rootComment['wp:comment_id']),
-      quoteReply
+      commentName,
+      ...(directParentName !== commentName ? { quoteReply: directParentName } : {})
     }
   }
 

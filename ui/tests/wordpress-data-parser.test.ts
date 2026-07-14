@@ -260,10 +260,10 @@ describe('useWordPressDataParser', () => {
     expect(data.comments?.[1]).toMatchObject({
       kind: 'Reply',
       spec: {
-        commentName: '501',
-        quoteReply: '501'
+        commentName: '501'
       }
     })
+    expect(data.comments?.[1]?.spec.quoteReply).toBeUndefined()
     expect(data.tags?.[0]).toMatchObject({
       metadata: { name: '5' },
       spec: { displayName: 'Tips', slug: 'tips' }
@@ -331,11 +331,11 @@ describe('useWordPressDataParser', () => {
         spec: expect.objectContaining({
           raw: '😂',
           content: '😂',
-          commentName: '501',
-          quoteReply: '501'
+          commentName: '501'
         })
       })
     ])
+    expect(data.comments?.[1]?.spec.quoteReply).toBeUndefined()
   })
 
   it('derives attachment path from attachment url when metadata is sparse', async () => {
@@ -417,10 +417,10 @@ describe('useWordPressDataParser', () => {
     expect(data.comments?.[1]).toMatchObject({
       kind: 'Reply',
       spec: {
-        commentName: '501',
-        quoteReply: '501'
+        commentName: '501'
       }
     })
+    expect(data.comments?.[1]?.spec.quoteReply).toBeUndefined()
     expect(data.comments?.[2]).toMatchObject({
       kind: 'Reply',
       spec: {
@@ -428,5 +428,58 @@ describe('useWordPressDataParser', () => {
         quoteReply: '502'
       }
     })
+  })
+
+  it('promotes an orphaned reply to a comment and keeps its children attached', async () => {
+    const wxrWithOrphanedReply = createWordPressWxr()
+      .replace(
+        '<wp:comment_parent>501</wp:comment_parent>',
+        '<wp:comment_parent>999</wp:comment_parent>'
+      )
+      .replace(
+        '</wp:comment>\n    </item>',
+        `</wp:comment>
+      <wp:comment>
+        <wp:comment_id>503</wp:comment_id>
+        <wp:comment_author><![CDATA[Nested Reply User]]></wp:comment_author>
+        <wp:comment_author_email><![CDATA[nested@example.com]]></wp:comment_author_email>
+        <wp:comment_author_url><![CDATA[]]></wp:comment_author_url>
+        <wp:comment_author_IP><![CDATA[127.0.0.3]]></wp:comment_author_IP>
+        <wp:comment_date><![CDATA[2026-04-18 10:30:00]]></wp:comment_date>
+        <wp:comment_content><![CDATA[Nested reply comment]]></wp:comment_content>
+        <wp:comment_approved>1</wp:comment_approved>
+        <wp:comment_parent>502</wp:comment_parent>
+        <wp:comment_user_id>0</wp:comment_user_id>
+      </wp:comment>
+    </item>`
+      )
+
+    const data = await useWordPressDataParser(createWordPressWxrFile(wxrWithOrphanedReply)).parse()
+
+    expect(data.comments?.map((item) => [item.metadata.name, item.kind])).toEqual([
+      ['501', 'Comment'],
+      ['502', 'Comment'],
+      ['503', 'Reply']
+    ])
+    expect(data.comments?.[2]).toMatchObject({
+      spec: {
+        commentName: '502'
+      }
+    })
+    expect(data.comments?.[2]?.spec.quoteReply).toBeUndefined()
+  })
+
+  it('promotes cyclic WordPress comments instead of creating invalid reply references', async () => {
+    const wxrWithCyclicComments = createWordPressWxr().replace(
+      '<wp:comment_parent>0</wp:comment_parent>',
+      '<wp:comment_parent>502</wp:comment_parent>'
+    )
+
+    const data = await useWordPressDataParser(createWordPressWxrFile(wxrWithCyclicComments)).parse()
+
+    expect(data.comments?.map((item) => [item.metadata.name, item.kind])).toEqual([
+      ['501', 'Comment'],
+      ['502', 'Comment']
+    ])
   })
 })

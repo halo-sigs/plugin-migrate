@@ -224,6 +224,7 @@ export interface MigrateTaskItem<T = any> {
   type: string
   label: string
   item: T
+  dependsOn?: string[]
   status: MigrateTaskState
   error?: string
   run: () => Promise<AxiosResponse<any, any>>

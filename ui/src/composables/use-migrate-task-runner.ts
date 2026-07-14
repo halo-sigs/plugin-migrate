@@ -39,6 +39,55 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
   const failedTasks = computed(() => allTasks.value.filter((task) => task.status === 'failed'))
   const hasFailedTasks = computed(() => failedTasks.value.length > 0)
 
+  function taskKey(task: MigrateTaskItem<any>) {
+    return `${task.type}:${task.id}`
+  }
+
+  async function runTasksInDependencyOrder(tasks: MigrateTaskItem<any>[]) {
+    const tasksToRun = tasks.filter((task) => task.status !== 'running')
+    const remaining = new Set(tasksToRun)
+    const taskByKey = new Map(allTasks.value.map((task) => [taskKey(task), task]))
+
+    tasksToRun.forEach((task) => {
+      task.status = 'pending'
+      task.error = undefined
+    })
+
+    while (remaining.size > 0) {
+      const readyTasks = Array.from(remaining).filter((task) =>
+        (task.dependsOn || []).every((dependencyKey) => {
+          const dependency = taskByKey.get(dependencyKey)
+          return !dependency || dependency.status === 'success'
+        })
+      )
+
+      if (readyTasks.length === 0) {
+        const hasRunningDependency = Array.from(remaining).some((task) =>
+          (task.dependsOn || []).some(
+            (dependencyKey) => taskByKey.get(dependencyKey)?.status === 'running'
+          )
+        )
+        if (hasRunningDependency) {
+          await taskQueue.drained()
+          continue
+        }
+
+        remaining.forEach((task) => {
+          const unresolvedDependencies = (task.dependsOn || []).filter((dependencyKey) => {
+            const dependency = taskByKey.get(dependencyKey)
+            return dependency && dependency.status !== 'success'
+          })
+          task.status = 'failed'
+          task.error = `依赖任务未成功：${unresolvedDependencies.join('、')}`
+        })
+        break
+      }
+
+      await Promise.all(readyTasks.map((task) => taskQueue.push(task)))
+      readyTasks.forEach((task) => remaining.delete(task))
+    }
+  }
+
   watch(
     taskGroups,
     (groups) => {
@@ -49,10 +98,7 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
               return
             }
 
-            task.status = 'pending'
-            task.error = undefined
-            importLoading.value = true
-            taskQueue.push(task)
+            void retryTask(task)
           }
         })
       })
@@ -94,19 +140,7 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
     isImportStarted.value = true
     beforeUnloadGuard.enable()
 
-    const tasksToRun = [...pendingTasks.value, ...failedTasks.value]
-    tasksToRun.forEach((task) => {
-      if (task.status !== 'running') {
-        task.status = 'pending'
-        task.error = undefined
-      }
-
-      taskQueue.push(task).catch(() => {
-        // error is handled in asyncWorker
-      })
-    })
-
-    await taskQueue.drained()
+    await runTasksInDependencyOrder([...pendingTasks.value, ...failedTasks.value])
 
     importLoading.value = false
     beforeUnloadGuard.disable()
@@ -128,11 +162,7 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
     }
 
     importLoading.value = true
-    failedTasks.value.forEach((task) => {
-      task.retry()
-    })
-
-    await taskQueue.drained()
+    await runTasksInDependencyOrder([...failedTasks.value])
 
     importLoading.value = false
 
@@ -148,9 +178,8 @@ export function useMigrateTaskRunner(taskGroups: Ref<MigrateTaskGroup[]>) {
   }
 
   async function retryTask(task: MigrateTaskItem) {
-    task.retry()
     importLoading.value = true
-    await taskQueue.drained()
+    await runTasksInDependencyOrder([task])
     importLoading.value = false
   }
 

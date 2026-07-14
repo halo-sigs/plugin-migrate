@@ -33,13 +33,15 @@ function createTaskItem<T>(
   type: string,
   label: string,
   item: T,
-  run: () => Promise<TaskResponse>
+  run: () => Promise<TaskResponse>,
+  dependsOn?: string[]
 ): MigrateTaskItem<T> {
   return {
     id,
     type,
     label,
     item,
+    ...(dependsOn?.length ? { dependsOn } : {}),
     status: 'pending',
     run,
     retry: () => {}
@@ -244,6 +246,10 @@ export function useMigrateTask(
         )
       )
     } else {
+      const dependsOn = [`comment:${comment.spec.commentName}`]
+      if (comment.spec.quoteReply) {
+        dependsOn.push(`reply:${comment.spec.quoteReply}`)
+      }
       commentTasks.push(
         createTaskItem(
           comment.metadata?.name || 'unknown',
@@ -253,7 +259,8 @@ export function useMigrateTask(
           () =>
             coreApiClient.content.reply.createReply({
               reply: comment as Reply
-            })
+            }),
+          dependsOn
         )
       )
     }
